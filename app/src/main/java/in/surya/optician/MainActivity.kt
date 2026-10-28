@@ -141,7 +141,28 @@ class MainActivity : ComponentActivity() {
   val db = OpticianDatabase.get(this)
   lifecycleScope.launch { if (db.dao().settings() == null) db.dao().saveSettings(ShopSettings()) }
   setContent {
-   MaterialTheme {
+   MaterialTheme(
+    colorScheme = lightColorScheme(
+     primary = androidx.compose.ui.graphics.Color(0xFF123A63),
+     onPrimary = androidx.compose.ui.graphics.Color.White,
+     primaryContainer = androidx.compose.ui.graphics.Color(0xFFDCEBFA),
+     onPrimaryContainer = androidx.compose.ui.graphics.Color(0xFF102D4A),
+     secondary = androidx.compose.ui.graphics.Color(0xFF2677A8),
+     secondaryContainer = androidx.compose.ui.graphics.Color(0xFFE2F2FC),
+     onSecondaryContainer = androidx.compose.ui.graphics.Color(0xFF163D55),
+     background = androidx.compose.ui.graphics.Color(0xFFF4F7FB),
+     surface = androidx.compose.ui.graphics.Color(0xFFFFFFFF),
+     surfaceVariant = androidx.compose.ui.graphics.Color(0xFFEDF2F7),
+     outline = androidx.compose.ui.graphics.Color(0xFFD5DEE8)
+    ),
+    shapes = Shapes(
+     extraSmall = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
+     small = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+     medium = androidx.compose.foundation.shape.RoundedCornerShape(18.dp),
+     large = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+     extraLarge = androidx.compose.foundation.shape.RoundedCornerShape(28.dp)
+    )
+   ) {
     val backupLauncher = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.CreateDocument("application/vnd.sqlite3")) { uri ->
      if (uri != null) lifecycleScope.launch {
       runCatching {
@@ -282,7 +303,7 @@ class MainActivity : ComponentActivity() {
       }
      }
     } else {
-    Scaffold(topBar = {
+    Scaffold(containerColor = MaterialTheme.colorScheme.background, topBar = {
      TopAppBar(
       title = { Column { Text("Surya Optician"); Text("Billing & shop management", style=MaterialTheme.typography.labelSmall) } },
       actions = { TextButton(onClick={ loggedInUser=null;authName="";authPassword="";section="Dashboard" }) { Text("Sign out") } }
