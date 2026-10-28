@@ -4,7 +4,7 @@ This audit reflects source code currently on the main branch. It is not a claim 
 
 | Area | Status | Notes |
 |---|---|---|
-| Kotlin + Compose + Room | Implemented baseline | Room database schema v3 with explicit v1→v2 and v2→v3 migrations |
+| Kotlin + Compose + Room | Implemented baseline | Room database schema v6 with explicit migrations v1→v2→v3→v4→v5→v6 |
 | Transactional billing | Implemented baseline | Invoice, items, initial payment and stock updates share one Room transaction; monetary arithmetic uses overflow checks |
 | Invoice numbering | Implemented baseline | Unique DB index plus timestamp/collision check |
 | Customer management | Implemented baseline | Create/list/edit/search; delete is blocked when invoice or prescription history exists |
@@ -21,8 +21,9 @@ This audit reflects source code currently on the main branch. It is not a claim 
 | Gross-profit estimate | Implemented baseline | Uses item cost snapshot captured on new invoices, excludes tax; migrated v1 invoice lines have cost zero, so their historical profit is not reliable |
 | Database migrations | Implemented baseline | v1→v2 adds cost snapshots; v2→v3 adds product category |
 | Database backup/restore | Implemented baseline | Settings exports a checkpointed SQLite database; restore validates integrity, version and required tables before replacing local DB. Must be tested on-device and use backups from this app |
-| Local PIN lock | Implemented baseline | Optional 4–8 digit PIN, salted PBKDF2 hash, lock on next app open; no online recovery and no staff roles |
+| Local PIN lock | Implemented baseline | Optional 4–8 digit PIN, salted PBKDF2 hash, lock on next app open; no online recovery |
+| Local role permissions | Implemented, unit-tested policy | Owner can manage everything; Manager can manage records/reports but cannot delete or manage users; Staff can bill/collect payments but cannot edit customer/inventory/prescriptions, edit existing bills, delete, or view reports/users. Local UI/action guards only, not server-side security |
 | Invoice printing | Implemented baseline | Uses Android PrintManager with the generated invoice PDF; physical printer/system print service needs device QA. Invoice and prescription PDF print actions are available; physical output needs device QA |
 | Automated build/device acceptance | Pending | Do not declare release-ready until Gradle tests/build and physical-device checklist pass |
 
-Do not describe WhatsApp opening as delivery/read confirmation. This remains an MVP until build verification, backup/restore, access control decisions and real-device acceptance are complete.
+Do not describe WhatsApp opening as delivery/read confirmation. This remains an MVP until build verification, backup/restore, role-policy unit tests, backup/restore safety and real-device acceptance are complete.
