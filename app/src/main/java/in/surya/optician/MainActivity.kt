@@ -221,6 +221,7 @@ class MainActivity : ComponentActivity() {
     var customerName by remember { mutableStateOf("") }
     var customerPhone by remember { mutableStateOf("") }
     var customerAddress by remember { mutableStateOf("") }
+    var customerAge by remember { mutableStateOf("") }
     var selectedProductId by remember { mutableStateOf<Long?>(null) }
     var productName by remember { mutableStateOf("") }
     var productSku by remember { mutableStateOf("") }
@@ -360,22 +361,35 @@ class MainActivity : ComponentActivity() {
         }
        }
        "Customers" -> {
-        OutlinedTextField(customerName, { customerName = it }, label = { Text("Customer name *") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(customerPhone, { customerPhone = it }, label = { Text("Phone (WhatsApp)") }, modifier = Modifier.fillMaxWidth())
+        Text("Customer details", style=MaterialTheme.typography.titleLarge)
+        Text("Keep contact details and age together for better customer service.", style=MaterialTheme.typography.bodyMedium)
+        Spacer(Modifier.height(10.dp))
+        OutlinedTextField(customerName, { customerName = it }, label = { Text("Customer name *") }, modifier = Modifier.fillMaxWidth(), singleLine=true)
+        OutlinedTextField(customerPhone, { customerPhone = it }, label = { Text("Phone (WhatsApp)") }, modifier = Modifier.fillMaxWidth(), singleLine=true)
+        OutlinedTextField(customerAge, { customerAge = it.filter(Char::isDigit).take(3) }, label = { Text("Age (years, optional)") }, modifier = Modifier.fillMaxWidth(), singleLine=true)
         OutlinedTextField(customerAddress, { customerAddress = it }, label = { Text("Address") }, modifier = Modifier.fillMaxWidth())
         Button(onClick = { lifecycleScope.launch {
+         val ageValue = customerAge.trim().takeIf { it.isNotEmpty() }?.toIntOrNull()
          if (customerName.isBlank()) toast("Customer name is required")
-         else if (selectedCustomerId == null) { db.dao().addCustomer(Customer(name=customerName.trim(), phone=customerPhone.trim(), address=customerAddress.trim())); customerName=""; customerPhone=""; customerAddress=""; toast("Customer saved") }
-         else { db.dao().updateCustomer(Customer(id=selectedCustomerId!!, name=customerName.trim(), phone=customerPhone.trim(), address=customerAddress.trim())); selectedCustomerId=null; customerName=""; customerPhone=""; customerAddress=""; toast("Customer updated") }
+         else if (customerAge.isNotBlank() && (ageValue == null || ageValue !in 0..120)) toast("Enter a valid age between 0 and 120")
+         else if (selectedCustomerId == null) {
+          db.dao().addCustomer(Customer(name=customerName.trim(), phone=customerPhone.trim(), address=customerAddress.trim(), age=ageValue))
+          customerName=""; customerPhone=""; customerAddress=""; customerAge=""; toast("Customer saved")
+         } else {
+          db.dao().updateCustomer(Customer(id=selectedCustomerId!!, name=customerName.trim(), phone=customerPhone.trim(), address=customerAddress.trim(), age=ageValue))
+          selectedCustomerId=null; customerName=""; customerPhone=""; customerAddress=""; customerAge=""; toast("Customer updated")
+         }
         } }, modifier = Modifier.fillMaxWidth()) { Text(if (selectedCustomerId == null) "Save customer" else "Update customer") }
-        if (selectedCustomerId != null) TextButton(onClick={ selectedCustomerId=null; customerName=""; customerPhone=""; customerAddress="" }) { Text("Cancel customer edit") }
-        OutlinedTextField(customerSearch, { customerSearch = it }, label={Text("Search customers by name or phone")}, modifier=Modifier.fillMaxWidth())
+        if (selectedCustomerId != null) TextButton(onClick={ selectedCustomerId=null; customerName=""; customerPhone=""; customerAddress=""; customerAge="" }) { Text("Cancel customer edit") }
+        Spacer(Modifier.height(12.dp))
+        OutlinedTextField(customerSearch, { customerSearch = it }, label={Text("Search customers by name or phone")}, modifier=Modifier.fillMaxWidth(), singleLine=true)
         Text("Tap Edit to load a customer. Delete is disabled when invoices or prescriptions reference the customer.", style=MaterialTheme.typography.bodySmall)
         Column { customers.filter { customerSearch.isBlank() || it.name.contains(customerSearch,true) || it.phone.contains(customerSearch,true) }.forEach { customer ->
-         Card(Modifier.fillMaxWidth().padding(vertical=3.dp)) { Column(Modifier.padding(8.dp)) {
-          Text("#${customer.id} · ${customer.name} · ${customer.phone}")
+         Card(Modifier.fillMaxWidth().padding(vertical=4.dp), colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface)) { Column(Modifier.padding(12.dp)) {
+          Text(customer.name, style=MaterialTheme.typography.titleMedium)
+          Text(listOfNotNull(customer.phone.takeIf { it.isNotBlank() }, customer.age?.let { "Age $it years" }, customer.address.takeIf { it.isNotBlank() }).joinToString("  ·  ").ifBlank { "No additional details" }, style=MaterialTheme.typography.bodyMedium)
           Row {
-           TextButton(onClick={ selectedCustomerId=customer.id; customerName=customer.name; customerPhone=customer.phone; customerAddress=customer.address }) { Text("Edit") }
+           TextButton(onClick={ selectedCustomerId=customer.id; customerName=customer.name; customerPhone=customer.phone; customerAddress=customer.address; customerAge=customer.age?.toString() ?: "" }) { Text("Edit") }
            TextButton(onClick={ lifecycleScope.launch {
             val hasInvoices=db.dao().customerInvoiceCount(customer.id)>0
             val hasPrescriptions=db.dao().customerPrescriptionCount(customer.id)>0
