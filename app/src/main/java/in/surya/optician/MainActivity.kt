@@ -286,14 +286,10 @@ class MainActivity : ComponentActivity() {
 
     fun toast(message: String) = Toast.makeText(this@MainActivity, message, Toast.LENGTH_LONG).show()
     val currentRole = loggedInUser?.role ?: "Staff"
-    fun isOwner() = currentRole == "Owner"
-    fun canManageRecords() = currentRole == "Owner" || currentRole == "Manager"
-    fun canDeleteRecords() = isOwner()
-    fun canAccess(tab: String): Boolean = when (tab) {
-     "Users" -> isOwner()
-     "Reports" -> currentRole != "Staff"
-     else -> true
-    }
+    fun isOwner() = RolePermissions.isOwner(currentRole)
+    fun canManageRecords() = RolePermissions.canManageRecords(currentRole)
+    fun canDeleteRecords() = RolePermissions.canDeleteRecords(currentRole)
+    fun canAccess(tab: String): Boolean = RolePermissions.canAccess(currentRole, tab)
     fun denyPermission(action: String) { toast("Permission denied: only the Owner can $action.") }
     if (loggedInUser == null) {
      val needsOwnerSetup = accountStore.loadUsers().isEmpty()
@@ -864,7 +860,7 @@ class MainActivity : ComponentActivity() {
       text={ Text("This permanently deletes this invoice, its item and payment records, and restores stock for inventory products. This cannot be undone. Export a backup first if you need to retain the accounting record.") },
       confirmButton={ TextButton(onClick={
        val selected=target; invoiceDeleteTarget=null
-       lifecycleScope.launch { runCatching { BillingRepository(db).deleteBill(selected.id) }
+       if (!canDeleteRecords()) { denyPermission("delete bills") } else lifecycleScope.launch { runCatching { BillingRepository(db).deleteBill(selected.id) }
         .onSuccess { toast("Bill deleted and stock restored"); if(editingInvoiceId==selected.id) { editingInvoiceId=null; billLines=emptyList(); billPrescriptionSummary="" } }
         .onFailure { toast(it.message ?: "Could not delete bill") }
        }
