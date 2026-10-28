@@ -828,68 +828,135 @@ class MainActivity : ComponentActivity() {
         }
        }
        "Prescription" -> {
-        Text("Eye prescription", style=MaterialTheme.typography.titleLarge)
-        Text("Choose a customer ID from the customer list. Enter values exactly as prescribed by the optometrist.", style=MaterialTheme.typography.bodySmall)
-        OutlinedTextField(prescriptionCustomerId, { prescriptionCustomerId=it }, label={ Text("Customer ID *") }, modifier=Modifier.fillMaxWidth())
-        customers.forEach { customer ->
-         TextButton(onClick={ prescriptionCustomerId=customer.id.toString() }) { Text("Select #${customer.id} · ${customer.name} · ${customer.phone}") }
-        }
-        Text("Power signs: + means plus power; − means minus power. Example: +1.25 or -2.00. Copy values exactly from the optometrist's prescription.", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.secondary)
-        Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(10.dp), verticalArrangement=Arrangement.spacedBy(8.dp)) {
-         Text("RIGHT EYE · OD", style=MaterialTheme.typography.labelLarge, color=MaterialTheme.colorScheme.primary)
-         Row(horizontalArrangement=Arrangement.spacedBy(6.dp), modifier=Modifier.fillMaxWidth()) {
-          OutlinedTextField(rightSphere, { rightSphere=it }, label={ Text("SPH") }, placeholder={ Text("-2.00") }, modifier=Modifier.weight(1f), singleLine=true)
-          OutlinedTextField(rightCylinder, { rightCylinder=it }, label={ Text("CYL") }, placeholder={ Text("-0.75") }, modifier=Modifier.weight(1f), singleLine=true)
+        Column(verticalArrangement=Arrangement.spacedBy(14.dp), modifier=Modifier.fillMaxWidth()) {
+         Card(Modifier.fillMaxWidth(), colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.primaryContainer)) {
+          Row(Modifier.fillMaxWidth().padding(18.dp), horizontalArrangement=Arrangement.spacedBy(12.dp), verticalAlignment=Alignment.CenterVertically) {
+           Surface(shape=androidx.compose.foundation.shape.RoundedCornerShape(16.dp), color=MaterialTheme.colorScheme.primary, modifier=Modifier.size(54.dp)) {
+            Box(contentAlignment=Alignment.Center) { Text("👓", style=MaterialTheme.typography.headlineSmall) }
+           }
+           Column(Modifier.weight(1f), verticalArrangement=Arrangement.spacedBy(4.dp)) {
+            Text(if(editingPrescriptionId==null) "Eye prescription" else "Edit prescription", style=MaterialTheme.typography.titleLarge, color=MaterialTheme.colorScheme.onPrimaryContainer)
+            Text("Enter the prescribed values carefully for each eye.", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onPrimaryContainer)
+           }
+          }
          }
-         Row(horizontalArrangement=Arrangement.spacedBy(6.dp), modifier=Modifier.fillMaxWidth()) {
-          OutlinedTextField(rightAxis, { rightAxis=it }, label={ Text("AXIS 0–180") }, placeholder={ Text("90") }, modifier=Modifier.weight(1f), singleLine=true)
-          OutlinedTextField(rightAdd, { rightAdd=it }, label={ Text("ADD") }, placeholder={ Text("+1.50") }, modifier=Modifier.weight(1f), singleLine=true)
+         Card(Modifier.fillMaxWidth()) {
+          Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement=Arrangement.spacedBy(10.dp)) {
+           Text("1. CUSTOMER", style=MaterialTheme.typography.labelLarge, color=MaterialTheme.colorScheme.primary)
+           OutlinedTextField(prescriptionCustomerId, { prescriptionCustomerId=it }, label={ Text("Customer ID") }, placeholder={ Text("Enter or select a customer below") }, modifier=Modifier.fillMaxWidth(), singleLine=true)
+           val selectedPrescriptionCustomer = customers.firstOrNull { it.id.toString()==prescriptionCustomerId }
+           if(selectedPrescriptionCustomer!=null) {
+            Surface(shape=androidx.compose.foundation.shape.RoundedCornerShape(12.dp), color=MaterialTheme.colorScheme.secondaryContainer, modifier=Modifier.fillMaxWidth()) {
+             Column(Modifier.padding(12.dp), verticalArrangement=Arrangement.spacedBy(2.dp)) {
+              Text(selectedPrescriptionCustomer.name, style=MaterialTheme.typography.titleMedium, color=MaterialTheme.colorScheme.onSecondaryContainer)
+              Text("ID #${selectedPrescriptionCustomer.id}  ·  ${selectedPrescriptionCustomer.phone}", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSecondaryContainer)
+             }
+            }
+           }
+           Text("Tap a customer to select:", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSurfaceVariant)
+           if(customers.isEmpty()) Text("No customers added yet. Add a customer first.", style=MaterialTheme.typography.bodyMedium)
+           customers.forEach { customer ->
+            Surface(
+             modifier=Modifier.fillMaxWidth().clickable { prescriptionCustomerId=customer.id.toString() },
+             shape=androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+             color=if(prescriptionCustomerId==customer.id.toString()) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface,
+             border=androidx.compose.foundation.BorderStroke(1.dp, if(prescriptionCustomerId==customer.id.toString()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha=0.5f))
+            ) {
+             Row(Modifier.fillMaxWidth().padding(horizontal=12.dp, vertical=10.dp), verticalAlignment=Alignment.CenterVertically, horizontalArrangement=Arrangement.spacedBy(10.dp)) {
+              Column(Modifier.weight(1f), verticalArrangement=Arrangement.spacedBy(2.dp)) {
+               Text(customer.name, style=MaterialTheme.typography.titleSmall)
+               Text("#${customer.id}  ·  ${customer.phone}", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSurfaceVariant)
+              }
+              if(prescriptionCustomerId==customer.id.toString()) Text("✓ Selected", style=MaterialTheme.typography.labelMedium, color=MaterialTheme.colorScheme.primary)
+             }
+            }
+           }
+          }
          }
-        } }
-        Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(10.dp), verticalArrangement=Arrangement.spacedBy(8.dp)) {
-         Text("LEFT EYE · OS", style=MaterialTheme.typography.labelLarge, color=MaterialTheme.colorScheme.tertiary)
-         Row(horizontalArrangement=Arrangement.spacedBy(6.dp), modifier=Modifier.fillMaxWidth()) {
-          OutlinedTextField(leftSphere, { leftSphere=it }, label={ Text("SPH") }, placeholder={ Text("-1.50") }, modifier=Modifier.weight(1f), singleLine=true)
-          OutlinedTextField(leftCylinder, { leftCylinder=it }, label={ Text("CYL") }, placeholder={ Text("-0.50") }, modifier=Modifier.weight(1f), singleLine=true)
+         Card(Modifier.fillMaxWidth(), colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface)) {
+          Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement=Arrangement.spacedBy(10.dp)) {
+           Row(verticalAlignment=Alignment.CenterVertically, horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+            Surface(shape=androidx.compose.foundation.shape.RoundedCornerShape(8.dp), color=MaterialTheme.colorScheme.primary, modifier=Modifier.size(36.dp)) { Box(contentAlignment=Alignment.Center) { Text("R", color=MaterialTheme.colorScheme.onPrimary, style=MaterialTheme.typography.titleMedium) } }
+            Column(Modifier.weight(1f)) {
+             Text("RIGHT EYE", style=MaterialTheme.typography.titleMedium, color=MaterialTheme.colorScheme.primary)
+             Text("OD · Oculus Dexter", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+           }
+           Row(horizontalArrangement=Arrangement.spacedBy(8.dp), modifier=Modifier.fillMaxWidth()) {
+            OutlinedTextField(rightSphere, { rightSphere=it }, label={ Text("SPH") }, placeholder={ Text("-2.00") }, supportingText={ Text("Sphere") }, modifier=Modifier.weight(1f), singleLine=true)
+            OutlinedTextField(rightCylinder, { rightCylinder=it }, label={ Text("CYL") }, placeholder={ Text("-0.75") }, supportingText={ Text("Cylinder") }, modifier=Modifier.weight(1f), singleLine=true)
+           }
+           Row(horizontalArrangement=Arrangement.spacedBy(8.dp), modifier=Modifier.fillMaxWidth()) {
+            OutlinedTextField(rightAxis, { rightAxis=it }, label={ Text("AXIS") }, placeholder={ Text("90") }, supportingText={ Text("0–180°") }, modifier=Modifier.weight(1f), singleLine=true)
+            OutlinedTextField(rightAdd, { rightAdd=it }, label={ Text("ADD") }, placeholder={ Text("+1.50") }, supportingText={ Text("Addition") }, modifier=Modifier.weight(1f), singleLine=true)
+           }
+          }
          }
-         Row(horizontalArrangement=Arrangement.spacedBy(6.dp), modifier=Modifier.fillMaxWidth()) {
-          OutlinedTextField(leftAxis, { leftAxis=it }, label={ Text("AXIS 0–180") }, placeholder={ Text("180") }, modifier=Modifier.weight(1f), singleLine=true)
-          OutlinedTextField(leftAdd, { leftAdd=it }, label={ Text("ADD") }, placeholder={ Text("+1.50") }, modifier=Modifier.weight(1f), singleLine=true)
+         Card(Modifier.fillMaxWidth(), colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface)) {
+          Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement=Arrangement.spacedBy(10.dp)) {
+           Row(verticalAlignment=Alignment.CenterVertically, horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+            Surface(shape=androidx.compose.foundation.shape.RoundedCornerShape(8.dp), color=MaterialTheme.colorScheme.secondary, modifier=Modifier.size(36.dp)) { Box(contentAlignment=Alignment.Center) { Text("L", color=MaterialTheme.colorScheme.onPrimary, style=MaterialTheme.typography.titleMedium) } }
+            Column(Modifier.weight(1f)) {
+             Text("LEFT EYE", style=MaterialTheme.typography.titleMedium, color=MaterialTheme.colorScheme.secondary)
+             Text("OS · Oculus Sinister", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+           }
+           Row(horizontalArrangement=Arrangement.spacedBy(8.dp), modifier=Modifier.fillMaxWidth()) {
+            OutlinedTextField(leftSphere, { leftSphere=it }, label={ Text("SPH") }, placeholder={ Text("-1.50") }, supportingText={ Text("Sphere") }, modifier=Modifier.weight(1f), singleLine=true)
+            OutlinedTextField(leftCylinder, { leftCylinder=it }, label={ Text("CYL") }, placeholder={ Text("-0.50") }, supportingText={ Text("Cylinder") }, modifier=Modifier.weight(1f), singleLine=true)
+           }
+           Row(horizontalArrangement=Arrangement.spacedBy(8.dp), modifier=Modifier.fillMaxWidth()) {
+            OutlinedTextField(leftAxis, { leftAxis=it }, label={ Text("AXIS") }, placeholder={ Text("180") }, supportingText={ Text("0–180°") }, modifier=Modifier.weight(1f), singleLine=true)
+            OutlinedTextField(leftAdd, { leftAdd=it }, label={ Text("ADD") }, placeholder={ Text("+1.50") }, supportingText={ Text("Addition") }, modifier=Modifier.weight(1f), singleLine=true)
+           }
+          }
          }
-        } }
-        OutlinedTextField(pd, { pd=it }, label={ Text("Pupillary distance (PD, mm)") }, modifier=Modifier.fillMaxWidth())
-        OutlinedTextField(prescriptionNotes, { prescriptionNotes=it }, label={ Text("Notes / lens recommendation") }, modifier=Modifier.fillMaxWidth(), minLines=2)
-        Button(onClick={ if(!canManageRecords()) { denyPermission("manage prescriptions") } else lifecycleScope.launch {
-         val cid=prescriptionCustomerId.toLongOrNull()
-         val rightAxisValue=rightAxis.toIntOrNull()
-         val leftAxisValue=leftAxis.toIntOrNull()
-         if(cid==null || customers.none{it.id==cid}) toast("Select an existing customer")
-         else if((rightAxis.isNotBlank() && (rightAxisValue==null || rightAxisValue !in 0..180)) || (leftAxis.isNotBlank() && (leftAxisValue==null || leftAxisValue !in 0..180))) toast("Axis must be a number from 0 to 180")
-         else {
-          val rx = Prescription(id=editingPrescriptionId ?: 0L, customerId=cid,rightSphere=rightSphere.trim(),rightCylinder=rightCylinder.trim(),rightAxis=rightAxis.trim(),rightAdd=rightAdd.trim(),leftSphere=leftSphere.trim(),leftCylinder=leftCylinder.trim(),leftAxis=leftAxis.trim(),leftAdd=leftAdd.trim(),pd=pd.trim(),notes=prescriptionNotes.trim())
-          if(editingPrescriptionId == null) db.dao().addPrescription(rx) else db.dao().updatePrescription(rx)
-          editingPrescriptionId=null
-          rightSphere="";rightCylinder="";rightAxis="";rightAdd="";leftSphere="";leftCylinder="";leftAxis="";leftAdd="";pd="";prescriptionNotes=""
-          toast("Prescription saved")
+         Card(Modifier.fillMaxWidth()) {
+          Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement=Arrangement.spacedBy(10.dp)) {
+           Text("2. ADDITIONAL DETAILS", style=MaterialTheme.typography.labelLarge, color=MaterialTheme.colorScheme.primary)
+           OutlinedTextField(pd, { pd=it }, label={ Text("Pupillary distance (PD)") }, placeholder={ Text("e.g. 62") }, supportingText={ Text("Distance in millimetres (mm)") }, modifier=Modifier.fillMaxWidth(), singleLine=true)
+           OutlinedTextField(prescriptionNotes, { prescriptionNotes=it }, label={ Text("Notes / lens recommendation") }, placeholder={ Text("Optional notes") }, modifier=Modifier.fillMaxWidth(), minLines=3)
+           Text("Important: + and − signs matter. Copy the values exactly from the prescribing optometrist. Axis must be between 0 and 180 degrees.", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSurfaceVariant)
+          }
          }
-        } }, modifier=Modifier.fillMaxWidth()) { Text(if(editingPrescriptionId == null) "Save prescription" else "Update prescription") }
-        if(editingPrescriptionId != null) TextButton(onClick={ editingPrescriptionId=null; rightSphere="";rightCylinder="";rightAxis="";rightAdd="";leftSphere="";leftCylinder="";leftAxis="";leftAdd="";pd="";prescriptionNotes="" }) { Text("Cancel prescription edit") }
-        Text("Prescription history", style=MaterialTheme.typography.titleMedium)
-        if(savedPrescriptions.isEmpty()) Text("No saved prescriptions for this customer yet.", style=MaterialTheme.typography.bodySmall)
-        savedPrescriptions.forEach { rx ->
-         Card(Modifier.fillMaxWidth().padding(vertical=4.dp)) {
-          Column(Modifier.padding(12.dp)) {
-           Text(java.text.SimpleDateFormat("dd MMM yyyy, hh:mm a", java.util.Locale.getDefault()).format(java.util.Date(rx.createdAt)), style=MaterialTheme.typography.titleSmall)
-           Text("OD: SPH ${rx.rightSphere.ifBlank{"—"}}  CYL ${rx.rightCylinder.ifBlank{"—"}}  AXIS ${rx.rightAxis.ifBlank{"—"}}  ADD ${rx.rightAdd.ifBlank{"—"}}")
-           Text("OS: SPH ${rx.leftSphere.ifBlank{"—"}}  CYL ${rx.leftCylinder.ifBlank{"—"}}  AXIS ${rx.leftAxis.ifBlank{"—"}}  ADD ${rx.leftAdd.ifBlank{"—"}}")
-           Text("PD: ${rx.pd.ifBlank{"—"}} mm")
-           if(rx.notes.isNotBlank()) Text("Notes: ${rx.notes}")
-           Row {
-            if(canManageRecords()) TextButton(onClick={ editingPrescriptionId=rx.id; prescriptionCustomerId=rx.customerId.toString(); rightSphere=rx.rightSphere;rightCylinder=rx.rightCylinder;rightAxis=rx.rightAxis;rightAdd=rx.rightAdd;leftSphere=rx.leftSphere;leftCylinder=rx.leftCylinder;leftAxis=rx.leftAxis;leftAdd=rx.leftAdd;pd=rx.pd;prescriptionNotes=rx.notes }) { Text("Edit") }
-            val prescriptionCustomerName = customers.firstOrNull { it.id==rx.customerId }?.name ?: "Customer #${rx.customerId}"
-            TextButton(onClick={ sharePrescriptionPdf(rx, prescriptionCustomerName) }) { Text("PDF / Share") }
-            TextButton(onClick={ printPrescriptionPdf(rx, prescriptionCustomerName) }) { Text("Print") }
-            if(canDeleteRecords()) TextButton(onClick={ if(!canDeleteRecords()) denyPermission("delete prescriptions") else lifecycleScope.launch { runCatching { db.dao().deletePrescription(rx) }.onSuccess { if(editingPrescriptionId==rx.id) editingPrescriptionId=null; toast("Prescription deleted") }.onFailure { toast("Could not delete prescription") } } }) { Text("Delete") }
+         Button(onClick={ if(!canManageRecords()) { denyPermission("manage prescriptions") } else lifecycleScope.launch {
+          val cid=prescriptionCustomerId.toLongOrNull()
+          val rightAxisValue=rightAxis.toIntOrNull()
+          val leftAxisValue=leftAxis.toIntOrNull()
+          if(cid==null || customers.none{it.id==cid}) toast("Select an existing customer")
+          else if((rightAxis.isNotBlank() && (rightAxisValue==null || rightAxisValue !in 0..180)) || (leftAxis.isNotBlank() && (leftAxisValue==null || leftAxisValue !in 0..180))) toast("Axis must be a number from 0 to 180")
+          else {
+           val rx = Prescription(id=editingPrescriptionId ?: 0L, customerId=cid,rightSphere=rightSphere.trim(),rightCylinder=rightCylinder.trim(),rightAxis=rightAxis.trim(),rightAdd=rightAdd.trim(),leftSphere=leftSphere.trim(),leftCylinder=leftCylinder.trim(),leftAxis=leftAxis.trim(),leftAdd=leftAdd.trim(),pd=pd.trim(),notes=prescriptionNotes.trim())
+           if(editingPrescriptionId == null) db.dao().addPrescription(rx) else db.dao().updatePrescription(rx)
+           editingPrescriptionId=null
+           rightSphere="";rightCylinder="";rightAxis="";rightAdd="";leftSphere="";leftCylinder="";leftAxis="";leftAdd="";pd="";prescriptionNotes=""
+           toast("Prescription saved")
+          }
+         } }, modifier=Modifier.fillMaxWidth().height(52.dp), shape=androidx.compose.foundation.shape.RoundedCornerShape(14.dp)) { Text(if(editingPrescriptionId == null) "Save prescription" else "Update prescription", style=MaterialTheme.typography.titleMedium) }
+         if(editingPrescriptionId != null) OutlinedButton(onClick={ editingPrescriptionId=null; rightSphere="";rightCylinder="";rightAxis="";rightAdd="";leftSphere="";leftCylinder="";leftAxis="";leftAdd="";pd="";prescriptionNotes="" }, modifier=Modifier.fillMaxWidth().height(48.dp)) { Text("Cancel editing") }
+         Row(Modifier.fillMaxWidth(), verticalAlignment=Alignment.CenterVertically, horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+          Text("Prescription history", style=MaterialTheme.typography.titleLarge, modifier=Modifier.weight(1f))
+          Surface(shape=androidx.compose.foundation.shape.RoundedCornerShape(50), color=MaterialTheme.colorScheme.secondaryContainer) { Text("${savedPrescriptions.size} saved", modifier=Modifier.padding(horizontal=10.dp, vertical=5.dp), style=MaterialTheme.typography.labelMedium, color=MaterialTheme.colorScheme.onSecondaryContainer) }
+         }
+         if(savedPrescriptions.isEmpty()) Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(16.dp), verticalArrangement=Arrangement.spacedBy(4.dp)) { Text("No prescriptions yet", style=MaterialTheme.typography.titleSmall); Text("Select a customer above and save their first prescription.", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSurfaceVariant) } }
+         savedPrescriptions.forEach { rx ->
+          Card(Modifier.fillMaxWidth().padding(vertical=4.dp)) {
+           Column(Modifier.padding(14.dp), verticalArrangement=Arrangement.spacedBy(8.dp)) {
+            Text(java.text.SimpleDateFormat("dd MMM yyyy, hh:mm a", java.util.Locale.getDefault()).format(java.util.Date(rx.createdAt)), style=MaterialTheme.typography.titleSmall)
+            Divider(color=MaterialTheme.colorScheme.outline.copy(alpha=0.5f))
+            Text("RIGHT EYE (OD)", style=MaterialTheme.typography.labelMedium, color=MaterialTheme.colorScheme.primary)
+            Text("SPH ${rx.rightSphere.ifBlank{"—"}}    CYL ${rx.rightCylinder.ifBlank{"—"}}    AXIS ${rx.rightAxis.ifBlank{"—"}}    ADD ${rx.rightAdd.ifBlank{"—"}}", style=MaterialTheme.typography.bodyMedium)
+            Text("LEFT EYE (OS)", style=MaterialTheme.typography.labelMedium, color=MaterialTheme.colorScheme.secondary)
+            Text("SPH ${rx.leftSphere.ifBlank{"—"}}    CYL ${rx.leftCylinder.ifBlank{"—"}}    AXIS ${rx.leftAxis.ifBlank{"—"}}    ADD ${rx.leftAdd.ifBlank{"—"}}", style=MaterialTheme.typography.bodyMedium)
+            Text("PD: ${rx.pd.ifBlank{"—"}} mm", style=MaterialTheme.typography.bodyMedium)
+            if(rx.notes.isNotBlank()) Text("Notes: ${rx.notes}", style=MaterialTheme.typography.bodySmall)
+            Row(horizontalArrangement=Arrangement.spacedBy(2.dp), verticalAlignment=Alignment.CenterVertically) {
+             if(canManageRecords()) TextButton(onClick={ editingPrescriptionId=rx.id; prescriptionCustomerId=rx.customerId.toString(); rightSphere=rx.rightSphere;rightCylinder=rx.rightCylinder;rightAxis=rx.rightAxis;rightAdd=rx.rightAdd;leftSphere=rx.leftSphere;leftCylinder=rx.leftCylinder;leftAxis=rx.leftAxis;leftAdd=rx.leftAdd;pd=rx.pd;prescriptionNotes=rx.notes }) { Text("Edit") }
+             val prescriptionCustomerName = customers.firstOrNull { it.id==rx.customerId }?.name ?: "Customer #${rx.customerId}"
+             TextButton(onClick={ sharePrescriptionPdf(rx, prescriptionCustomerName) }) { Text("PDF / Share") }
+             TextButton(onClick={ printPrescriptionPdf(rx, prescriptionCustomerName) }) { Text("Print") }
+             if(canDeleteRecords()) TextButton(onClick={ if(!canDeleteRecords()) denyPermission("delete prescriptions") else lifecycleScope.launch { runCatching { db.dao().deletePrescription(rx) }.onSuccess { toast("Prescription deleted") }.onFailure { toast(it.message ?: "Could not delete prescription") } } }) { Text("Delete") }
+            }
            }
           }
          }
