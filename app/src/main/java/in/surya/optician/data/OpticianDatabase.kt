@@ -25,6 +25,10 @@ interface OpticianDao {
  @Delete suspend fun deletePrescription(p: Prescription)
  @Query("SELECT * FROM prescriptions WHERE customerId=:customerId ORDER BY createdAt DESC") fun prescriptions(customerId: Long): Flow<List<Prescription>>
  @Insert suspend fun addInvoice(i: Invoice): Long
+ @Update suspend fun updateInvoice(i: Invoice)
+ @Query("DELETE FROM invoice_items WHERE invoiceId=:id") suspend fun deleteItemsForInvoice(id: Long)
+ @Query("DELETE FROM payments WHERE invoiceId=:id") suspend fun deletePaymentsForInvoice(id: Long)
+ @Query("DELETE FROM invoices WHERE id=:id") suspend fun deleteInvoice(id: Long)
  @Insert suspend fun addItems(items: List<InvoiceItem>)
  @Query("SELECT * FROM invoices ORDER BY createdAt DESC") fun invoices(): Flow<List<Invoice>>
  @Query("SELECT * FROM invoices WHERE number LIKE '%'||:q||'%' OR customerName LIKE '%'||:q||'%' OR phone LIKE '%'||:q||'%' ORDER BY createdAt DESC") fun searchInvoices(q: String): Flow<List<Invoice>>
