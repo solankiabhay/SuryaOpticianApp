@@ -354,7 +354,15 @@ class MainActivity : ComponentActivity() {
          }
         }
        },
-       actions = { TextButton(onClick={ loggedInUser=null;authName="";authPassword="";section="Dashboard" }) { Text("Sign out") } }
+       actions = {
+        if (section == "New Bill") {
+         IconButton(onClick={
+          if (billLines.isNotEmpty()) showBillPreview=true
+          else toast("Preview dekhne se pehle bill mein item add karein.")
+         }) { Text("👁", style=MaterialTheme.typography.titleLarge) }
+        }
+        TextButton(onClick={ loggedInUser=null;authName="";authPassword="";section="Dashboard" }) { Text("Sign out") }
+       }
       )
      },
      bottomBar = {
@@ -1015,7 +1023,12 @@ class MainActivity : ComponentActivity() {
         if (billDeliveryDate.isNotBlank()) Text("Expected delivery: $billDeliveryDate")
         Spacer(Modifier.height(8.dp))
         billLines.forEachIndexed { index, line ->
-         Text("${index+1}. ${line.description} × ${line.qty} — ₹${"%.2f".format(line.total/100.0)}")
+         Column(Modifier.fillMaxWidth().padding(vertical=4.dp)) {
+          Text("${index+1}. ${line.description}", style=MaterialTheme.typography.bodyMedium)
+          Text("Qty: ${line.qty}  ·  Rate: ₹${"%.2f".format(line.ratePaise/100.0)}", style=MaterialTheme.typography.bodySmall)
+          Text("Discount: ₹${"%.2f".format(line.discountPaise/100.0)}  ·  Tax: ₹${"%.2f".format(line.taxPaise/100.0)}", style=MaterialTheme.typography.bodySmall)
+          Text("Amount: ₹${"%.2f".format(line.total/100.0)}", style=MaterialTheme.typography.bodyMedium)
+         }
         }
         Divider(Modifier.padding(vertical=8.dp))
         Text("Subtotal: ₹${"%.2f".format(billLines.sumOf { it.subtotalPaise }/100.0)}")
