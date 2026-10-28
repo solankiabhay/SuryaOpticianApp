@@ -7,8 +7,8 @@ The app includes a local Room-backed Android UI, multi-item bill cart, expanded 
 | Kotlin + Compose + Room | Implemented baseline | Android project, Room v1 entities and DAO; schema export configured |
 | Transactional billing | Implemented baseline | Invoice, items, initial payment and stock updates use one Room transaction |
 | Invoice numbering | Implemented baseline | Unique DB index plus timestamp/collision check |
-| Customer management | Basic create/list | Create form and list; edit/delete/search by customer still needed |
-| Product/stock management | Basic create/list | Product entry, stock count and low-stock indicator; edit/stock-adjustment flow still needed |
+| Customer management | Create/list/edit | Tap a listed customer to load and update name, phone and address; delete and dedicated search remain unimplemented |
+| Product/stock management | Create/list/edit | Tap a product to edit name, SKU, selling price, stock quantity and low-stock threshold; delete remains unimplemented |
 | Billing | Basic multi-line cart | Add items to cart, optionally link an existing customer by ID, set quantity/line discount/tax and initial payment; richer product picker and customer search still needed |
 | Payment collection | Basic | Records additional payments transactionally; lookup uses invoice database ID |
 | Prescription management | Improved baseline | Customer selection shortcuts, OD/OS SPH/CYL/axis/ADD, PD, notes and per-customer history; edit/delete and PDF/print still needed |

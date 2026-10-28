@@ -35,9 +35,11 @@ class MainActivity : ComponentActivity() {
     var query by remember { mutableStateOf("") }
     var reportFrom by remember { mutableStateOf("") }
     var reportTo by remember { mutableStateOf("") }
+    var selectedCustomerId by remember { mutableStateOf<Long?>(null) }
     var customerName by remember { mutableStateOf("") }
     var customerPhone by remember { mutableStateOf("") }
     var customerAddress by remember { mutableStateOf("") }
+    var selectedProductId by remember { mutableStateOf<Long?>(null) }
     var productName by remember { mutableStateOf("") }
     var productSku by remember { mutableStateOf("") }
     var productPrice by remember { mutableStateOf("") }
@@ -98,9 +100,12 @@ class MainActivity : ComponentActivity() {
         OutlinedTextField(customerAddress, { customerAddress = it }, label = { Text("Address") }, modifier = Modifier.fillMaxWidth())
         Button(onClick = { lifecycleScope.launch {
          if (customerName.isBlank()) toast("Customer name is required")
-         else { db.dao().addCustomer(Customer(name=customerName.trim(), phone=customerPhone.trim(), address=customerAddress.trim())); customerName=""; customerPhone=""; customerAddress=""; toast("Customer saved") }
-        } }, modifier = Modifier.fillMaxWidth()) { Text("Save customer") }
-        Column { customers.forEach { Text("#${it.id} · ${it.name} · ${it.phone}", Modifier.padding(8.dp)) } }
+         else if (selectedCustomerId == null) { db.dao().addCustomer(Customer(name=customerName.trim(), phone=customerPhone.trim(), address=customerAddress.trim())); customerName=""; customerPhone=""; customerAddress=""; toast("Customer saved") }
+         else { db.dao().updateCustomer(Customer(id=selectedCustomerId!!, name=customerName.trim(), phone=customerPhone.trim(), address=customerAddress.trim())); selectedCustomerId=null; customerName=""; customerPhone=""; customerAddress=""; toast("Customer updated") }
+        } }, modifier = Modifier.fillMaxWidth()) { Text(if (selectedCustomerId == null) "Save customer" else "Update customer") }
+        if (selectedCustomerId != null) TextButton(onClick={ selectedCustomerId=null; customerName=""; customerPhone=""; customerAddress="" }) { Text("Cancel customer edit") }
+        Text("Tap a customer to edit their details.", style=MaterialTheme.typography.bodySmall)
+        Column { customers.forEach { customer -> TextButton(onClick={ selectedCustomerId=customer.id; customerName=customer.name; customerPhone=customer.phone; customerAddress=customer.address }) { Text("#${customer.id} · ${customer.name} · ${customer.phone}") } } }
        }
        "Products" -> {
         OutlinedTextField(productName, { productName = it }, label = { Text("Product / frame / lens name *") }, modifier = Modifier.fillMaxWidth())
@@ -113,9 +118,12 @@ class MainActivity : ComponentActivity() {
          val stock = productStock.toIntOrNull()
          val low = productLowStock.toIntOrNull()
          if (productName.isBlank() || price == null || price < 0 || stock == null || stock < 0 || low == null || low < 0) toast("Enter valid product, price and stock")
-         else { db.dao().addProduct(Product(name=productName.trim(), sku=productSku.trim(), pricePaise=(price*100).toLong(), stock=stock, lowStock=low)); productName=""; productSku=""; productPrice=""; productStock="1"; toast("Product saved") }
-        } }, modifier = Modifier.fillMaxWidth()) { Text("Save product") }
-        Column { products.forEach { Text("#${it.id} · ${it.name} · ₹${"%.2f".format(it.pricePaise/100.0)} · stock ${it.stock}", Modifier.padding(8.dp)) } }
+         else if (selectedProductId == null) { db.dao().addProduct(Product(name=productName.trim(), sku=productSku.trim(), pricePaise=(price*100).toLong(), stock=stock, lowStock=low)); productName=""; productSku=""; productPrice=""; productStock="1"; productLowStock="3"; toast("Product saved") }
+         else { db.dao().updateProduct(Product(id=selectedProductId!!, name=productName.trim(), sku=productSku.trim(), pricePaise=(price*100).toLong(), stock=stock, lowStock=low)); selectedProductId=null; productName=""; productSku=""; productPrice=""; productStock="1"; productLowStock="3"; toast("Product and stock updated") }
+        } }, modifier = Modifier.fillMaxWidth()) { Text(if (selectedProductId == null) "Save product" else "Update product / stock") }
+        if (selectedProductId != null) TextButton(onClick={ selectedProductId=null; productName=""; productSku=""; productPrice=""; productStock="1"; productLowStock="3" }) { Text("Cancel product edit") }
+        Text("Tap a product to edit price, SKU, low-stock threshold or adjust stock.", style=MaterialTheme.typography.bodySmall)
+        Column { products.forEach { product -> TextButton(onClick={ selectedProductId=product.id; productName=product.name; productSku=product.sku; productPrice="%.2f".format(product.pricePaise/100.0); productStock=product.stock.toString(); productLowStock=product.lowStock.toString() }) { Text("#${product.id} · ${product.name} · ₹${"%.2f".format(product.pricePaise/100.0)} · stock ${product.stock}") } } }
        }
        "New Bill" -> {
         Text("Create invoice", style=MaterialTheme.typography.titleLarge)
