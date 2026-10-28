@@ -7,8 +7,8 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -75,6 +75,7 @@ class MainActivity : ComponentActivity() {
       }
       Text("Outstanding: ₹${"%.2f".format(due / 100.0)}  ·  Low stock: ${lowStock.size}", style = MaterialTheme.typography.titleSmall)
       Spacer(Modifier.height(8.dp))
+      Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())) {
       when (section) {
        "Customers" -> {
         OutlinedTextField(customerName, { customerName = it }, label = { Text("Customer name *") }, modifier = Modifier.fillMaxWidth())
@@ -84,7 +85,7 @@ class MainActivity : ComponentActivity() {
          if (customerName.isBlank()) toast("Customer name is required")
          else { db.dao().addCustomer(Customer(name=customerName.trim(), phone=customerPhone.trim(), address=customerAddress.trim())); customerName=""; customerPhone=""; customerAddress=""; toast("Customer saved") }
         } }, modifier = Modifier.fillMaxWidth()) { Text("Save customer") }
-        LazyColumn { items(customers, key={it.id}) { Text("#${it.id} · ${it.name} · ${it.phone}", Modifier.padding(8.dp)) } }
+        Column { customers.forEach { Text("#${it.id} · ${it.name} · ${it.phone}", Modifier.padding(8.dp)) } }
        }
        "Products" -> {
         OutlinedTextField(productName, { productName = it }, label = { Text("Product / frame / lens name *") }, modifier = Modifier.fillMaxWidth())
@@ -99,7 +100,7 @@ class MainActivity : ComponentActivity() {
          if (productName.isBlank() || price == null || price < 0 || stock == null || stock < 0 || low == null || low < 0) toast("Enter valid product, price and stock")
          else { db.dao().addProduct(Product(name=productName.trim(), sku=productSku.trim(), pricePaise=(price*100).toLong(), stock=stock, lowStock=low)); productName=""; productSku=""; productPrice=""; productStock="1"; toast("Product saved") }
         } }, modifier = Modifier.fillMaxWidth()) { Text("Save product") }
-        LazyColumn { items(products, key={it.id}) { Text("#${it.id} · ${it.name} · ₹${"%.2f".format(it.pricePaise/100.0)} · stock ${it.stock}", Modifier.padding(8.dp)) } }
+        Column { products.forEach { Text("#${it.id} · ${it.name} · ₹${"%.2f".format(it.pricePaise/100.0)} · stock ${it.stock}", Modifier.padding(8.dp)) } }
        }
        "New Bill" -> {
         Text("Create invoice", style=MaterialTheme.typography.titleLarge)
@@ -148,7 +149,7 @@ class MainActivity : ComponentActivity() {
           .onSuccess { toast("Payment recorded"); paymentAmount="" }.onFailure { toast(it.message ?: "Payment failed") }
         } }, modifier=Modifier.fillMaxWidth()) { Text("Record payment") }
         Text("Find the invoice database ID in the invoice list below.", style=MaterialTheme.typography.bodySmall)
-        LazyColumn { items(invoices, key={it.id}) { Text("#${it.id} · ${it.number} · ${it.customerName} · due ₹${"%.2f".format(it.duePaise/100.0)}", Modifier.padding(8.dp)) } }
+        Column { invoices.forEach { Text("#${it.id} · ${it.number} · ${it.customerName} · due ₹${"%.2f".format(it.duePaise/100.0)}", Modifier.padding(8.dp)) } }
        }
        "Prescription" -> {
         OutlinedTextField(prescriptionCustomerId, { prescriptionCustomerId=it }, label={ Text("Customer ID *") }, modifier=Modifier.fillMaxWidth())
@@ -194,6 +195,7 @@ class MainActivity : ComponentActivity() {
          }
         }
        }
+      }
       }
      }
     }
