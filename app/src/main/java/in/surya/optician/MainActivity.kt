@@ -1,4 +1,4 @@
-package in.surya.optician
+package com.surya.optician
 
 import android.content.Intent
 import android.net.Uri
@@ -17,9 +17,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.lifecycle.lifecycleScope
-import in.surya.optician.data.*
-import in.surya.optician.invoice.InvoicePdf
-import in.surya.optician.invoice.InvoiceSharing
+import com.surya.optician.data.*
+import com.surya.optician.invoice.InvoicePdf
+import com.surya.optician.invoice.InvoiceSharing
 import kotlinx.coroutines.launch
 import java.net.URLEncoder
 import java.util.Locale
