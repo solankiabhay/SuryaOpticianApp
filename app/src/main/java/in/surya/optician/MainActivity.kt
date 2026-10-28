@@ -243,6 +243,8 @@ class MainActivity : ComponentActivity() {
     var billPaid by remember { mutableStateOf("0") }
     var billPrescriptionId by remember { mutableStateOf("") }
     var showBillPreview by remember { mutableStateOf(false) }
+    var editingInvoiceId by remember { mutableStateOf<Long?>(null) }
+    var invoiceDeleteTarget by remember { mutableStateOf<Invoice?>(null) }
     var paymentInvoiceId by remember { mutableStateOf("") }
     var paymentAmount by remember { mutableStateOf("") }
     var paymentMethod by remember { mutableStateOf("Cash") }
@@ -440,7 +442,7 @@ class MainActivity : ComponentActivity() {
         } }
        }
        "New Bill" -> {
-        Text("Create a complete bill", style=MaterialTheme.typography.titleLarge)
+        Text(if(editingInvoiceId==null) "Create a complete bill" else "Edit existing bill", style=MaterialTheme.typography.titleLarge)
         Text("One invoice can include prescription lenses, frames, sunglasses, accessories and custom items. Prescription is optional.", style=MaterialTheme.typography.bodyMedium)
         OutlinedTextField(billCustomerId, { billCustomerId=it; billPrescriptionId="" }, label={ Text("Existing customer ID (optional)") }, modifier=Modifier.fillMaxWidth())
         customers.forEach { customer -> TextButton(onClick={ billCustomerId=customer.id.toString(); billCustomer=customer.name; billPhone=customer.phone; billPrescriptionId="" }) { Text("Use #${customer.id} · ${customer.name} · ${customer.phone}") } }
@@ -501,10 +503,10 @@ class MainActivity : ComponentActivity() {
          if((billCustomer.isBlank() && existingCustomer==null) || billLines.isEmpty() || paid==null || paid<0) toast("Enter/select a customer, add at least one item and check payment")
          else if(billCustomerId.isNotBlank() && existingCustomer==null) toast("Existing customer ID was not found")
          else runCatching {
-          BillingRepository(db).createBill(NewBill(customerId=existingCustomer?.id, customerName=existingCustomer?.name ?: billCustomer.trim(), phone=existingCustomer?.phone?.ifBlank { billPhone.trim() } ?: billPhone.trim(), lines=billLines, paidPaise=(paid*100).toLong(), prescriptionSummary=selectedBillPrescription?.let { rx -> listOf("Right eye (OD): SPH ${rx.rightSphere.ifBlank{"—"}}, CYL ${rx.rightCylinder.ifBlank{"—"}}, Axis ${rx.rightAxis.ifBlank{"—"}}, ADD ${rx.rightAdd.ifBlank{"—"}}", "Left eye (OS): SPH ${rx.leftSphere.ifBlank{"—"}}, CYL ${rx.leftCylinder.ifBlank{"—"}}, Axis ${rx.leftAxis.ifBlank{"—"}}, ADD ${rx.leftAdd.ifBlank{"—"}}", "PD: ${rx.pd.ifBlank{"—"}}", rx.notes.takeIf { it.isNotBlank() }?.let { "Notes: $it" }).filterNotNull().joinToString("\n") } ?: ""))
-         }.onSuccess { id -> toast("Invoice created: #$id"); section="Bills"; billCustomer=""; billCustomerId=""; billPhone=""; billLines=emptyList(); billProductId=""; billDescription=""; billQty="1"; billRate=""; billDiscount="0"; billTax="0"; billPaid="0"; billPrescriptionId="" }
+          run { val draft = NewBill(customerId=existingCustomer?.id, customerName=existingCustomer?.name ?: billCustomer.trim(), phone=existingCustomer?.phone?.ifBlank { billPhone.trim() } ?: billPhone.trim(), lines=billLines, paidPaise=(paid*100).toLong(), prescriptionSummary=selectedBillPrescription?.let { rx -> listOf("Right eye (OD): SPH ${rx.rightSphere.ifBlank{"—"}}, CYL ${rx.rightCylinder.ifBlank{"—"}}, Axis ${rx.rightAxis.ifBlank{"—"}}, ADD ${rx.rightAdd.ifBlank{"—"}}", "Left eye (OS): SPH ${rx.leftSphere.ifBlank{"—"}}, CYL ${rx.leftCylinder.ifBlank{"—"}}, Axis ${rx.leftAxis.ifBlank{"—"}}, ADD ${rx.leftAdd.ifBlank{"—"}}", "PD: ${rx.pd.ifBlank{"—"}}", rx.notes.takeIf { it.isNotBlank() }?.let { "Notes: $it" }).filterNotNull().joinToString("\n") } ?: ""); if(editingInvoiceId==null) BillingRepository(db).createBill(draft) else { BillingRepository(db).updateBill(editingInvoiceId!!,draft); editingInvoiceId!! } }
+         }.onSuccess { id -> toast(if(editingInvoiceId==null) "Invoice created: #$id" else "Invoice updated"); section="Bills"; editingInvoiceId=null; billCustomer=""; billCustomerId=""; billPhone=""; billLines=emptyList(); billProductId=""; billDescription=""; billQty="1"; billRate=""; billDiscount="0"; billTax="0"; billPaid="0"; billPrescriptionId="" }
           .onFailure { toast(it.message ?: "Could not create invoice") }
-        } }, modifier=Modifier.fillMaxWidth()) { Text("Create bill and deduct stock") }
+        } }, modifier=Modifier.fillMaxWidth()) { Text(if(editingInvoiceId==null) "Create bill and deduct stock" else "Save bill changes") }
        }
         "Payment" -> {
         OutlinedTextField(paymentInvoiceId, { paymentInvoiceId=it }, label={ Text("Invoice database ID") }, modifier=Modifier.fillMaxWidth())
@@ -716,6 +718,8 @@ class MainActivity : ComponentActivity() {
             Text("${invoice.number} · ${invoice.customerName}", style=MaterialTheme.typography.titleMedium)
             Text("Total ₹${"%.2f".format(invoice.totalPaise/100.0)} · Paid ₹${"%.2f".format(invoice.paidPaise/100.0)} · Due ₹${"%.2f".format(invoice.duePaise/100.0)}")
             Row(horizontalArrangement=Arrangement.spacedBy(6.dp)) {
+             TextButton(onClick={ lifecycleScope.launch { runCatching { val items=db.dao().items(invoice.id); billCustomer=invoice.customerName; billCustomerId=invoice.customerId?.toString() ?: ""; billPhone=invoice.phone; billLines=items.map { BillLine(it.productId,it.description,it.qty,it.ratePaise,it.discountPaise,it.taxPaise) }; billPaid="%.2f".format(invoice.paidPaise/100.0); billPrescriptionId=""; editingInvoiceId=invoice.id; section="New Bill" }.onFailure { toast("Could not load bill for editing") } } }) { Text("Edit") }
+             TextButton(onClick={ invoiceDeleteTarget=invoice }) { Text("Delete") }
              TextButton(onClick={lifecycleScope.launch{runCatching{val file=InvoicePdf.generate(this@MainActivity,invoice,db.dao().items(invoice.id),db.dao().settings()?:ShopSettings());val uri=FileProvider.getUriForFile(this@MainActivity,"${packageName}.fileprovider",file);startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(uri,"application/pdf").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION))}.onFailure{toast("PDF preview failed. Install a PDF viewer.")}}}){Text("Preview PDF")}
              TextButton(onClick={lifecycleScope.launch{runCatching{val file=InvoicePdf.generate(this@MainActivity,invoice,db.dao().items(invoice.id),db.dao().settings()?:ShopSettings());printPdf(file,"Invoice ${invoice.number}")}.onFailure{toast("Could not start system print")}}}){Text("Print")}
              Button(onClick={lifecycleScope.launch{runCatching{val file=InvoicePdf.generate(this@MainActivity,invoice,db.dao().items(invoice.id),db.dao().settings()?:ShopSettings());InvoiceSharing.share(this@MainActivity,file,invoice.phone,true)}.onFailure{toast("Invoice share failed")}}}){Text("WhatsApp PDF")}
