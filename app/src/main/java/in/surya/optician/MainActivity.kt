@@ -120,7 +120,7 @@ class MainActivity : ComponentActivity() {
           .onSuccess { line -> billLines=billLines+line; billProductId=""; billDescription=""; billQty="1"; billRate=""; billDiscount="0"; billTax="0"; toast("Item added to bill") }
           .onFailure { toast(it.message ?: "Invalid item") }
         }, modifier=Modifier.fillMaxWidth()) { Text("Add item to bill") }
-        Text("Items in cart: ${billLines.size} · Subtotal ₹${"%.2f".format(billLines.sumOf { it.total }/100.0)}", style=MaterialTheme.typography.titleSmall)
+        Text("Items in cart: ${billLines.size} · Cart total ₹${"%.2f".format(billLines.sumOf { it.total }/100.0)}", style=MaterialTheme.typography.titleSmall)
         billLines.forEachIndexed { index, line ->
          Text("${index+1}. ${line.description} × ${line.qty} · ₹${"%.2f".format(line.total/100.0)}")
         }
@@ -129,7 +129,7 @@ class MainActivity : ComponentActivity() {
          val paid=billPaid.toDoubleOrNull()
          val cid=billCustomerId.toLongOrNull()
          val existingCustomer=if(cid!=null) db.dao().customer(cid) else null
-         if(billCustomer.isBlank() || billLines.isEmpty() || paid==null || paid<0) toast("Enter customer, add at least one item and check payment")
+         if((billCustomer.isBlank() && existingCustomer==null) || billLines.isEmpty() || paid==null || paid<0) toast("Enter/select a customer, add at least one item and check payment")
          else if(billCustomerId.isNotBlank() && existingCustomer==null) toast("Existing customer ID was not found")
          else runCatching {
           BillingRepository(db).createBill(NewBill(customerId=existingCustomer?.id, customerName=existingCustomer?.name ?: billCustomer.trim(), phone=existingCustomer?.phone?.ifBlank { billPhone.trim() } ?: billPhone.trim(), lines=billLines, paidPaise=(paid*100).toLong()))
