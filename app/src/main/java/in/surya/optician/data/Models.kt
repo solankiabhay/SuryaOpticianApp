@@ -10,7 +10,8 @@ data class Customer(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val name: String,
     val phone: String = "",
-    val address: String = ""
+    val address: String = "",
+    val age: Int? = null
 )
 
 @Entity(tableName = "products")
