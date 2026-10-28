@@ -52,7 +52,7 @@ data class InvoiceItem(
     val discountPaise: Long = 0,
     val taxPaise: Long = 0,
     val totalPaise: Long,
-    val costPaise: Long = 0
+    @ColumnInfo(defaultValue = "0") val costPaise: Long = 0
 )
 
 @Entity(tableName = "payments")
