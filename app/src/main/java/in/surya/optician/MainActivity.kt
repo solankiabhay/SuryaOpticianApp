@@ -149,7 +149,7 @@ class MainActivity : ComponentActivity() {
        val databaseFile = getDatabasePath("surya-optician.db")
        check(databaseFile.exists()) { "Database file not found" }
        contentResolver.openOutputStream(uri)?.use { output -> FileInputStream(databaseFile).use { input -> input.copyTo(output) } } ?: error("Cannot write backup file")
-      }.onSuccess { toast("Database backup exported. Keep it in a safe location.") }.onFailure { toast(it.message ?: "Backup failed") }
+      }.onSuccess { Toast.makeText(this@MainActivity, "Database backup exported. Keep it in a safe location.", Toast.LENGTH_LONG).show() }.onFailure { Toast.makeText(this@MainActivity, it.message ?: "Backup failed", Toast.LENGTH_LONG).show() }
      }
     }
     val restoreLauncher = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { uri ->
@@ -170,7 +170,7 @@ class MainActivity : ComponentActivity() {
        File(databaseFile.absolutePath + "-wal").delete()
        File(databaseFile.absolutePath + "-shm").delete()
        check(temp.copyTo(databaseFile, overwrite = true).exists()) { "Could not restore database file" }
-      }.onSuccess { temp.delete(); toast("Backup restored. Reopening app."); recreate() }.onFailure { toast("Restore failed: ${it.message ?: "unknown error"}. A recovery copy was retained in app cache.") }
+      }.onSuccess { temp.delete(); Toast.makeText(this@MainActivity, "Backup restored. Reopening app.", Toast.LENGTH_LONG).show(); recreate() }.onFailure { Toast.makeText(this@MainActivity, "Restore failed: ${it.message ?: "unknown error"}. A recovery copy was retained in app cache.", Toast.LENGTH_LONG).show() }
      }
     }
     val securityPrefs = remember { getSharedPreferences("surya_security", MODE_PRIVATE) }
