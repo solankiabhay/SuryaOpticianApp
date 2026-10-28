@@ -623,7 +623,7 @@ class MainActivity : ComponentActivity() {
           TextButton(onClick={billGlassType=type}) { Text(type, style=MaterialTheme.typography.labelSmall) }
          }
         }
-        OutlinedTextField(billDeliveryDate, { billDeliveryDate=it }, label={ Text("Expected delivery date (DD/MM/YYYY)") }, placeholder={ Text("e.g. 05/11/2026") }, supportingText={ Text("Optional for walk-in sales; fill for orders awaiting lens fitting.") }, modifier=Modifier.fillMaxWidth())
+        DateInputField(value=billDeliveryDate, onValueChange={ billDeliveryDate=it }, label="Expected delivery date", displayFormat="dd/MM/yyyy", placeholder="e.g. 05/11/2026", supportingText="Optional for walk-in sales; fill for orders awaiting lens fitting.", modifier=Modifier.fillMaxWidth())
         if (billCustomerId.toLongOrNull() != null) {
          Text("Attach eye prescription (optional)", style=MaterialTheme.typography.titleMedium)
          if (billPrescriptions.isEmpty()) Text("No saved prescription for this customer. You can still bill sunglasses or other products.", style=MaterialTheme.typography.bodySmall)
@@ -825,8 +825,8 @@ class MainActivity : ComponentActivity() {
         val invalidDateRange = (reportFrom.isNotBlank() && fromMillis == null) || (reportTo.isNotBlank() && toMillisExclusive == null) || (fromMillis != null && toMillisExclusive != null && fromMillis >= toMillisExclusive)
         val reportInvoices = if (invalidDateRange) emptyList() else allInvoices.filter { invoice -> (fromMillis == null || invoice.createdAt >= fromMillis) && (toMillisExclusive == null || invoice.createdAt < toMillisExclusive) }
         Text("Filter sales and collection totals by invoice date (YYYY-MM-DD). Leave blank to include all dates.", style=MaterialTheme.typography.bodyMedium)
-        OutlinedTextField(reportFrom, { reportFrom = it.trim() }, label = { Text("From date (YYYY-MM-DD)") }, placeholder = { Text("2026-10-01") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-        OutlinedTextField(reportTo, { reportTo = it.trim() }, label = { Text("To date (YYYY-MM-DD)") }, placeholder = { Text("2026-10-31") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+        DateInputField(value=reportFrom, onValueChange={ reportFrom = it }, label="From date", displayFormat="yyyy-MM-dd", placeholder="2026-10-01", modifier=Modifier.fillMaxWidth())
+        DateInputField(value=reportTo, onValueChange={ reportTo = it }, label="To date", displayFormat="yyyy-MM-dd", placeholder="2026-10-31", modifier=Modifier.fillMaxWidth())
         if (invalidDateRange) Text("Enter valid dates in YYYY-MM-DD format and ensure From is not after To.", color = MaterialTheme.colorScheme.error)
         TextButton(onClick = { reportFrom = ""; reportTo = "" }) { Text("Clear date filters") }
         Text("Invoice summary · ${reportInvoices.size} invoices in selected date range", style=MaterialTheme.typography.bodyMedium)
