@@ -22,6 +22,7 @@ The app includes a local Room-backed Android UI, multi-item bill cart, expanded 
 | Reports/export | Improved baseline | Invoice count, sales, collected and due totals; inclusive From/To dates (YYYY-MM-DD), invoice/customer/phone filter and date-filtered CSV. Cost/profit and product/category reports are not available |
 | Print, authentication | Not implemented | Add after core flows are verified |
 | Migrations | Not implemented beyond schema v1 | Write/test explicit migrations before changing schema |
-| Mobile navigation | Improved baseline | Navigation tabs scroll horizontally on narrow screens; verify on multiple screen sizes |\n| Automated build/device acceptance | Pending | GitHub Actions workflow added; verify its result and test WhatsApp on a physical device |
+| Mobile navigation | Improved baseline | Navigation tabs scroll horizontally on narrow screens; verify on multiple screen sizes |
+| Automated build/device acceptance | Pending | GitHub Actions workflow added; verify its result and test WhatsApp on a physical device |
 
 Do not describe WhatsApp opening as delivery/read confirmation. This MVP is not production-ready until the build/test workflow passes, database migrations and backup are planned, and real-device acceptance is complete.
