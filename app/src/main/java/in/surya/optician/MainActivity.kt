@@ -109,6 +109,7 @@ class MainActivity : ComponentActivity() {
     var productName by remember { mutableStateOf("") }
     var productSku by remember { mutableStateOf("") }
     var productPrice by remember { mutableStateOf("") }
+    var productCost by remember { mutableStateOf("0") }
     var productStock by remember { mutableStateOf("1") }
     var productLowStock by remember { mutableStateOf("3") }
     var billCustomer by remember { mutableStateOf("") }
@@ -191,24 +192,26 @@ class MainActivity : ComponentActivity() {
         OutlinedTextField(productName, { productName = it }, label = { Text("Product / frame / lens name *") }, modifier = Modifier.fillMaxWidth())
         OutlinedTextField(productSku, { productSku = it }, label = { Text("SKU (optional)") }, modifier = Modifier.fillMaxWidth())
         OutlinedTextField(productPrice, { productPrice = it }, label = { Text("Selling price in ₹ *") }, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(productCost, { productCost = it }, label = { Text("Purchase cost per unit in ₹ (for profit reports)") }, modifier = Modifier.fillMaxWidth())
         OutlinedTextField(productStock, { productStock = it }, label = { Text("Opening stock") }, modifier = Modifier.fillMaxWidth())
         OutlinedTextField(productLowStock, { productLowStock = it }, label = { Text("Low stock alert at") }, modifier = Modifier.fillMaxWidth())
         Button(onClick = { lifecycleScope.launch {
          val price = productPrice.toDoubleOrNull()
+         val cost = productCost.toDoubleOrNull()
          val stock = productStock.toIntOrNull()
          val low = productLowStock.toIntOrNull()
-         if (productName.isBlank() || price == null || price < 0 || stock == null || stock < 0 || low == null || low < 0) toast("Enter valid product, price and stock")
-         else if (selectedProductId == null) { db.dao().addProduct(Product(name=productName.trim(), sku=productSku.trim(), pricePaise=(price*100).toLong(), stock=stock, lowStock=low)); productName=""; productSku=""; productPrice=""; productStock="1"; productLowStock="3"; toast("Product saved") }
-         else { db.dao().updateProduct(Product(id=selectedProductId!!, name=productName.trim(), sku=productSku.trim(), pricePaise=(price*100).toLong(), stock=stock, lowStock=low)); selectedProductId=null; productName=""; productSku=""; productPrice=""; productStock="1"; productLowStock="3"; toast("Product and stock updated") }
+         if (productName.isBlank() || price == null || price < 0 || cost == null || cost < 0 || stock == null || stock < 0 || low == null || low < 0) toast("Enter valid product, selling/purchase price and stock")
+         else if (selectedProductId == null) { db.dao().addProduct(Product(name=productName.trim(), sku=productSku.trim(), pricePaise=(price*100).toLong(), stock=stock, lowStock=low, costPaise=(cost*100).toLong())); productName=""; productSku=""; productPrice=""; productCost="0"; productStock="1"; productLowStock="3"; toast("Product saved") }
+         else { db.dao().updateProduct(Product(id=selectedProductId!!, name=productName.trim(), sku=productSku.trim(), pricePaise=(price*100).toLong(), stock=stock, lowStock=low, costPaise=(cost*100).toLong())); selectedProductId=null; productName=""; productSku=""; productPrice=""; productCost="0"; productStock="1"; productLowStock="3"; toast("Product and stock updated") }
         } }, modifier = Modifier.fillMaxWidth()) { Text(if (selectedProductId == null) "Save product" else "Update product / stock") }
-        if (selectedProductId != null) TextButton(onClick={ selectedProductId=null; productName=""; productSku=""; productPrice=""; productStock="1"; productLowStock="3" }) { Text("Cancel product edit") }
+        if (selectedProductId != null) TextButton(onClick={ selectedProductId=null; productName=""; productSku=""; productPrice=""; productCost="0"; productStock="1"; productLowStock="3" }) { Text("Cancel product edit") }
         OutlinedTextField(productSearch, { productSearch=it }, label={Text("Search products by name or SKU")}, modifier=Modifier.fillMaxWidth())
         Text("Tap Edit to change product details. Products used on invoices cannot be deleted.", style=MaterialTheme.typography.bodySmall)
         Column { products.filter { productSearch.isBlank() || it.name.contains(productSearch,true) || it.sku.contains(productSearch,true) }.forEach { product ->
          Card(Modifier.fillMaxWidth().padding(vertical=3.dp)) { Column(Modifier.padding(8.dp)) {
-          Text("#${product.id} · ${product.name} · ₹${"%.2f".format(product.pricePaise/100.0)} · stock ${product.stock}")
+          Text("#${product.id} · ${product.name} · Sell ₹${"%.2f".format(product.pricePaise/100.0)} · Cost ₹${"%.2f".format(product.costPaise/100.0)} · stock ${product.stock}")
           Row {
-           TextButton(onClick={ selectedProductId=product.id; productName=product.name; productSku=product.sku; productPrice="%.2f".format(product.pricePaise/100.0); productStock=product.stock.toString(); productLowStock=product.lowStock.toString() }) { Text("Edit") }
+           TextButton(onClick={ selectedProductId=product.id; productName=product.name; productSku=product.sku; productPrice="%.2f".format(product.pricePaise/100.0); productCost="%.2f".format(product.costPaise/100.0); productStock=product.stock.toString(); productLowStock=product.lowStock.toString() }) { Text("Edit") }
            TextButton(onClick={ lifecycleScope.launch {
             if(db.dao().productInvoiceItemCount(product.id)>0) toast("Cannot delete: product appears on invoice history")
             else runCatching { db.dao().deleteProduct(product) }.onSuccess { toast("Product deleted") }.onFailure { toast("Could not delete product") }
