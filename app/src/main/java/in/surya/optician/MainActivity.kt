@@ -17,6 +17,7 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.lifecycleScope
 import in.surya.optician.data.*
 import in.surya.optician.invoice.InvoicePdf
+import in.surya.optician.invoice.InvoiceCsv
 import in.surya.optician.invoice.InvoiceSharing
 import kotlinx.coroutines.launch
 import java.net.URLEncoder
@@ -159,6 +160,7 @@ class MainActivity : ComponentActivity() {
        }
        else -> {
         OutlinedTextField(query, { query=it }, label={Text("Search invoice, customer, phone")}, modifier=Modifier.fillMaxWidth())
+        Button(onClick={ InvoiceCsv.share(this@MainActivity, invoices) }, modifier=Modifier.fillMaxWidth()) { Text("Export visible invoices as CSV") }
         LazyColumn {
          items(invoices, key={it.id}) { invoice ->
           Card(Modifier.fillMaxWidth().padding(vertical=4.dp)) {
