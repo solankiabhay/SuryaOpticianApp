@@ -1,8 +1,25 @@
 package in.surya.optician
 
 import android.content.Intent
+import android.database.sqlite.SQLiteDatabase
+import android.graphics.Paint
+import android.graphics.pdf.PdfDocument
+import java.io.File
+import java.io.FileOutputStream
+import java.io.FileInputStream
+import java.security.MessageDigest
+import java.security.SecureRandom
+import javax.crypto.SecretKeyFactory
+import javax.crypto.spec.PBEKeySpec
 import android.net.Uri
 import android.os.Bundle
+import android.os.CancellationSignal
+import android.os.ParcelFileDescriptor
+import android.print.PageRange
+import android.print.PrintAttributes
+import android.print.PrintDocumentAdapter
+import android.print.PrintDocumentInfo
+import android.print.PrintManager
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -22,6 +39,7 @@ import in.surya.optician.invoice.InvoiceCsv
 import in.surya.optician.invoice.InvoiceSharing
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.first
 import java.net.URLEncoder
 import java.text.ParsePosition
 import java.util.Calendar
@@ -38,16 +56,127 @@ private fun parseReportDate(value: String): Long? {
  return parsed.time
 }
 
+private fun derivePinHash(pin: String, salt: ByteArray): ByteArray {
+ val spec = PBEKeySpec(pin.toCharArray(), salt, 120_000, 256)
+ return try { SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(spec).encoded } finally { spec.clearPassword() }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 class MainActivity : ComponentActivity() {
+ private fun printPdf(file: File, jobName: String) {
+  val manager = getSystemService(android.content.Context.PRINT_SERVICE) as PrintManager
+  manager.print(jobName, object : PrintDocumentAdapter() {
+   override fun onLayout(oldAttributes: PrintAttributes?, newAttributes: PrintAttributes?, cancellationSignal: CancellationSignal?, callback: LayoutResultCallback?, extras: Bundle?) {
+    if (cancellationSignal?.isCanceled == true) { callback?.onLayoutCancelled(); return }
+    val info = PrintDocumentInfo.Builder(file.name)
+     .setContentType(PrintDocumentInfo.CONTENT_TYPE_DOCUMENT)
+     .setPageCount(PrintDocumentInfo.PAGE_COUNT_UNKNOWN)
+     .build()
+    callback?.onLayoutFinished(info, true)
+   }
+   override fun onWrite(pages: Array<out PageRange>?, destination: ParcelFileDescriptor?, cancellationSignal: CancellationSignal?, callback: WriteResultCallback?) {
+    if (cancellationSignal?.isCanceled == true) { callback?.onWriteCancelled(); return }
+    try {
+     val target = requireNotNull(destination) { "Print destination unavailable" }
+     FileInputStream(file).use { input -> FileOutputStream(target.fileDescriptor).use { output -> input.copyTo(output) } }
+     callback?.onWriteFinished(arrayOf(PageRange.ALL_PAGES))
+    } catch (error: Exception) {
+     callback?.onWriteFailed(error.message ?: "Could not write PDF for printing")
+    }
+   }
+  }, PrintAttributes.Builder().build())
+ }
+ private fun sharePrescriptionPdf(rx: Prescription, customerName: String) {
+  runCatching {
+   val directory = File(filesDir, "prescriptions")
+   check(directory.exists() || directory.mkdirs()) { "Cannot create prescription folder" }
+   val file = File(directory, "prescription-${rx.id}.pdf")
+   val document = PdfDocument()
+   try {
+    val page = document.startPage(PdfDocument.PageInfo.Builder(595, 842, 1).create())
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = android.graphics.Color.BLACK }
+    var y = 52f
+    fun line(value: String, size: Float = 13f, bold: Boolean = false) {
+     paint.textSize = size
+     paint.typeface = android.graphics.Typeface.create("sans-serif", if (bold) android.graphics.Typeface.BOLD else android.graphics.Typeface.NORMAL)
+     val text = value.ifBlank { "—" }
+     page.canvas.drawText(text.take(80), 40f, y, paint)
+     y += size + 12f
+    }
+    line("SURYA OPTICIAN", 22f, true)
+    line("EYE PRESCRIPTION", 18f, true)
+    line("Customer: $customerName", 14f, true)
+    line("Date: " + java.text.SimpleDateFormat("dd MMM yyyy, hh:mm a", java.util.Locale.getDefault()).format(java.util.Date(rx.createdAt)))
+    y += 8f
+    line("RIGHT EYE (OD)", 15f, true)
+    line("SPH: ${rx.rightSphere}   CYL: ${rx.rightCylinder}   Axis: ${rx.rightAxis}   ADD: ${rx.rightAdd}")
+    line("LEFT EYE (OS)", 15f, true)
+    line("SPH: ${rx.leftSphere}   CYL: ${rx.leftCylinder}   Axis: ${rx.leftAxis}   ADD: ${rx.leftAdd}")
+    line("Pupillary distance (PD): ${rx.pd} mm")
+    line("Notes: ${rx.notes}")
+    line("This document records entered prescription details; confirm values with the prescribing optometrist.", 10f)
+    document.finishPage(page)
+    FileOutputStream(file).use { document.writeTo(it) }
+   } finally { document.close() }
+   val uri = FileProvider.getUriForFile(this, "${packageName}.fileprovider", file)
+   val intent = Intent(Intent.ACTION_SEND).apply {
+    type = "application/pdf"
+    putExtra(Intent.EXTRA_STREAM, uri)
+    putExtra(Intent.EXTRA_SUBJECT, "Eye prescription - $customerName")
+    clipData = android.content.ClipData.newUri(contentResolver, "Eye prescription", uri)
+    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+   }
+   startActivity(Intent.createChooser(intent, "Share prescription PDF"))
+  }.onFailure { Toast.makeText(this, it.message ?: "Prescription PDF failed", Toast.LENGTH_LONG).show() }
+ }
  override fun onCreate(savedInstanceState: Bundle?) {
   super.onCreate(savedInstanceState)
   val db = OpticianDatabase.get(this)
   lifecycleScope.launch { if (db.dao().settings() == null) db.dao().saveSettings(ShopSettings()) }
   setContent {
    MaterialTheme {
+    val backupLauncher = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.CreateDocument("application/vnd.sqlite3")) { uri ->
+     if (uri != null) lifecycleScope.launch {
+      runCatching {
+       db.openHelper.writableDatabase.query("PRAGMA wal_checkpoint(FULL)").close()
+       val databaseFile = getDatabasePath("surya-optician.db")
+       check(databaseFile.exists()) { "Database file not found" }
+       contentResolver.openOutputStream(uri)?.use { output -> FileInputStream(databaseFile).use { input -> input.copyTo(output) } } ?: error("Cannot write backup file")
+      }.onSuccess { toast("Database backup exported. Keep it in a safe location.") }.onFailure { toast(it.message ?: "Backup failed") }
+     }
+    }
+    val restoreLauncher = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { uri ->
+     if (uri != null) lifecycleScope.launch {
+      val temp = File(cacheDir, "restore-validation.db")
+      runCatching {
+       contentResolver.openInputStream(uri)?.use { input -> FileOutputStream(temp).use { output -> input.copyTo(output) } } ?: error("Cannot read selected backup")
+       SQLiteDatabase.openDatabase(temp.absolutePath, null, SQLiteDatabase.OPEN_READONLY).use { sqlite ->
+        sqlite.rawQuery("PRAGMA integrity_check", null).use { cursor -> check(cursor.moveToFirst() && cursor.getString(0) == "ok") { "Backup database integrity check failed" } }
+        check(sqlite.version in 1..3) { "Unsupported database backup version" }
+        sqlite.rawQuery("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN ('customers','products','invoices','invoice_items','payments','prescriptions','shop_settings')", null).use { cursor ->
+         check(cursor.moveToFirst() && cursor.getInt(0) == 7) { "Selected file is not a complete Surya Optician database backup" }
+        }
+       }
+       val databaseFile = getDatabasePath("surya-optician.db")
+       OpticianDatabase.resetInstance()
+       databaseFile.delete()
+       File(databaseFile.absolutePath + "-wal").delete()
+       File(databaseFile.absolutePath + "-shm").delete()
+       check(temp.copyTo(databaseFile, overwrite = true).exists()) { "Could not restore database file" }
+      }.onSuccess { temp.delete(); toast("Backup restored. Reopening app."); recreate() }.onFailure { toast("Restore failed: ${it.message ?: "unknown error"}. A recovery copy was retained in app cache.") }
+     }
+    }
+    val securityPrefs = remember { getSharedPreferences("surya_security", MODE_PRIVATE) }
+    var unlocked by remember { mutableStateOf(securityPrefs.getString("pin_hash", null) == null) }
+    var unlockPin by remember { mutableStateOf("") }
+    var pinError by remember { mutableStateOf("") }
+    var newPin by remember { mutableStateOf("") }
+    var confirmPin by remember { mutableStateOf("") }
     var section by remember { mutableStateOf("Bills") }
     var query by remember { mutableStateOf("") }
+    var customerSearch by remember { mutableStateOf("") }
+    var productSearch by remember { mutableStateOf("") }
+    var editingPrescriptionId by remember { mutableStateOf<Long?>(null) }
     var reportFrom by remember { mutableStateOf("") }
     var reportTo by remember { mutableStateOf("") }
     var selectedCustomerId by remember { mutableStateOf<Long?>(null) }
@@ -58,6 +187,8 @@ class MainActivity : ComponentActivity() {
     var productName by remember { mutableStateOf("") }
     var productSku by remember { mutableStateOf("") }
     var productPrice by remember { mutableStateOf("") }
+    var productCost by remember { mutableStateOf("0") }
+    var productCategory by remember { mutableStateOf("") }
     var productStock by remember { mutableStateOf("1") }
     var productLowStock by remember { mutableStateOf("3") }
     var billCustomer by remember { mutableStateOf("") }
@@ -92,6 +223,8 @@ class MainActivity : ComponentActivity() {
      prescriptionCustomerId.toLongOrNull()?.let { db.dao().prescriptions(it) } ?: flowOf<List<Prescription>>(emptyList())
     }
     val savedPrescriptions by prescriptionsFlow.collectAsState(initial = emptyList())
+    val paymentHistoryFlow = remember(paymentInvoiceId) { paymentInvoiceId.toLongOrNull()?.let { db.dao().payments(it) } ?: flowOf<List<Payment>>(emptyList()) }
+    val paymentHistory by paymentHistoryFlow.collectAsState(initial = emptyList())
     val customers by db.dao().customers().collectAsState(initial = emptyList())
     val products by db.dao().products().collectAsState(initial = emptyList())
     val due by db.dao().outstanding().collectAsState(initial = 0L)
@@ -119,33 +252,64 @@ class MainActivity : ComponentActivity() {
          else { db.dao().updateCustomer(Customer(id=selectedCustomerId!!, name=customerName.trim(), phone=customerPhone.trim(), address=customerAddress.trim())); selectedCustomerId=null; customerName=""; customerPhone=""; customerAddress=""; toast("Customer updated") }
         } }, modifier = Modifier.fillMaxWidth()) { Text(if (selectedCustomerId == null) "Save customer" else "Update customer") }
         if (selectedCustomerId != null) TextButton(onClick={ selectedCustomerId=null; customerName=""; customerPhone=""; customerAddress="" }) { Text("Cancel customer edit") }
-        Text("Tap a customer to edit their details.", style=MaterialTheme.typography.bodySmall)
-        Column { customers.forEach { customer -> TextButton(onClick={ selectedCustomerId=customer.id; customerName=customer.name; customerPhone=customer.phone; customerAddress=customer.address }) { Text("#${customer.id} · ${customer.name} · ${customer.phone}") } } }
+        OutlinedTextField(customerSearch, { customerSearch = it }, label={Text("Search customers by name or phone")}, modifier=Modifier.fillMaxWidth())
+        Text("Tap Edit to load a customer. Delete is disabled when invoices or prescriptions reference the customer.", style=MaterialTheme.typography.bodySmall)
+        Column { customers.filter { customerSearch.isBlank() || it.name.contains(customerSearch,true) || it.phone.contains(customerSearch,true) }.forEach { customer ->
+         Card(Modifier.fillMaxWidth().padding(vertical=3.dp)) { Column(Modifier.padding(8.dp)) {
+          Text("#${customer.id} · ${customer.name} · ${customer.phone}")
+          Row {
+           TextButton(onClick={ selectedCustomerId=customer.id; customerName=customer.name; customerPhone=customer.phone; customerAddress=customer.address }) { Text("Edit") }
+           TextButton(onClick={ lifecycleScope.launch {
+            val hasInvoices=db.dao().customerInvoiceCount(customer.id)>0
+            val hasPrescriptions=db.dao().customerPrescriptionCount(customer.id)>0
+            if(hasInvoices || hasPrescriptions) toast("Cannot delete: customer has invoice or prescription history")
+            else runCatching { db.dao().deleteCustomer(customer) }.onSuccess { toast("Customer deleted") }.onFailure { toast("Could not delete customer") }
+           } }) { Text("Delete") }
+          }
+         } }
+        } }
        }
        "Products" -> {
         OutlinedTextField(productName, { productName = it }, label = { Text("Product / frame / lens name *") }, modifier = Modifier.fillMaxWidth())
         OutlinedTextField(productSku, { productSku = it }, label = { Text("SKU (optional)") }, modifier = Modifier.fillMaxWidth())
         OutlinedTextField(productPrice, { productPrice = it }, label = { Text("Selling price in ₹ *") }, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(productCost, { productCost = it }, label = { Text("Purchase cost per unit in ₹ (for profit reports)") }, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(productCategory, { productCategory = it }, label = { Text("Category (Frame / Lens / Sunglasses / Other)") }, modifier = Modifier.fillMaxWidth())
         OutlinedTextField(productStock, { productStock = it }, label = { Text("Opening stock") }, modifier = Modifier.fillMaxWidth())
         OutlinedTextField(productLowStock, { productLowStock = it }, label = { Text("Low stock alert at") }, modifier = Modifier.fillMaxWidth())
         Button(onClick = { lifecycleScope.launch {
          val price = productPrice.toDoubleOrNull()
+         val cost = productCost.toDoubleOrNull()
          val stock = productStock.toIntOrNull()
          val low = productLowStock.toIntOrNull()
-         if (productName.isBlank() || price == null || price < 0 || stock == null || stock < 0 || low == null || low < 0) toast("Enter valid product, price and stock")
-         else if (selectedProductId == null) { db.dao().addProduct(Product(name=productName.trim(), sku=productSku.trim(), pricePaise=(price*100).toLong(), stock=stock, lowStock=low)); productName=""; productSku=""; productPrice=""; productStock="1"; productLowStock="3"; toast("Product saved") }
-         else { db.dao().updateProduct(Product(id=selectedProductId!!, name=productName.trim(), sku=productSku.trim(), pricePaise=(price*100).toLong(), stock=stock, lowStock=low)); selectedProductId=null; productName=""; productSku=""; productPrice=""; productStock="1"; productLowStock="3"; toast("Product and stock updated") }
+         if (productName.isBlank() || price == null || price < 0 || cost == null || cost < 0 || stock == null || stock < 0 || low == null || low < 0) toast("Enter valid product, selling/purchase price and stock")
+         else if (selectedProductId == null) { db.dao().addProduct(Product(name=productName.trim(), sku=productSku.trim(), pricePaise=(price*100).toLong(), stock=stock, lowStock=low, costPaise=(cost*100).toLong(), category=productCategory.trim())); productName=""; productSku=""; productPrice=""; productCost="0"; productCategory=""; productStock="1"; productLowStock="3"; toast("Product saved") }
+         else { db.dao().updateProduct(Product(id=selectedProductId!!, name=productName.trim(), sku=productSku.trim(), pricePaise=(price*100).toLong(), stock=stock, lowStock=low, costPaise=(cost*100).toLong(), category=productCategory.trim())); selectedProductId=null; productName=""; productSku=""; productPrice=""; productCost="0"; productCategory=""; productStock="1"; productLowStock="3"; toast("Product and stock updated") }
         } }, modifier = Modifier.fillMaxWidth()) { Text(if (selectedProductId == null) "Save product" else "Update product / stock") }
-        if (selectedProductId != null) TextButton(onClick={ selectedProductId=null; productName=""; productSku=""; productPrice=""; productStock="1"; productLowStock="3" }) { Text("Cancel product edit") }
-        Text("Tap a product to edit price, SKU, low-stock threshold or adjust stock.", style=MaterialTheme.typography.bodySmall)
-        Column { products.forEach { product -> TextButton(onClick={ selectedProductId=product.id; productName=product.name; productSku=product.sku; productPrice="%.2f".format(product.pricePaise/100.0); productStock=product.stock.toString(); productLowStock=product.lowStock.toString() }) { Text("#${product.id} · ${product.name} · ₹${"%.2f".format(product.pricePaise/100.0)} · stock ${product.stock}") } } }
+        if (selectedProductId != null) TextButton(onClick={ selectedProductId=null; productName=""; productSku=""; productPrice=""; productCost="0"; productCategory=""; productStock="1"; productLowStock="3" }) { Text("Cancel product edit") }
+        OutlinedTextField(productSearch, { productSearch=it }, label={Text("Search products by name or SKU")}, modifier=Modifier.fillMaxWidth())
+        Text("Tap Edit to change product details. Products used on invoices cannot be deleted.", style=MaterialTheme.typography.bodySmall)
+        Column { products.filter { productSearch.isBlank() || it.name.contains(productSearch,true) || it.sku.contains(productSearch,true) || it.category.contains(productSearch,true) }.forEach { product ->
+         Card(Modifier.fillMaxWidth().padding(vertical=3.dp)) { Column(Modifier.padding(8.dp)) {
+          Text("#${product.id} · ${product.name} · Sell ₹${"%.2f".format(product.pricePaise/100.0)} · Cost ₹${"%.2f".format(product.costPaise/100.0)} · ${product.category.ifBlank { "Uncategorised" }} · stock ${product.stock}")
+          Row {
+           TextButton(onClick={ selectedProductId=product.id; productName=product.name; productSku=product.sku; productPrice="%.2f".format(product.pricePaise/100.0); productCost="%.2f".format(product.costPaise/100.0); productCategory=product.category; productStock=product.stock.toString(); productLowStock=product.lowStock.toString() }) { Text("Edit") }
+           TextButton(onClick={ lifecycleScope.launch {
+            if(db.dao().productInvoiceItemCount(product.id)>0) toast("Cannot delete: product appears on invoice history")
+            else runCatching { db.dao().deleteProduct(product) }.onSuccess { toast("Product deleted") }.onFailure { toast("Could not delete product") }
+           } }) { Text("Delete") }
+          }
+         } }
+        } }
        }
        "New Bill" -> {
         Text("Create invoice", style=MaterialTheme.typography.titleLarge)
         OutlinedTextField(billCustomerId, { billCustomerId=it }, label={ Text("Existing customer ID (optional)") }, modifier=Modifier.fillMaxWidth())
+        customers.forEach { customer -> TextButton(onClick={ billCustomerId=customer.id.toString(); billCustomer=customer.name; billPhone=customer.phone }) { Text("Use #${customer.id} · ${customer.name} · ${customer.phone}") } }
         OutlinedTextField(billCustomer, { billCustomer=it }, label={ Text("Customer name *") }, modifier=Modifier.fillMaxWidth())
         OutlinedTextField(billPhone, { billPhone=it }, label={ Text("Customer phone") }, modifier=Modifier.fillMaxWidth())
-        Text("Products: ${products.joinToString { "#${it.id} ${it.name} (stock ${it.stock})" }}", style=MaterialTheme.typography.bodySmall)
+        Text("Tap a product below to fill item details, then adjust quantity/discount/tax.", style=MaterialTheme.typography.bodySmall)
+        products.forEach { product -> TextButton(onClick={ billProductId=product.id.toString(); billDescription=product.name; billRate="%.2f".format(product.pricePaise/100.0) }) { Text("#${product.id} · ${product.name} · ₹${"%.2f".format(product.pricePaise/100.0)} · stock ${product.stock}") } }
         OutlinedTextField(billProductId, { billProductId=it }, label={ Text("Product ID (blank for custom item)") }, modifier=Modifier.fillMaxWidth())
         OutlinedTextField(billDescription, { billDescription=it }, label={ Text("Item description *") }, modifier=Modifier.fillMaxWidth())
         OutlinedTextField(billQty, { billQty=it }, label={ Text("Quantity") }, modifier=Modifier.fillMaxWidth())
@@ -154,7 +318,7 @@ class MainActivity : ComponentActivity() {
         OutlinedTextField(billTax, { billTax=it }, label={ Text("Line tax in ₹") }, modifier=Modifier.fillMaxWidth())
         Button(onClick={
          val qty=billQty.toIntOrNull(); val rate=billRate.toDoubleOrNull(); val discount=billDiscount.toDoubleOrNull(); val tax=billTax.toDoubleOrNull(); val pid=billProductId.toLongOrNull()
-         if(billDescription.isBlank() || qty==null || qty<=0 || rate==null || rate<0 || discount==null || discount<0 || tax==null || tax<0) toast("Check item description, quantity and amounts")
+         if(billDescription.isBlank() || qty==null || qty<=0 || rate==null || rate<0 || discount==null || discount<0 || tax==null || tax<0 || (billProductId.isNotBlank() && pid==null)) toast("Check item description, product ID, quantity and amounts")
          else runCatching { BillLine(pid,billDescription.trim(),qty,(rate*100).toLong(),(discount*100).toLong(),(tax*100).toLong()) }
           .onSuccess { line -> billLines=billLines+line; billProductId=""; billDescription=""; billQty="1"; billRate=""; billDiscount="0"; billTax="0"; toast("Item added to bill") }
           .onFailure { toast(it.message ?: "Invalid item") }
@@ -186,8 +350,11 @@ class MainActivity : ComponentActivity() {
          else runCatching { BillingRepository(db).recordPayment(id,(amount*100).toLong(),paymentMethod.trim().ifBlank{"Cash"}) }
           .onSuccess { toast("Payment recorded"); paymentAmount="" }.onFailure { toast(it.message ?: "Payment failed") }
         } }, modifier=Modifier.fillMaxWidth()) { Text("Record payment") }
-        Text("Find the invoice database ID in the invoice list below.", style=MaterialTheme.typography.bodySmall)
-        Column { invoices.forEach { Text("#${it.id} · ${it.number} · ${it.customerName} · due ₹${"%.2f".format(it.duePaise/100.0)}", Modifier.padding(8.dp)) } }
+        Text("Select an invoice below to view its recorded payment history.", style=MaterialTheme.typography.bodySmall)
+        Column { invoices.forEach { TextButton(onClick={ paymentInvoiceId=it.id.toString() }) { Text("#${it.id} · ${it.number} · ${it.customerName} · due ₹${"%.2f".format(it.duePaise/100.0)}") } } }
+        Text("Payment history for selected invoice", style=MaterialTheme.typography.titleMedium)
+        if(paymentHistory.isEmpty()) Text("No payments found for this invoice ID.", style=MaterialTheme.typography.bodySmall)
+        paymentHistory.forEach { payment -> Text("${java.text.SimpleDateFormat("dd MMM yyyy, hh:mm a", java.util.Locale.getDefault()).format(java.util.Date(payment.paidAt))} · ₹${"%.2f".format(payment.amountPaise/100.0)} · ${payment.method} ${payment.reference}", Modifier.padding(vertical=3.dp)) }
        }
        "Prescription" -> {
         Text("Eye prescription", style=MaterialTheme.typography.titleLarge)
@@ -215,11 +382,14 @@ class MainActivity : ComponentActivity() {
          if(cid==null || customers.none{it.id==cid}) toast("Select an existing customer")
          else if((rightAxis.isNotBlank() && (rightAxisValue==null || rightAxisValue !in 0..180)) || (leftAxis.isNotBlank() && (leftAxisValue==null || leftAxisValue !in 0..180))) toast("Axis must be a number from 0 to 180")
          else {
-          db.dao().addPrescription(Prescription(customerId=cid,rightSphere=rightSphere.trim(),rightCylinder=rightCylinder.trim(),rightAxis=rightAxis.trim(),rightAdd=rightAdd.trim(),leftSphere=leftSphere.trim(),leftCylinder=leftCylinder.trim(),leftAxis=leftAxis.trim(),leftAdd=leftAdd.trim(),pd=pd.trim(),notes=prescriptionNotes.trim()))
+          val rx = Prescription(id=editingPrescriptionId ?: 0L, customerId=cid,rightSphere=rightSphere.trim(),rightCylinder=rightCylinder.trim(),rightAxis=rightAxis.trim(),rightAdd=rightAdd.trim(),leftSphere=leftSphere.trim(),leftCylinder=leftCylinder.trim(),leftAxis=leftAxis.trim(),leftAdd=leftAdd.trim(),pd=pd.trim(),notes=prescriptionNotes.trim())
+          if(editingPrescriptionId == null) db.dao().addPrescription(rx) else db.dao().updatePrescription(rx)
+          editingPrescriptionId=null
           rightSphere="";rightCylinder="";rightAxis="";rightAdd="";leftSphere="";leftCylinder="";leftAxis="";leftAdd="";pd="";prescriptionNotes=""
           toast("Prescription saved")
          }
-        } }, modifier=Modifier.fillMaxWidth()) { Text("Save prescription") }
+        } }, modifier=Modifier.fillMaxWidth()) { Text(if(editingPrescriptionId == null) "Save prescription" else "Update prescription") }
+        if(editingPrescriptionId != null) TextButton(onClick={ editingPrescriptionId=null; rightSphere="";rightCylinder="";rightAxis="";rightAdd="";leftSphere="";leftCylinder="";leftAxis="";leftAdd="";pd="";prescriptionNotes="" }) { Text("Cancel prescription edit") }
         Text("Prescription history", style=MaterialTheme.typography.titleMedium)
         if(savedPrescriptions.isEmpty()) Text("No saved prescriptions for this customer yet.", style=MaterialTheme.typography.bodySmall)
         savedPrescriptions.forEach { rx ->
@@ -230,6 +400,11 @@ class MainActivity : ComponentActivity() {
            Text("OS: SPH ${rx.leftSphere.ifBlank{"—"}}  CYL ${rx.leftCylinder.ifBlank{"—"}}  AXIS ${rx.leftAxis.ifBlank{"—"}}  ADD ${rx.leftAdd.ifBlank{"—"}}")
            Text("PD: ${rx.pd.ifBlank{"—"}} mm")
            if(rx.notes.isNotBlank()) Text("Notes: ${rx.notes}")
+           Row {
+            TextButton(onClick={ editingPrescriptionId=rx.id; prescriptionCustomerId=rx.customerId.toString(); rightSphere=rx.rightSphere;rightCylinder=rx.rightCylinder;rightAxis=rx.rightAxis;rightAdd=rx.rightAdd;leftSphere=rx.leftSphere;leftCylinder=rx.leftCylinder;leftAxis=rx.leftAxis;leftAdd=rx.leftAdd;pd=rx.pd;prescriptionNotes=rx.notes }) { Text("Edit") }
+            TextButton(onClick={ sharePrescriptionPdf(rx, customers.firstOrNull { it.id==rx.customerId }?.name ?: "Customer #${rx.customerId}") }) { Text("PDF / Share") }
+            TextButton(onClick={ lifecycleScope.launch { runCatching { db.dao().deletePrescription(rx) }.onSuccess { if(editingPrescriptionId==rx.id) editingPrescriptionId=null; toast("Prescription deleted") }.onFailure { toast("Could not delete prescription") } } }) { Text("Delete") }
+           }
           }
          }
         }
@@ -253,6 +428,9 @@ class MainActivity : ComponentActivity() {
         val totalSales = reportInvoices.sumOf { it.totalPaise }
         val totalPaid = reportInvoices.sumOf { it.paidPaise }
         val totalDue = reportInvoices.sumOf { it.duePaise }
+        val profitFrom = fromMillis ?: Long.MIN_VALUE
+        val profitTo = toMillisExclusive ?: Long.MAX_VALUE
+        val estimatedProfit by remember(profitFrom, profitTo) { db.dao().estimatedProfit(profitFrom, profitTo) }.collectAsState(initial = 0L)
         Row(horizontalArrangement=Arrangement.spacedBy(8.dp), modifier=Modifier.fillMaxWidth()) {
          Card(Modifier.weight(1f)) { Column(Modifier.padding(12.dp)) { Text("Invoices"); Text("${reportInvoices.size}", style=MaterialTheme.typography.headlineSmall) } }
          Card(Modifier.weight(1f)) { Column(Modifier.padding(12.dp)) { Text("Sales"); Text("₹${"%.2f".format(totalSales/100.0)}", style=MaterialTheme.typography.titleMedium) } }
@@ -260,6 +438,25 @@ class MainActivity : ComponentActivity() {
         Row(horizontalArrangement=Arrangement.spacedBy(8.dp), modifier=Modifier.fillMaxWidth()) {
          Card(Modifier.weight(1f)) { Column(Modifier.padding(12.dp)) { Text("Collected"); Text("₹${"%.2f".format(totalPaid/100.0)}", style=MaterialTheme.typography.titleMedium) } }
          Card(Modifier.weight(1f)) { Column(Modifier.padding(12.dp)) { Text("Outstanding"); Text("₹${"%.2f".format(totalDue/100.0)}", style=MaterialTheme.typography.titleMedium) } }
+        }
+        Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(12.dp)) { Text("Estimated gross profit (excluding tax)"); Text("₹${"%.2f".format(estimatedProfit/100.0)}", style=MaterialTheme.typography.titleLarge); Text("Uses purchase cost saved at invoice time. Older invoices migrated from v1 have zero recorded cost and cannot show historical profit accurately.", style=MaterialTheme.typography.bodySmall) } }
+        Text("Current inventory", style=MaterialTheme.typography.titleMedium)
+        val stockUnits = products.sumOf { it.stock.toLong() }
+        val inventoryCost = products.sumOf { it.stock.toLong() * it.costPaise }
+        val inventoryRetail = products.sumOf { it.stock.toLong() * it.pricePaise }
+        Row(horizontalArrangement=Arrangement.spacedBy(8.dp), modifier=Modifier.fillMaxWidth()) {
+         Card(Modifier.weight(1f)) { Column(Modifier.padding(10.dp)) { Text("Stock units"); Text("$stockUnits", style=MaterialTheme.typography.titleMedium) } }
+         Card(Modifier.weight(1f)) { Column(Modifier.padding(10.dp)) { Text("Cost value"); Text("₹${"%.2f".format(inventoryCost/100.0)}", style=MaterialTheme.typography.titleMedium) } }
+        }
+        Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(10.dp)) { Text("Retail value at current prices"); Text("₹${"%.2f".format(inventoryRetail/100.0)}", style=MaterialTheme.typography.titleMedium) } }
+        Text("Stock by category", style=MaterialTheme.typography.titleSmall)
+        products.groupBy { it.category.trim().ifBlank { "Uncategorised" } }.toSortedMap().forEach { (category, entries) ->
+         val units = entries.sumOf { it.stock.toLong() }
+         val costValue = entries.sumOf { it.stock.toLong() * it.costPaise }
+         Text("$category · ${entries.size} products · $units units · cost ₹${"%.2f".format(costValue/100.0)}", style=MaterialTheme.typography.bodySmall)
+        }
+        products.sortedBy { it.stock }.forEach { product ->
+         Text("${if(product.stock<=product.lowStock) "⚠ " else ""}${product.name} · stock ${product.stock} · cost ₹${"%.2f".format(product.costPaise/100.0)} · sell ₹${"%.2f".format(product.pricePaise/100.0)}", style=MaterialTheme.typography.bodySmall)
         }
         Button(onClick={ if (invalidDateRange) toast("Correct the date range before exporting") else InvoiceCsv.share(this@MainActivity, reportInvoices) }, enabled = !invalidDateRange, modifier=Modifier.fillMaxWidth()) { Text("Export date-filtered invoices to CSV") }
         Text("Customer invoice report", style=MaterialTheme.typography.titleMedium)
@@ -275,7 +472,7 @@ class MainActivity : ComponentActivity() {
           }
          }
         }
-        Text("Note: totals reflect recorded invoice values; cost of goods is not stored, so this is not a profit report. Dates use the device local time zone.", style=MaterialTheme.typography.bodySmall)
+        Text("Profit is an estimate: invoice tax is excluded and recorded item cost is deducted. It is not net profit and excludes rent, wages and other operating expenses. Dates use the device local time zone.", style=MaterialTheme.typography.bodySmall)
        }
        "Settings" -> {
         var shopName by remember { mutableStateOf("Surya Optician") }
@@ -290,6 +487,27 @@ class MainActivity : ComponentActivity() {
         OutlinedTextField(shopGstin,{shopGstin=it},label={Text("GSTIN")},modifier=Modifier.fillMaxWidth())
         OutlinedTextField(shopFooter,{shopFooter=it},label={Text("Invoice footer")},modifier=Modifier.fillMaxWidth())
         Button(onClick={lifecycleScope.launch{db.dao().saveSettings(ShopSettings(name=shopName,address=shopAddress,phone=shopPhone,gstin=shopGstin,footer=shopFooter));toast("Shop settings saved")}},modifier=Modifier.fillMaxWidth()){Text("Save settings")}
+        Divider()
+        Text("Optional app PIN lock", style=MaterialTheme.typography.titleMedium)
+        Text("Set a 4–8 digit local PIN to require unlocking when the app opens. If you forget it, clear app data to remove it; there is no online recovery.", style=MaterialTheme.typography.bodySmall)
+        OutlinedTextField(newPin, { newPin=it.filter(Char::isDigit).take(8) }, label={Text("New PIN (4–8 digits)")}, modifier=Modifier.fillMaxWidth(), singleLine=true)
+        OutlinedTextField(confirmPin, { confirmPin=it.filter(Char::isDigit).take(8) }, label={Text("Confirm PIN")}, modifier=Modifier.fillMaxWidth(), singleLine=true)
+        Button(onClick={
+         if(newPin.length !in 4..8 || newPin != confirmPin) toast("PIN must be 4–8 digits and both entries must match")
+         else runCatching {
+          val salt=ByteArray(16).also { SecureRandom().nextBytes(it) }
+          val encodedSalt=java.util.Base64.getEncoder().encodeToString(salt)
+          val encodedHash=java.util.Base64.getEncoder().encodeToString(derivePinHash(newPin,salt))
+          securityPrefs.edit().putString("pin_salt",encodedSalt).putString("pin_hash",encodedHash).apply()
+          newPin="";confirmPin=""
+         }.onSuccess { toast("App PIN saved. It will be required next time the app opens.") }.onFailure { toast("Could not save PIN") }
+        }, modifier=Modifier.fillMaxWidth()) { Text("Save / change app PIN") }
+        OutlinedButton(onClick={ securityPrefs.edit().remove("pin_hash").remove("pin_salt").apply(); newPin="";confirmPin="";toast("App PIN disabled") }, modifier=Modifier.fillMaxWidth()) { Text("Disable app PIN") }
+        Divider()
+        Text("Database backup and restore", style=MaterialTheme.typography.titleMedium)
+        Text("Export a full local database backup and keep it private. Restore replaces the current local database; only restore a backup made by this app.", style=MaterialTheme.typography.bodySmall)
+        Button(onClick={ backupLauncher.launch("surya-optician-backup.db") }, modifier=Modifier.fillMaxWidth()) { Text("Export database backup") }
+        OutlinedButton(onClick={ restoreLauncher.launch(arrayOf("application/vnd.sqlite3", "application/octet-stream", "application/x-sqlite3", "*/*")) }, modifier=Modifier.fillMaxWidth()) { Text("Restore database backup") }
        }
        else -> {
         OutlinedTextField(query, { query=it }, label={Text("Search invoice, customer, phone")}, modifier=Modifier.fillMaxWidth())
@@ -302,6 +520,7 @@ class MainActivity : ComponentActivity() {
             Text("Total ₹${"%.2f".format(invoice.totalPaise/100.0)} · Paid ₹${"%.2f".format(invoice.paidPaise/100.0)} · Due ₹${"%.2f".format(invoice.duePaise/100.0)}")
             Row(horizontalArrangement=Arrangement.spacedBy(6.dp)) {
              TextButton(onClick={lifecycleScope.launch{runCatching{val file=InvoicePdf.generate(this@MainActivity,invoice,db.dao().items(invoice.id),db.dao().settings()?:ShopSettings());val uri=FileProvider.getUriForFile(this@MainActivity,"${packageName}.fileprovider",file);startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(uri,"application/pdf").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION))}.onFailure{toast("PDF preview failed. Install a PDF viewer.")}}}){Text("Preview PDF")}
+             TextButton(onClick={lifecycleScope.launch{runCatching{val file=InvoicePdf.generate(this@MainActivity,invoice,db.dao().items(invoice.id),db.dao().settings()?:ShopSettings());printPdf(file,"Invoice ${invoice.number}")}.onFailure{toast("Could not start system print")}}}){Text("Print")}
              Button(onClick={lifecycleScope.launch{runCatching{val file=InvoicePdf.generate(this@MainActivity,invoice,db.dao().items(invoice.id),db.dao().settings()?:ShopSettings());InvoiceSharing.share(this@MainActivity,file,invoice.phone,true)}.onFailure{toast("Invoice share failed")}}}){Text("WhatsApp PDF")}
             }
             if(invoice.duePaise>0) TextButton(onClick={reminderInvoice=invoice}){Text("Payment reminder")}
@@ -313,6 +532,29 @@ class MainActivity : ComponentActivity() {
       }
       }
      }
+    }
+    if (!unlocked) {
+     AlertDialog(
+      onDismissRequest = {},
+      title = { Text("Unlock Surya Optician") },
+      text = {
+       Column {
+        Text("Enter your app PIN to access shop records.")
+        OutlinedTextField(unlockPin, { unlockPin=it.filter(Char::isDigit).take(8); pinError="" }, label={Text("PIN")}, singleLine=true, modifier=Modifier.fillMaxWidth())
+        if(pinError.isNotBlank()) Text(pinError, color=MaterialTheme.colorScheme.error)
+       }
+      },
+      confirmButton = {
+       TextButton(onClick={
+        runCatching {
+         val salt=securityPrefs.getString("pin_salt",null)?.let { java.util.Base64.getDecoder().decode(it) } ?: error("PIN is not configured correctly")
+         val expected=securityPrefs.getString("pin_hash",null)?.let { java.util.Base64.getDecoder().decode(it) } ?: error("PIN is not configured correctly")
+         check(MessageDigest.isEqual(derivePinHash(unlockPin,salt),expected)) { "Incorrect PIN" }
+         unlocked=true;unlockPin="";pinError=""
+        }.onFailure { pinError=it.message ?: "Unable to unlock" }
+       }) { Text("Unlock") }
+      }
+     )
     }
     reminderInvoice?.let { invoice ->
      AlertDialog(onDismissRequest={reminderInvoice=null},title={Text("Send payment reminder?")},text={Text("Open WhatsApp with a reminder for ${invoice.customerName}, invoice ${invoice.number}, outstanding ₹${"%.2f".format(invoice.duePaise/100.0)}. You must review and send it in WhatsApp.")},confirmButton={TextButton(onClick={
