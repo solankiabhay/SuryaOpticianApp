@@ -160,10 +160,11 @@ class MainActivity : ComponentActivity() {
                             lifecycleScope.launch {
                                 runCatching {
                                     require(name.isNotBlank()) { "Product name is required" }
-                                    require(price >= 0 && stock >= 0 && lowStockThreshold >= 0) { "Price and stock cannot be negative" }
+                                    val pricePaise = toPaise(price)
+                                    require(pricePaise >= 0 && stock >= 0 && lowStockThreshold >= 0) { "Price and stock cannot be negative" }
                                     db.dao().addProduct(Product(
                                         name = name.trim(), sku = sku.trim(),
-                                        pricePaise = toPaise(price), stock = stock,
+                                        pricePaise = pricePaise, stock = stock,
                                         lowStock = lowStockThreshold
                                     ))
                                     dialog = ""
@@ -182,17 +183,21 @@ class MainActivity : ComponentActivity() {
                                     require(customerName.isNotBlank()) { "Customer name is required" }
                                     require(description.isNotBlank()) { "Item description is required" }
                                     require(qty > 0) { "Quantity must be greater than zero" }
-                                    require(rate >= 0 && discount >= 0 && tax >= 0 && paid >= 0) { "Amounts cannot be negative" }
+                                    val ratePaise = toPaise(rate)
+                                    val discountPaise = toPaise(discount)
+                                    val taxPaise = toPaise(tax)
+                                    val paidPaise = toPaise(paid)
+                                    require(ratePaise >= 0 && discountPaise >= 0 && taxPaise >= 0 && paidPaise >= 0) { "Amounts cannot be negative" }
                                     billing.createBill(NewBill(
                                         customerId = customerId,
                                         customerName = customerName.trim(),
                                         phone = phone.trim(),
                                         lines = listOf(BillLine(
                                             productId = productId, description = description.trim(),
-                                            qty = qty, ratePaise = toPaise(rate),
-                                            discountPaise = toPaise(discount), taxPaise = toPaise(tax)
+                                            qty = qty, ratePaise = ratePaise,
+                                            discountPaise = discountPaise, taxPaise = taxPaise
                                         )),
-                                        paidPaise = toPaise(paid)
+                                        paidPaise = paidPaise
                                     ))
                                     dialog = ""
                                     showToast("Invoice created")
