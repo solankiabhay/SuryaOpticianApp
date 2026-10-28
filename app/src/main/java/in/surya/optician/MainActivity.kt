@@ -529,26 +529,71 @@ class MainActivity : ComponentActivity() {
         } }, modifier=Modifier.fillMaxWidth()) { Text(if(editingInvoiceId==null) "Create bill and deduct stock" else "Save bill changes") }
        }
         "Payment" -> {
-        OutlinedTextField(paymentInvoiceId, { paymentInvoiceId=it }, label={ Text("Invoice database ID") }, modifier=Modifier.fillMaxWidth())
-        OutlinedTextField(paymentAmount, { paymentAmount=it }, label={ Text("Payment amount in ₹") }, modifier=Modifier.fillMaxWidth())
-        Text("Payment type", style=MaterialTheme.typography.titleSmall)
-        Row(horizontalArrangement=Arrangement.spacedBy(6.dp), modifier=Modifier.fillMaxWidth()) {
-         listOf("Cash", "Online", "Other").forEach { method ->
-          if (paymentMethod == method) Button(onClick={ paymentMethod=method }, modifier=Modifier.weight(1f)) { Text(method) }
-          else OutlinedButton(onClick={ paymentMethod=method }, modifier=Modifier.weight(1f)) { Text(method) }
+        val selectedPaymentInvoice = invoices.firstOrNull { it.id.toString() == paymentInvoiceId }
+        Text("Payments & collections", style=MaterialTheme.typography.headlineSmall)
+        Text("Record customer payments, track outstanding balances, and review every transaction.", style=MaterialTheme.typography.bodyMedium)
+        Spacer(Modifier.height(12.dp))
+        Card(Modifier.fillMaxWidth(), colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.primaryContainer)) {
+         Column(Modifier.padding(16.dp), verticalArrangement=Arrangement.spacedBy(6.dp)) {
+          Text("COLLECT PAYMENT", style=MaterialTheme.typography.labelLarge, color=MaterialTheme.colorScheme.onPrimaryContainer)
+          Text("Select an invoice", style=MaterialTheme.typography.titleMedium)
+          OutlinedTextField(paymentInvoiceId, { paymentInvoiceId=it }, label={ Text("Invoice ID") }, placeholder={ Text("Choose an invoice below") }, singleLine=true, modifier=Modifier.fillMaxWidth())
+          selectedPaymentInvoice?.let { inv ->
+           Text("${inv.number} · ${inv.customerName}", style=MaterialTheme.typography.titleSmall)
+           Row(horizontalArrangement=Arrangement.spacedBy(8.dp), modifier=Modifier.fillMaxWidth()) {
+            Card(Modifier.weight(1f), colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface)) { Column(Modifier.padding(10.dp)) { Text("Total", style=MaterialTheme.typography.labelSmall); Text("₹${"%.2f".format(inv.totalPaise/100.0)}", style=MaterialTheme.typography.titleSmall) } }
+            Card(Modifier.weight(1f), colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface)) { Column(Modifier.padding(10.dp)) { Text("Due", style=MaterialTheme.typography.labelSmall); Text("₹${"%.2f".format(inv.duePaise/100.0)}", style=MaterialTheme.typography.titleSmall, color=if(inv.duePaise>0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary) } }
+           }
+          }
+          OutlinedTextField(paymentAmount, { paymentAmount=it }, label={ Text("Amount received (₹)") }, placeholder={ Text("e.g. 500.00") }, singleLine=true, modifier=Modifier.fillMaxWidth())
+          Text("Payment method", style=MaterialTheme.typography.titleSmall)
+          Row(horizontalArrangement=Arrangement.spacedBy(6.dp), modifier=Modifier.fillMaxWidth()) {
+           listOf("Cash", "Online", "Other").forEach { method ->
+            FilterChip(selected=paymentMethod==method, onClick={ paymentMethod=method }, label={ Text(method) }, modifier=Modifier.weight(1f))
+           }
+          }
+          Button(onClick={ lifecycleScope.launch {
+           val id=paymentInvoiceId.toLongOrNull(); val amount=paymentAmount.toDoubleOrNull()
+           if(id==null || amount==null || amount<=0) toast("Enter a valid invoice ID and payment amount")
+           else runCatching { BillingRepository(db).recordPayment(id,(amount*100).toLong(),paymentMethod.trim().ifBlank{"Cash"}) }
+            .onSuccess { toast("Payment recorded successfully"); paymentAmount="" }.onFailure { toast(it.message ?: "Payment failed") }
+          } }, enabled=paymentInvoiceId.toLongOrNull()!=null && (paymentAmount.toDoubleOrNull() ?: 0.0)>0, modifier=Modifier.fillMaxWidth()) { Text("✓  Record payment") }
          }
         }
-        Button(onClick={ lifecycleScope.launch {
-         val id=paymentInvoiceId.toLongOrNull(); val amount=paymentAmount.toDoubleOrNull()
-         if(id==null || amount==null || amount<=0) toast("Enter a valid invoice ID and payment amount")
-         else runCatching { BillingRepository(db).recordPayment(id,(amount*100).toLong(),paymentMethod.trim().ifBlank{"Cash"}) }
-          .onSuccess { toast("Payment recorded"); paymentAmount="" }.onFailure { toast(it.message ?: "Payment failed") }
-        } }, modifier=Modifier.fillMaxWidth()) { Text("Record payment") }
-        Text("Select an invoice below to view its recorded payment history.", style=MaterialTheme.typography.bodySmall)
-        Column { invoices.forEach { TextButton(onClick={ paymentInvoiceId=it.id.toString() }) { Text("#${it.id} · ${it.number} · ${it.customerName} · due ₹${"%.2f".format(it.duePaise/100.0)}") } } }
-        Text("Payment history for selected invoice", style=MaterialTheme.typography.titleMedium)
-        if(paymentHistory.isEmpty()) Text("No payments found for this invoice ID.", style=MaterialTheme.typography.bodySmall)
-        paymentHistory.forEach { payment -> Text("${java.text.SimpleDateFormat("dd MMM yyyy, hh:mm a", java.util.Locale.getDefault()).format(java.util.Date(payment.paidAt))} · ₹${"%.2f".format(payment.amountPaise/100.0)} · ${payment.method} ${payment.reference}", Modifier.padding(vertical=3.dp)) }
+        Spacer(Modifier.height(16.dp))
+        Text("Choose an invoice", style=MaterialTheme.typography.titleLarge)
+        invoices.forEach { inv ->
+         Card(Modifier.fillMaxWidth().padding(vertical=4.dp), onClick={ paymentInvoiceId=inv.id.toString(); paymentAmount="" }) {
+          Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement=Arrangement.spacedBy(10.dp), verticalAlignment=androidx.compose.ui.Alignment.CenterVertically) {
+           Surface(shape=androidx.compose.foundation.shape.RoundedCornerShape(12.dp), color=if(inv.duePaise<=0) androidx.compose.ui.graphics.Color(0xFFE0F4E8) else androidx.compose.ui.graphics.Color(0xFFFFE8D6), modifier=Modifier.size(44.dp)) {
+            Box(contentAlignment=androidx.compose.ui.Alignment.Center) { Text(if(inv.duePaise<=0) "✓" else "₹", style=MaterialTheme.typography.titleMedium, color=if(inv.duePaise<=0) androidx.compose.ui.graphics.Color(0xFF176B3A) else androidx.compose.ui.graphics.Color(0xFF9A4D00)) }
+           }
+           Column(Modifier.weight(1f)) {
+            Text("${inv.number} · ${inv.customerName}", style=MaterialTheme.typography.titleSmall)
+            Text(if(inv.duePaise<=0) "PAID" else if(inv.paidPaise>0) "PARTIALLY PAID" else "PENDING", style=MaterialTheme.typography.labelSmall, color=if(inv.duePaise<=0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error)
+           }
+           Column(horizontalAlignment=androidx.compose.ui.Alignment.End) {
+            Text("Due", style=MaterialTheme.typography.labelSmall)
+            Text("₹${"%.2f".format(inv.duePaise/100.0)}", style=MaterialTheme.typography.titleSmall)
+           }
+          }
+         }
+        }
+        Spacer(Modifier.height(12.dp))
+        Text("Transaction history", style=MaterialTheme.typography.titleLarge)
+        if(paymentHistory.isEmpty()) Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(16.dp)) { Text("No payments recorded yet", style=MaterialTheme.typography.titleSmall); Text("Select an invoice and record a payment to see its transactions here.", style=MaterialTheme.typography.bodySmall) } }
+        paymentHistory.forEach { payment ->
+         Card(Modifier.fillMaxWidth().padding(vertical=3.dp)) {
+          Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement=Arrangement.spacedBy(10.dp), verticalAlignment=androidx.compose.ui.Alignment.CenterVertically) {
+           Surface(shape=androidx.compose.foundation.shape.CircleShape, color=MaterialTheme.colorScheme.secondaryContainer, modifier=Modifier.size(40.dp)) { Box(contentAlignment=androidx.compose.ui.Alignment.Center) { androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Default.CheckCircle, contentDescription=null, tint=MaterialTheme.colorScheme.primary) } }
+           Column(Modifier.weight(1f)) {
+            Text(payment.method, style=MaterialTheme.typography.titleSmall)
+            Text(java.text.SimpleDateFormat("dd MMM yyyy, hh:mm a", java.util.Locale.getDefault()).format(java.util.Date(payment.paidAt)), style=MaterialTheme.typography.bodySmall)
+           }
+           Text("+₹${"%.2f".format(payment.amountPaise/100.0)}", style=MaterialTheme.typography.titleMedium, color=MaterialTheme.colorScheme.primary)
+          }
+         }
+        }
        }
        "Prescription" -> {
         Text("Eye prescription", style=MaterialTheme.typography.titleLarge)
