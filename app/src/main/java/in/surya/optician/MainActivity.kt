@@ -179,8 +179,8 @@ class MainActivity : ComponentActivity() {
        else -> {
         OutlinedTextField(query, { query=it }, label={Text("Search invoice, customer, phone")}, modifier=Modifier.fillMaxWidth())
         Button(onClick={ InvoiceCsv.share(this@MainActivity, invoices) }, modifier=Modifier.fillMaxWidth()) { Text("Export visible invoices as CSV") }
-        LazyColumn {
-         items(invoices, key={it.id}) { invoice ->
+        Column {
+         invoices.forEach { invoice ->
           Card(Modifier.fillMaxWidth().padding(vertical=4.dp)) {
            Column(Modifier.padding(12.dp)) {
             Text("${invoice.number} · ${invoice.customerName}", style=MaterialTheme.typography.titleMedium)
