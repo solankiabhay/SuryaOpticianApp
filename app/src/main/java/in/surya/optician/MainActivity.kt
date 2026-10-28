@@ -38,18 +38,21 @@ class MainActivity : ComponentActivity() {
                 var query by remember { mutableStateOf("") }
                 var dialog by remember { mutableStateOf("") }
                 var selectedInvoice by remember { mutableStateOf<Invoice?>(null) }
-                var message by remember { mutableStateOf<String?>(null) }
+                var shopSettings by remember { mutableStateOf(ShopSettings()) }
                 val invoices by db.dao().searchInvoices(query).collectAsState(initial = emptyList())
                 val customers by db.dao().customers().collectAsState(initial = emptyList())
                 val products by db.dao().products().collectAsState(initial = emptyList())
                 val due by db.dao().outstanding().collectAsState(initial = 0L)
+                val sales by db.dao().salesTotal().collectAsState(initial = 0L)
+                val collected by db.dao().collectedTotal().collectAsState(initial = 0L)
+                val invoiceCount by db.dao().invoiceCount().collectAsState(initial = 0)
                 val lowStock by db.dao().lowStock().collectAsState(initial = emptyList())
 
                 Scaffold(topBar = { TopAppBar(title = { Text("Surya Optician") }) }) { padding ->
                     Column(Modifier.fillMaxSize().padding(padding).padding(16.dp)) {
                         Text("Optical Shop Dashboard", style = MaterialTheme.typography.headlineSmall)
-                        Text("Customers: ${customers.size}  Products: ${products.size}  Invoices: ${invoices.size}")
-                        Text("Outstanding: ₹${money(due)}")
+                        Text("Customers: ${customers.size}  Products: ${products.size}  Invoices: $invoiceCount")
+                        Text("Sales: ₹${money(sales)} · Collected: ₹${money(collected)} · Outstanding: ₹${money(due)}")
                         if (lowStock.isNotEmpty()) {
                             Text("Low stock: ${lowStock.joinToString { "${it.name} (${it.stock})" }}",
                                 color = MaterialTheme.colorScheme.error)
@@ -62,6 +65,11 @@ class MainActivity : ComponentActivity() {
                         Spacer(Modifier.height(6.dp))
                         Button(onClick = { dialog = "bill" }, modifier = Modifier.fillMaxWidth()) {
                             Text("Create invoice")
+                        }
+                        Spacer(Modifier.height(6.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedButton(onClick = { dialog = "prescription" }) { Text("Add prescription") }
+                            OutlinedButton(onClick = { dialog = "settings" }) { Text("Shop settings") }
                         }
                         Spacer(Modifier.height(10.dp))
                         OutlinedTextField(
@@ -189,6 +197,37 @@ class MainActivity : ComponentActivity() {
                             }
                         }
                     )
+                    "prescription" -> PrescriptionDialog(
+                        customers = customers,
+                        onDismiss = { dialog = "" },
+                        onSave = { customerId, rs, rc, ra, rad, ls, lc, la, lad, pd, notes ->
+                            lifecycleScope.launch {
+                                runCatching {
+                                    db.dao().addPrescription(Prescription(
+                                        customerId = customerId, rightSphere = rs, rightCylinder = rc,
+                                        rightAxis = ra, rightAdd = rad, leftSphere = ls, leftCylinder = lc,
+                                        leftAxis = la, leftAdd = lad, pd = pd, notes = notes
+                                    ))
+                                    dialog = ""
+                                    showToast("Prescription saved")
+                                }.onFailure { showToast(it.message ?: "Could not save prescription") }
+                            }
+                        }
+                    )
+                    "settings" -> SettingsDialog(
+                        initial = shopSettings,
+                        onDismiss = { dialog = "" },
+                        onSave = { settings ->
+                            lifecycleScope.launch {
+                                runCatching {
+                                    db.dao().saveSettings(settings)
+                                    shopSettings = settings
+                                    dialog = ""
+                                    showToast("Shop settings saved")
+                                }.onFailure { showToast(it.message ?: "Could not save settings") }
+                            }
+                        }
+                    )
                     "payment" -> selectedInvoice?.let { invoice ->
                         PaymentDialog(
                             invoice = invoice,
@@ -234,7 +273,6 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                 }
-                message?.let { Text(it) }
             }
         }
     }
@@ -417,3 +455,106 @@ private fun toPaise(amount: String): Long =
         .setScale(0, java.math.RoundingMode.HALF_UP).longValueExact()
 
 private fun money(paise: Long): String = String.format(Locale.US, "%.2f", paise / 100.0)
+
+
+@Composable
+private fun PrescriptionDialog(
+    customers: List<Customer>,
+    onDismiss: () -> Unit,
+    onSave: (Long, String, String, String, String, String, String, String, String, String, String) -> Unit
+) {
+    var customerId by remember { mutableStateOf<Long?>(customers.firstOrNull()?.id) }
+    var customerMenu by remember { mutableStateOf(false) }
+    var rs by remember { mutableStateOf("") }
+    var rc by remember { mutableStateOf("") }
+    var ra by remember { mutableStateOf("") }
+    var rad by remember { mutableStateOf("") }
+    var ls by remember { mutableStateOf("") }
+    var lc by remember { mutableStateOf("") }
+    var la by remember { mutableStateOf("") }
+    var lad by remember { mutableStateOf("") }
+    var pd by remember { mutableStateOf("") }
+    var notes by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("New prescription") },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Box {
+                    OutlinedTextField(
+                        value = customers.firstOrNull { it.id == customerId }?.name ?: "Select customer",
+                        onValueChange = {}, readOnly = true, label = { Text("Customer") },
+                        modifier = Modifier.fillMaxWidth(),
+                        trailingIcon = { TextButton(onClick = { customerMenu = true }) { Text("Choose") } }
+                    )
+                    DropdownMenu(expanded = customerMenu, onDismissRequest = { customerMenu = false }) {
+                        customers.forEach { customer ->
+                            DropdownMenuItem(text = { Text(customer.name) }, onClick = {
+                                customerId = customer.id
+                                customerMenu = false
+                            })
+                        }
+                    }
+                }
+                Text("Right eye (OD)", style = MaterialTheme.typography.titleSmall)
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    OutlinedTextField(rs, { rs = it }, label = { Text("SPH") }, modifier = Modifier.weight(1f), singleLine = true)
+                    OutlinedTextField(rc, { rc = it }, label = { Text("CYL") }, modifier = Modifier.weight(1f), singleLine = true)
+                    OutlinedTextField(ra, { ra = it }, label = { Text("AXIS") }, modifier = Modifier.weight(1f), singleLine = true)
+                }
+                OutlinedTextField(rad, { rad = it }, label = { Text("ADD") }, singleLine = true)
+                Text("Left eye (OS)", style = MaterialTheme.typography.titleSmall)
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    OutlinedTextField(ls, { ls = it }, label = { Text("SPH") }, modifier = Modifier.weight(1f), singleLine = true)
+                    OutlinedTextField(lc, { lc = it }, label = { Text("CYL") }, modifier = Modifier.weight(1f), singleLine = true)
+                    OutlinedTextField(la, { la = it }, label = { Text("AXIS") }, modifier = Modifier.weight(1f), singleLine = true)
+                }
+                OutlinedTextField(lad, { lad = it }, label = { Text("ADD") }, singleLine = true)
+                OutlinedTextField(pd, { pd = it }, label = { Text("Pupillary distance (PD)") }, singleLine = true)
+                OutlinedTextField(notes, { notes = it }, label = { Text("Notes") })
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                val id = customerId ?: return@TextButton
+                onSave(id, rs, rc, ra, rad, ls, lc, la, lad, pd, notes)
+            }) { Text("Save prescription") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
+}
+
+@Composable
+private fun SettingsDialog(
+    initial: ShopSettings,
+    onDismiss: () -> Unit,
+    onSave: (ShopSettings) -> Unit
+) {
+    var name by remember(initial) { mutableStateOf(initial.name) }
+    var address by remember(initial) { mutableStateOf(initial.address) }
+    var phone by remember(initial) { mutableStateOf(initial.phone) }
+    var gstin by remember(initial) { mutableStateOf(initial.gstin) }
+    var footer by remember(initial) { mutableStateOf(initial.footer) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Shop settings") },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(name, { name = it }, label = { Text("Shop name") }, singleLine = true)
+                OutlinedTextField(address, { address = it }, label = { Text("Address") })
+                OutlinedTextField(phone, { phone = it }, label = { Text("Phone") }, singleLine = true)
+                OutlinedTextField(gstin, { gstin = it }, label = { Text("GSTIN") }, singleLine = true)
+                OutlinedTextField(footer, { footer = it }, label = { Text("Invoice footer") })
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                if (name.isNotBlank()) onSave(initial.copy(
+                    name = name.trim(), address = address.trim(), phone = phone.trim(),
+                    gstin = gstin.trim(), footer = footer.trim()
+                ))
+            }) { Text("Save") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
+}
