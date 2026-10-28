@@ -21,7 +21,8 @@ data class Product(
     val pricePaise: Long,
     val stock: Int,
     val lowStock: Int = 3,
-    @ColumnInfo(defaultValue = "0") val costPaise: Long = 0
+    @ColumnInfo(defaultValue = "0") val costPaise: Long = 0,
+    @ColumnInfo(defaultValue = "''") val category: String = ""
 )
 
 @Entity(tableName = "invoices", indices = [Index(value = ["number"], unique = true)])
