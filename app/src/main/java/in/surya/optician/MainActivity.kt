@@ -13,6 +13,13 @@ import javax.crypto.SecretKeyFactory
 import javax.crypto.spec.PBEKeySpec
 import android.net.Uri
 import android.os.Bundle
+import android.os.CancellationSignal
+import android.os.ParcelFileDescriptor
+import android.print.PageRange
+import android.print.PrintAttributes
+import android.print.PrintDocumentAdapter
+import android.print.PrintDocumentInfo
+import android.print.PrintManager
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -56,6 +63,29 @@ private fun derivePinHash(pin: String, salt: ByteArray): ByteArray {
 
 @OptIn(ExperimentalMaterial3Api::class)
 class MainActivity : ComponentActivity() {
+ private fun printPdf(file: File, jobName: String) {
+  val manager = getSystemService(android.content.Context.PRINT_SERVICE) as PrintManager
+  manager.print(jobName, object : PrintDocumentAdapter() {
+   override fun onLayout(oldAttributes: PrintAttributes?, newAttributes: PrintAttributes?, cancellationSignal: CancellationSignal?, callback: LayoutResultCallback?, extras: Bundle?) {
+    if (cancellationSignal?.isCanceled == true) { callback?.onLayoutCancelled(); return }
+    val info = PrintDocumentInfo.Builder(file.name)
+     .setContentType(PrintDocumentInfo.CONTENT_TYPE_DOCUMENT)
+     .setPageCount(PrintDocumentInfo.PAGE_COUNT_UNKNOWN)
+     .build()
+    callback?.onLayoutFinished(info, true)
+   }
+   override fun onWrite(pages: Array<out PageRange>?, destination: ParcelFileDescriptor?, cancellationSignal: CancellationSignal?, callback: WriteResultCallback?) {
+    if (cancellationSignal?.isCanceled == true) { callback?.onWriteCancelled(); return }
+    try {
+     val target = requireNotNull(destination) { "Print destination unavailable" }
+     FileInputStream(file).use { input -> FileOutputStream(target.fileDescriptor).use { output -> input.copyTo(output) } }
+     callback?.onWriteFinished(arrayOf(PageRange.ALL_PAGES))
+    } catch (error: Exception) {
+     callback?.onWriteFailed(error.message ?: "Could not write PDF for printing")
+    }
+   }
+  }, PrintAttributes.Builder().build())
+ }
  private fun sharePrescriptionPdf(rx: Prescription, customerName: String) {
   runCatching {
    val directory = File(filesDir, "prescriptions")
@@ -490,6 +520,7 @@ class MainActivity : ComponentActivity() {
             Text("Total ₹${"%.2f".format(invoice.totalPaise/100.0)} · Paid ₹${"%.2f".format(invoice.paidPaise/100.0)} · Due ₹${"%.2f".format(invoice.duePaise/100.0)}")
             Row(horizontalArrangement=Arrangement.spacedBy(6.dp)) {
              TextButton(onClick={lifecycleScope.launch{runCatching{val file=InvoicePdf.generate(this@MainActivity,invoice,db.dao().items(invoice.id),db.dao().settings()?:ShopSettings());val uri=FileProvider.getUriForFile(this@MainActivity,"${packageName}.fileprovider",file);startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(uri,"application/pdf").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION))}.onFailure{toast("PDF preview failed. Install a PDF viewer.")}}}){Text("Preview PDF")}
+             TextButton(onClick={lifecycleScope.launch{runCatching{val file=InvoicePdf.generate(this@MainActivity,invoice,db.dao().items(invoice.id),db.dao().settings()?:ShopSettings());printPdf(file,"Invoice ${invoice.number}")}.onFailure{toast("Could not start system print")}}}){Text("Print")}
              Button(onClick={lifecycleScope.launch{runCatching{val file=InvoicePdf.generate(this@MainActivity,invoice,db.dao().items(invoice.id),db.dao().settings()?:ShopSettings());InvoiceSharing.share(this@MainActivity,file,invoice.phone,true)}.onFailure{toast("Invoice share failed")}}}){Text("WhatsApp PDF")}
             }
             if(invoice.duePaise>0) TextButton(onClick={reminderInvoice=invoice}){Text("Payment reminder")}
