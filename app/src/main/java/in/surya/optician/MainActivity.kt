@@ -227,6 +227,7 @@ class MainActivity : ComponentActivity() {
     var section by remember { mutableStateOf("Dashboard") }
     var showMoreMenu by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
+    var billHistoryPage by remember { mutableIntStateOf(0) }
     var customerSearch by remember { mutableStateOf("") }
     var productSearch by remember { mutableStateOf("") }
     var editingPrescriptionId by remember { mutableStateOf<Long?>(null) }
@@ -284,6 +285,10 @@ class MainActivity : ComponentActivity() {
     var prescriptionNotes by remember { mutableStateOf("") }
     var reminderInvoice by remember { mutableStateOf<Invoice?>(null) }
     val invoices by db.dao().searchInvoices(query).collectAsState(initial = emptyList())
+    LaunchedEffect(query) { billHistoryPage = 0 }
+    val billHistoryPageSize = 10
+    val billHistoryPageCount = maxOf(1, (invoices.size + billHistoryPageSize - 1) / billHistoryPageSize)
+    val visibleBillHistory = invoices.drop(billHistoryPage * billHistoryPageSize).take(billHistoryPageSize)
     val allInvoices by db.dao().invoices().collectAsState(initial = emptyList())
     val prescriptionsFlow = remember(prescriptionCustomerId) {
      prescriptionCustomerId.toLongOrNull()?.let { db.dao().prescriptions(it) } ?: flowOf<List<Prescription>>(emptyList())
@@ -1022,9 +1027,19 @@ class MainActivity : ComponentActivity() {
        }
        else -> {
         OutlinedTextField(query, { query=it }, label={Text("Search invoice, customer, phone")}, modifier=Modifier.fillMaxWidth())
-        Button(onClick={ InvoiceCsv.share(this@MainActivity, invoices) }, modifier=Modifier.fillMaxWidth()) { Text("Export visible invoices as CSV") }
+        Button(onClick={ InvoiceCsv.share(this@MainActivity, invoices) }, modifier=Modifier.fillMaxWidth()) { Text("Export matching invoices as CSV") }
+        Card(Modifier.fillMaxWidth(), colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface)) {
+         Row(Modifier.fillMaxWidth().padding(horizontal=8.dp, vertical=4.dp), verticalAlignment=Alignment.CenterVertically, horizontalArrangement=Arrangement.SpaceBetween) {
+          Text(if(invoices.isEmpty()) "No bills" else "Showing ${billHistoryPage * billHistoryPageSize + 1}–${minOf((billHistoryPage + 1) * billHistoryPageSize, invoices.size)} of ${invoices.size}", style=MaterialTheme.typography.labelMedium)
+          Row(verticalAlignment=Alignment.CenterVertically) {
+           TextButton(onClick={ billHistoryPage = (billHistoryPage - 1).coerceAtLeast(0) }, enabled=billHistoryPage > 0) { Text("Previous") }
+           Text("${billHistoryPage + 1}/${billHistoryPageCount}", style=MaterialTheme.typography.labelMedium)
+           TextButton(onClick={ billHistoryPage = (billHistoryPage + 1).coerceAtMost(billHistoryPageCount - 1) }, enabled=billHistoryPage < billHistoryPageCount - 1) { Text("Next") }
+          }
+         }
+        }
         Column {
-         invoices.forEach { invoice ->
+         visibleBillHistory.forEach { invoice ->
           Card(Modifier.fillMaxWidth().padding(vertical=5.dp), colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface)) {
            Column(Modifier.padding(14.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.SpaceBetween, verticalAlignment=androidx.compose.ui.Alignment.CenterVertically) {
