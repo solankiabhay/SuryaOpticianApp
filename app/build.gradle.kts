@@ -5,10 +5,10 @@ plugins {
  id("com.google.devtools.ksp")
 }
 android {
- namespace = "in.surya.optician"
+ namespace = "com.surya.optician"
  compileSdk = 35
  defaultConfig {
-  applicationId = "in.surya.optician"
+  applicationId = "com.surya.optician"
   minSdk = 26
   targetSdk = 35
   versionCode = 1
