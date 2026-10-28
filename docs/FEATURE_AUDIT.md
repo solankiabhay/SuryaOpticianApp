@@ -22,7 +22,7 @@ This audit reflects source code currently on the feature branch. It is not a cla
 | Database migrations | Implemented baseline | v1→v2 adds cost snapshots; v2→v3 adds product category |
 | Database backup/restore | Implemented baseline | Settings exports a checkpointed SQLite database; restore validates integrity, version and required tables before replacing local DB. Must be tested on-device and use backups from this app |
 | Local PIN lock | Implemented baseline | Optional 4–8 digit PIN, salted PBKDF2 hash, lock on next app open; no online recovery and no staff roles |
-| Invoice printing | Implemented baseline | Uses Android PrintManager with the generated invoice PDF; physical printer/system print service needs device QA. Prescription-specific print action remains pending |
+| Invoice printing | Implemented baseline | Uses Android PrintManager with the generated invoice PDF; physical printer/system print service needs device QA. Prescription PDF sharing and native print actions are available; physical output needs device QA |
 | Automated build/device acceptance | Pending | Do not declare release-ready until Gradle tests/build and physical-device checklist pass |
 
 Do not describe WhatsApp opening as delivery/read confirmation. This remains an MVP until build verification, backup/restore, access control decisions and real-device acceptance are complete.
