@@ -1,6 +1,6 @@
 # Feature audit
 
-The app now includes a starter Android UI and local Room-backed workflows. Status is source-level until GitHub Actions succeeds and real-device acceptance is completed.
+The app now includes a starter Android UI and local Room-backed workflows, including a multi-item bill cart and shareable invoice CSV export. Status is source-level until GitHub Actions succeeds and real-device acceptance is completed.
 
 | Area | Status | Notes |
 |---|---|---|
@@ -9,7 +9,7 @@ The app now includes a starter Android UI and local Room-backed workflows. Statu
 | Invoice numbering | Implemented baseline | Unique DB index plus timestamp/collision check |
 | Customer management | Basic create/list | Create form and list; edit/delete/search by customer still needed |
 | Product/stock management | Basic create/list | Product entry, stock count and low-stock indicator; edit/stock-adjustment flow still needed |
-| Billing | Basic single-line invoice | Customer text, optional product ID, quantity, line discount/tax and initial payment; multi-item cart and customer linking still needed |
+| Billing | Basic multi-line cart | Add items to cart, optionally link an existing customer by ID, set quantity/line discount/tax and initial payment; richer product picker and customer search still needed |
 | Payment collection | Basic | Records additional payments transactionally; lookup uses invoice database ID |
 | Prescription management | Basic | Customer ID, right/left sphere and PD; full Rx fields/history/editing needed |
 | Shop settings | Basic | Name/address/phone/GSTIN/footer stored locally |
