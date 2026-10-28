@@ -22,6 +22,7 @@ import in.surya.optician.invoice.InvoiceCsv
 import in.surya.optician.invoice.InvoiceSharing
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.first
 import java.net.URLEncoder
 import java.text.ParsePosition
 import java.util.Calendar
@@ -48,6 +49,9 @@ class MainActivity : ComponentActivity() {
    MaterialTheme {
     var section by remember { mutableStateOf("Bills") }
     var query by remember { mutableStateOf("") }
+    var customerSearch by remember { mutableStateOf("") }
+    var productSearch by remember { mutableStateOf("") }
+    var editingPrescriptionId by remember { mutableStateOf<Long?>(null) }
     var reportFrom by remember { mutableStateOf("") }
     var reportTo by remember { mutableStateOf("") }
     var selectedCustomerId by remember { mutableStateOf<Long?>(null) }
@@ -119,8 +123,22 @@ class MainActivity : ComponentActivity() {
          else { db.dao().updateCustomer(Customer(id=selectedCustomerId!!, name=customerName.trim(), phone=customerPhone.trim(), address=customerAddress.trim())); selectedCustomerId=null; customerName=""; customerPhone=""; customerAddress=""; toast("Customer updated") }
         } }, modifier = Modifier.fillMaxWidth()) { Text(if (selectedCustomerId == null) "Save customer" else "Update customer") }
         if (selectedCustomerId != null) TextButton(onClick={ selectedCustomerId=null; customerName=""; customerPhone=""; customerAddress="" }) { Text("Cancel customer edit") }
-        Text("Tap a customer to edit their details.", style=MaterialTheme.typography.bodySmall)
-        Column { customers.forEach { customer -> TextButton(onClick={ selectedCustomerId=customer.id; customerName=customer.name; customerPhone=customer.phone; customerAddress=customer.address }) { Text("#${customer.id} · ${customer.name} · ${customer.phone}") } } }
+        OutlinedTextField(customerSearch, { customerSearch = it }, label={Text("Search customers by name or phone")}, modifier=Modifier.fillMaxWidth())
+        Text("Tap Edit to load a customer. Delete is disabled when invoices or prescriptions reference the customer.", style=MaterialTheme.typography.bodySmall)
+        Column { customers.filter { customerSearch.isBlank() || it.name.contains(customerSearch,true) || it.phone.contains(customerSearch,true) }.forEach { customer ->
+         Card(Modifier.fillMaxWidth().padding(vertical=3.dp)) { Column(Modifier.padding(8.dp)) {
+          Text("#${customer.id} · ${customer.name} · ${customer.phone}")
+          Row {
+           TextButton(onClick={ selectedCustomerId=customer.id; customerName=customer.name; customerPhone=customer.phone; customerAddress=customer.address }) { Text("Edit") }
+           TextButton(onClick={ lifecycleScope.launch {
+            val hasInvoices=db.dao().customerInvoiceCount(customer.id)>0
+            val hasPrescriptions=db.dao().customerPrescriptionCount(customer.id)>0
+            if(hasInvoices || hasPrescriptions) toast("Cannot delete: customer has invoice or prescription history")
+            else runCatching { db.dao().deleteCustomer(customer) }.onSuccess { toast("Customer deleted") }.onFailure { toast("Could not delete customer") }
+           } }) { Text("Delete") }
+          }
+         } }
+        } }
        }
        "Products" -> {
         OutlinedTextField(productName, { productName = it }, label = { Text("Product / frame / lens name *") }, modifier = Modifier.fillMaxWidth())
@@ -137,15 +155,29 @@ class MainActivity : ComponentActivity() {
          else { db.dao().updateProduct(Product(id=selectedProductId!!, name=productName.trim(), sku=productSku.trim(), pricePaise=(price*100).toLong(), stock=stock, lowStock=low)); selectedProductId=null; productName=""; productSku=""; productPrice=""; productStock="1"; productLowStock="3"; toast("Product and stock updated") }
         } }, modifier = Modifier.fillMaxWidth()) { Text(if (selectedProductId == null) "Save product" else "Update product / stock") }
         if (selectedProductId != null) TextButton(onClick={ selectedProductId=null; productName=""; productSku=""; productPrice=""; productStock="1"; productLowStock="3" }) { Text("Cancel product edit") }
-        Text("Tap a product to edit price, SKU, low-stock threshold or adjust stock.", style=MaterialTheme.typography.bodySmall)
-        Column { products.forEach { product -> TextButton(onClick={ selectedProductId=product.id; productName=product.name; productSku=product.sku; productPrice="%.2f".format(product.pricePaise/100.0); productStock=product.stock.toString(); productLowStock=product.lowStock.toString() }) { Text("#${product.id} · ${product.name} · ₹${"%.2f".format(product.pricePaise/100.0)} · stock ${product.stock}") } } }
+        OutlinedTextField(productSearch, { productSearch=it }, label={Text("Search products by name or SKU")}, modifier=Modifier.fillMaxWidth())
+        Text("Tap Edit to change product details. Products used on invoices cannot be deleted.", style=MaterialTheme.typography.bodySmall)
+        Column { products.filter { productSearch.isBlank() || it.name.contains(productSearch,true) || it.sku.contains(productSearch,true) }.forEach { product ->
+         Card(Modifier.fillMaxWidth().padding(vertical=3.dp)) { Column(Modifier.padding(8.dp)) {
+          Text("#${product.id} · ${product.name} · ₹${"%.2f".format(product.pricePaise/100.0)} · stock ${product.stock}")
+          Row {
+           TextButton(onClick={ selectedProductId=product.id; productName=product.name; productSku=product.sku; productPrice="%.2f".format(product.pricePaise/100.0); productStock=product.stock.toString(); productLowStock=product.lowStock.toString() }) { Text("Edit") }
+           TextButton(onClick={ lifecycleScope.launch {
+            if(db.dao().productInvoiceItemCount(product.id)>0) toast("Cannot delete: product appears on invoice history")
+            else runCatching { db.dao().deleteProduct(product) }.onSuccess { toast("Product deleted") }.onFailure { toast("Could not delete product") }
+           } }) { Text("Delete") }
+          }
+         } }
+        } }
        }
        "New Bill" -> {
         Text("Create invoice", style=MaterialTheme.typography.titleLarge)
         OutlinedTextField(billCustomerId, { billCustomerId=it }, label={ Text("Existing customer ID (optional)") }, modifier=Modifier.fillMaxWidth())
+        customers.forEach { customer -> TextButton(onClick={ billCustomerId=customer.id.toString(); billCustomer=customer.name; billPhone=customer.phone }) { Text("Use #${customer.id} · ${customer.name} · ${customer.phone}") } }
         OutlinedTextField(billCustomer, { billCustomer=it }, label={ Text("Customer name *") }, modifier=Modifier.fillMaxWidth())
         OutlinedTextField(billPhone, { billPhone=it }, label={ Text("Customer phone") }, modifier=Modifier.fillMaxWidth())
-        Text("Products: ${products.joinToString { "#${it.id} ${it.name} (stock ${it.stock})" }}", style=MaterialTheme.typography.bodySmall)
+        Text("Tap a product below to fill item details, then adjust quantity/discount/tax.", style=MaterialTheme.typography.bodySmall)
+        products.forEach { product -> TextButton(onClick={ billProductId=product.id.toString(); billDescription=product.name; billRate="%.2f".format(product.pricePaise/100.0) }) { Text("#${product.id} · ${product.name} · ₹${"%.2f".format(product.pricePaise/100.0)} · stock ${product.stock}") } }
         OutlinedTextField(billProductId, { billProductId=it }, label={ Text("Product ID (blank for custom item)") }, modifier=Modifier.fillMaxWidth())
         OutlinedTextField(billDescription, { billDescription=it }, label={ Text("Item description *") }, modifier=Modifier.fillMaxWidth())
         OutlinedTextField(billQty, { billQty=it }, label={ Text("Quantity") }, modifier=Modifier.fillMaxWidth())
@@ -215,11 +247,14 @@ class MainActivity : ComponentActivity() {
          if(cid==null || customers.none{it.id==cid}) toast("Select an existing customer")
          else if((rightAxis.isNotBlank() && (rightAxisValue==null || rightAxisValue !in 0..180)) || (leftAxis.isNotBlank() && (leftAxisValue==null || leftAxisValue !in 0..180))) toast("Axis must be a number from 0 to 180")
          else {
-          db.dao().addPrescription(Prescription(customerId=cid,rightSphere=rightSphere.trim(),rightCylinder=rightCylinder.trim(),rightAxis=rightAxis.trim(),rightAdd=rightAdd.trim(),leftSphere=leftSphere.trim(),leftCylinder=leftCylinder.trim(),leftAxis=leftAxis.trim(),leftAdd=leftAdd.trim(),pd=pd.trim(),notes=prescriptionNotes.trim()))
+          val rx = Prescription(id=editingPrescriptionId ?: 0L, customerId=cid,rightSphere=rightSphere.trim(),rightCylinder=rightCylinder.trim(),rightAxis=rightAxis.trim(),rightAdd=rightAdd.trim(),leftSphere=leftSphere.trim(),leftCylinder=leftCylinder.trim(),leftAxis=leftAxis.trim(),leftAdd=leftAdd.trim(),pd=pd.trim(),notes=prescriptionNotes.trim())
+          if(editingPrescriptionId == null) db.dao().addPrescription(rx) else db.dao().updatePrescription(rx)
+          editingPrescriptionId=null
           rightSphere="";rightCylinder="";rightAxis="";rightAdd="";leftSphere="";leftCylinder="";leftAxis="";leftAdd="";pd="";prescriptionNotes=""
           toast("Prescription saved")
          }
-        } }, modifier=Modifier.fillMaxWidth()) { Text("Save prescription") }
+        } }, modifier=Modifier.fillMaxWidth()) { Text(if(editingPrescriptionId == null) "Save prescription" else "Update prescription") }
+        if(editingPrescriptionId != null) TextButton(onClick={ editingPrescriptionId=null; rightSphere="";rightCylinder="";rightAxis="";rightAdd="";leftSphere="";leftCylinder="";leftAxis="";leftAdd="";pd="";prescriptionNotes="" }) { Text("Cancel prescription edit") }
         Text("Prescription history", style=MaterialTheme.typography.titleMedium)
         if(savedPrescriptions.isEmpty()) Text("No saved prescriptions for this customer yet.", style=MaterialTheme.typography.bodySmall)
         savedPrescriptions.forEach { rx ->
@@ -230,6 +265,10 @@ class MainActivity : ComponentActivity() {
            Text("OS: SPH ${rx.leftSphere.ifBlank{"—"}}  CYL ${rx.leftCylinder.ifBlank{"—"}}  AXIS ${rx.leftAxis.ifBlank{"—"}}  ADD ${rx.leftAdd.ifBlank{"—"}}")
            Text("PD: ${rx.pd.ifBlank{"—"}} mm")
            if(rx.notes.isNotBlank()) Text("Notes: ${rx.notes}")
+           Row {
+            TextButton(onClick={ editingPrescriptionId=rx.id; prescriptionCustomerId=rx.customerId.toString(); rightSphere=rx.rightSphere;rightCylinder=rx.rightCylinder;rightAxis=rx.rightAxis;rightAdd=rx.rightAdd;leftSphere=rx.leftSphere;leftCylinder=rx.leftCylinder;leftAxis=rx.leftAxis;leftAdd=rx.leftAdd;pd=rx.pd;prescriptionNotes=rx.notes }) { Text("Edit") }
+            TextButton(onClick={ lifecycleScope.launch { runCatching { db.dao().deletePrescription(rx) }.onSuccess { if(editingPrescriptionId==rx.id) editingPrescriptionId=null; toast("Prescription deleted") }.onFailure { toast("Could not delete prescription") } } }) { Text("Delete") }
+           }
           }
          }
         }
