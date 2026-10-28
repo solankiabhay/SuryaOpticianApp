@@ -20,6 +20,7 @@ import in.surya.optician.invoice.InvoicePdf
 import in.surya.optician.invoice.InvoiceCsv
 import in.surya.optician.invoice.InvoiceSharing
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.flowOf
 import java.net.URLEncoder
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -56,10 +57,22 @@ class MainActivity : ComponentActivity() {
     var paymentMethod by remember { mutableStateOf("Cash") }
     var prescriptionCustomerId by remember { mutableStateOf("") }
     var rightSphere by remember { mutableStateOf("") }
+    var rightCylinder by remember { mutableStateOf("") }
+    var rightAxis by remember { mutableStateOf("") }
+    var rightAdd by remember { mutableStateOf("") }
     var leftSphere by remember { mutableStateOf("") }
+    var leftCylinder by remember { mutableStateOf("") }
+    var leftAxis by remember { mutableStateOf("") }
+    var leftAdd by remember { mutableStateOf("") }
     var pd by remember { mutableStateOf("") }
+    var prescriptionNotes by remember { mutableStateOf("") }
     var reminderInvoice by remember { mutableStateOf<Invoice?>(null) }
     val invoices by db.dao().searchInvoices(query).collectAsState(initial = emptyList())
+    val allInvoices by db.dao().invoices().collectAsState(initial = emptyList())
+    val prescriptionsFlow = remember(prescriptionCustomerId) {
+     prescriptionCustomerId.toLongOrNull()?.let { db.dao().prescriptions(it) } ?: flowOf(emptyList())
+    }
+    val savedPrescriptions by prescriptionsFlow.collectAsState(initial = emptyList())
     val customers by db.dao().customers().collectAsState(initial = emptyList())
     val products by db.dao().products().collectAsState(initial = emptyList())
     val due by db.dao().outstanding().collectAsState(initial = 0L)
@@ -69,7 +82,7 @@ class MainActivity : ComponentActivity() {
     Scaffold(topBar = { TopAppBar(title = { Text("Surya Optician") }) }) { padding ->
      Column(Modifier.fillMaxSize().padding(padding).padding(12.dp)) {
       Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.fillMaxWidth()) {
-       listOf("Bills", "Customers", "Products", "New Bill", "Payment", "Prescription", "Settings").forEach { tab ->
+       listOf("Bills", "Customers", "Products", "New Bill", "Payment", "Prescription", "Reports", "Settings").forEach { tab ->
         TextButton(onClick = { section = tab }) { Text(tab) }
        }
       }
@@ -152,15 +165,77 @@ class MainActivity : ComponentActivity() {
         Column { invoices.forEach { Text("#${it.id} · ${it.number} · ${it.customerName} · due ₹${"%.2f".format(it.duePaise/100.0)}", Modifier.padding(8.dp)) } }
        }
        "Prescription" -> {
+        Text("Eye prescription", style=MaterialTheme.typography.titleLarge)
+        Text("Choose a customer ID from the customer list. Enter values exactly as prescribed by the optometrist.", style=MaterialTheme.typography.bodySmall)
         OutlinedTextField(prescriptionCustomerId, { prescriptionCustomerId=it }, label={ Text("Customer ID *") }, modifier=Modifier.fillMaxWidth())
-        OutlinedTextField(rightSphere, { rightSphere=it }, label={ Text("Right eye sphere (SPH)") }, modifier=Modifier.fillMaxWidth())
-        OutlinedTextField(leftSphere, { leftSphere=it }, label={ Text("Left eye sphere (SPH)") }, modifier=Modifier.fillMaxWidth())
-        OutlinedTextField(pd, { pd=it }, label={ Text("Pupillary distance (PD)") }, modifier=Modifier.fillMaxWidth())
+        customers.forEach { customer ->
+         TextButton(onClick={ prescriptionCustomerId=customer.id.toString() }) { Text("Select #${customer.id} · ${customer.name} · ${customer.phone}") }
+        }
+        Text("Right eye (OD)", style=MaterialTheme.typography.titleMedium)
+        OutlinedTextField(rightSphere, { rightSphere=it }, label={ Text("SPH") }, modifier=Modifier.fillMaxWidth())
+        OutlinedTextField(rightCylinder, { rightCylinder=it }, label={ Text("CYL") }, modifier=Modifier.fillMaxWidth())
+        OutlinedTextField(rightAxis, { rightAxis=it }, label={ Text("Axis (0–180)") }, modifier=Modifier.fillMaxWidth())
+        OutlinedTextField(rightAdd, { rightAdd=it }, label={ Text("ADD") }, modifier=Modifier.fillMaxWidth())
+        Text("Left eye (OS)", style=MaterialTheme.typography.titleMedium)
+        OutlinedTextField(leftSphere, { leftSphere=it }, label={ Text("SPH") }, modifier=Modifier.fillMaxWidth())
+        OutlinedTextField(leftCylinder, { leftCylinder=it }, label={ Text("CYL") }, modifier=Modifier.fillMaxWidth())
+        OutlinedTextField(leftAxis, { leftAxis=it }, label={ Text("Axis (0–180)") }, modifier=Modifier.fillMaxWidth())
+        OutlinedTextField(leftAdd, { leftAdd=it }, label={ Text("ADD") }, modifier=Modifier.fillMaxWidth())
+        OutlinedTextField(pd, { pd=it }, label={ Text("Pupillary distance (PD, mm)") }, modifier=Modifier.fillMaxWidth())
+        OutlinedTextField(prescriptionNotes, { prescriptionNotes=it }, label={ Text("Notes / lens recommendation") }, modifier=Modifier.fillMaxWidth(), minLines=2)
         Button(onClick={ lifecycleScope.launch {
          val cid=prescriptionCustomerId.toLongOrNull()
-         if(cid==null || customers.none{it.id==cid}) toast("Enter an existing customer ID")
-         else { db.dao().addPrescription(Prescription(customerId=cid,rightSphere=rightSphere.trim(),leftSphere=leftSphere.trim(),pd=pd.trim())); rightSphere="";leftSphere="";pd="";toast("Prescription saved") }
+         val rightAxisValue=rightAxis.toIntOrNull()
+         val leftAxisValue=leftAxis.toIntOrNull()
+         if(cid==null || customers.none{it.id==cid}) toast("Select an existing customer")
+         else if((rightAxis.isNotBlank() && (rightAxisValue==null || rightAxisValue !in 0..180)) || (leftAxis.isNotBlank() && (leftAxisValue==null || leftAxisValue !in 0..180))) toast("Axis must be a number from 0 to 180")
+         else {
+          db.dao().addPrescription(Prescription(customerId=cid,rightSphere=rightSphere.trim(),rightCylinder=rightCylinder.trim(),rightAxis=rightAxis.trim(),rightAdd=rightAdd.trim(),leftSphere=leftSphere.trim(),leftCylinder=leftCylinder.trim(),leftAxis=leftAxis.trim(),leftAdd=leftAdd.trim(),pd=pd.trim(),notes=prescriptionNotes.trim()))
+          rightSphere="";rightCylinder="";rightAxis="";rightAdd="";leftSphere="";leftCylinder="";leftAxis="";leftAdd="";pd="";prescriptionNotes=""
+          toast("Prescription saved")
+         }
         } }, modifier=Modifier.fillMaxWidth()) { Text("Save prescription") }
+        Text("Prescription history", style=MaterialTheme.typography.titleMedium)
+        if(savedPrescriptions.isEmpty()) Text("No saved prescriptions for this customer yet.", style=MaterialTheme.typography.bodySmall)
+        savedPrescriptions.forEach { rx ->
+         Card(Modifier.fillMaxWidth().padding(vertical=4.dp)) {
+          Column(Modifier.padding(12.dp)) {
+           Text(java.text.SimpleDateFormat("dd MMM yyyy, hh:mm a", java.util.Locale.getDefault()).format(java.util.Date(rx.createdAt)), style=MaterialTheme.typography.titleSmall)
+           Text("OD: SPH ${rx.rightSphere.ifBlank{"—"}}  CYL ${rx.rightCylinder.ifBlank{"—"}}  AXIS ${rx.rightAxis.ifBlank{"—"}}  ADD ${rx.rightAdd.ifBlank{"—"}}")
+           Text("OS: SPH ${rx.leftSphere.ifBlank{"—"}}  CYL ${rx.leftCylinder.ifBlank{"—"}}  AXIS ${rx.leftAxis.ifBlank{"—"}}  ADD ${rx.leftAdd.ifBlank{"—"}}")
+           Text("PD: ${rx.pd.ifBlank{"—"}} mm")
+           if(rx.notes.isNotBlank()) Text("Notes: ${rx.notes}")
+          }
+         }
+        }
+       }
+       "Reports" -> {
+        Text("Shop reports", style=MaterialTheme.typography.titleLarge)
+        Text("Invoice summary · all saved invoices", style=MaterialTheme.typography.bodyMedium)
+        val totalSales = allInvoices.sumOf { it.totalPaise }
+        val totalPaid = allInvoices.sumOf { it.paidPaise }
+        val totalDue = allInvoices.sumOf { it.duePaise }
+        Row(horizontalArrangement=Arrangement.spacedBy(8.dp), modifier=Modifier.fillMaxWidth()) {
+         Card(Modifier.weight(1f)) { Column(Modifier.padding(12.dp)) { Text("Invoices"); Text("${allInvoices.size}", style=MaterialTheme.typography.headlineSmall) } }
+         Card(Modifier.weight(1f)) { Column(Modifier.padding(12.dp)) { Text("Sales"); Text("₹${"%.2f".format(totalSales/100.0)}", style=MaterialTheme.typography.titleMedium) } }
+        }
+        Row(horizontalArrangement=Arrangement.spacedBy(8.dp), modifier=Modifier.fillMaxWidth()) {
+         Card(Modifier.weight(1f)) { Column(Modifier.padding(12.dp)) { Text("Collected"); Text("₹${"%.2f".format(totalPaid/100.0)}", style=MaterialTheme.typography.titleMedium) } }
+         Card(Modifier.weight(1f)) { Column(Modifier.padding(12.dp)) { Text("Outstanding"); Text("₹${"%.2f".format(totalDue/100.0)}", style=MaterialTheme.typography.titleMedium) } }
+        }
+        Button(onClick={ InvoiceCsv.share(this@MainActivity, allInvoices) }, modifier=Modifier.fillMaxWidth()) { Text("Export all invoices to CSV") }
+        Text("Customer invoice report", style=MaterialTheme.typography.titleMedium)
+        OutlinedTextField(query, { query=it }, label={Text("Filter by invoice number, customer or phone")}, modifier=Modifier.fillMaxWidth())
+        invoices.forEach { invoice ->
+         Card(Modifier.fillMaxWidth().padding(vertical=3.dp)) {
+          Column(Modifier.padding(10.dp)) {
+           Text("${invoice.customerName} · ${invoice.number}", style=MaterialTheme.typography.titleSmall)
+           Text("Date: "+java.text.SimpleDateFormat("dd MMM yyyy", java.util.Locale.getDefault()).format(java.util.Date(invoice.createdAt)))
+           Text("Sales ₹${"%.2f".format(invoice.totalPaise/100.0)} · Paid ₹${"%.2f".format(invoice.paidPaise/100.0)} · Due ₹${"%.2f".format(invoice.duePaise/100.0)}")
+          }
+         }
+        }
+        Text("Note: this is a summary of recorded invoice totals, not profit or tax-accounting advice.", style=MaterialTheme.typography.bodySmall)
        }
        "Settings" -> {
         var shopName by remember { mutableStateOf("Surya Optician") }
