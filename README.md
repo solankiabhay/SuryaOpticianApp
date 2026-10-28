@@ -6,9 +6,12 @@ Android optical-shop billing MVP built with Kotlin, Jetpack Compose and Room/SQL
 - Customer and product creation with stock tracking and low-stock visibility
 - Multi-item invoice cart with line discounts/tax, optional existing-customer ID linking and initial payment
 - Transactional stock deduction, invoice persistence and additional payment collection
-- Basic prescription entry and shop invoice settings
-- Invoice search, multi-page PDF generation, CSV report export, PDF preview and user-initiated WhatsApp sharing
+- Expanded eye prescription entry (OD/OS SPH, CYL, axis, ADD, PD and notes), customer selection and prescription history
+- Shop invoice settings and invoice search
+- Reports with invoice count, sales, collected and outstanding totals, optional inclusive date range (YYYY-MM-DD), customer/invoice/phone search, and date-filtered CSV export
+- Multi-page invoice PDF generation/preview and user-initiated WhatsApp sharing
 - Payment-reminder confirmation before opening WhatsApp
+- Horizontally scrollable navigation on narrow phone screens
 
 ## Build and test
 Requirements: JDK 17, Android SDK platform 35, Gradle 8.9.
@@ -24,4 +27,4 @@ gradle assembleDebug
 See [feature audit](docs/FEATURE_AUDIT.md) and [device acceptance checklist](docs/REAL_DEVICE_ACCEPTANCE.md).
 
 ## Important limitations
-This is an MVP, not a production-ready billing product. Multi-item cart, customer-to-invoice linking, customer/product edit/delete, comprehensive prescription fields/history, reports/export, print integration, backup/restore, authentication and explicit database migrations remain incomplete. The app cannot verify WhatsApp recipient selection, message delivery or read status. Test on a physical Android device before real shop use.
+This remains an MVP, not a production-ready billing product. Customer edit/delete/search, product edit and stock-adjustment flows, a guided customer/product picker in billing, prescription edit/delete and prescription PDF/print, item/category reports, cost tracking/profit, print integration, backup/restore, authentication and explicit database migrations remain incomplete. Date filters affect invoice summaries and CSV exports; dates are entered as YYYY-MM-DD in the device local time zone. The app cannot verify WhatsApp recipient selection, message delivery or read status. Build/test results and physical-device acceptance must pass before real shop use.
