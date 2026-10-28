@@ -986,7 +986,6 @@ class MainActivity : ComponentActivity() {
       }
      }
     }
-    }
     invoiceDeleteTarget?.let { target ->
      AlertDialog(
       onDismissRequest={ invoiceDeleteTarget=null },
@@ -1070,3 +1069,4 @@ class MainActivity : ComponentActivity() {
    }
   }
  }
+}
