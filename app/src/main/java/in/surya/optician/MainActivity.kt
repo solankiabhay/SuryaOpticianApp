@@ -305,9 +305,13 @@ class MainActivity : ComponentActivity() {
      val needsOwnerSetup = accountStore.loadUsers().isEmpty()
      Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
       Column(Modifier.fillMaxSize().padding(24.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.Center) {
+       Surface(shape=androidx.compose.foundation.shape.RoundedCornerShape(22.dp), color=MaterialTheme.colorScheme.primary, modifier=Modifier.size(76.dp)) {
+        Box(contentAlignment=androidx.compose.ui.Alignment.Center) { Text("👓", style=MaterialTheme.typography.displaySmall) }
+       }
+       Spacer(Modifier.height(18.dp))
        Text("SURYA OPTICIAN", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
        Spacer(Modifier.height(8.dp))
-       Text(if (needsOwnerSetup) "Set up your shop account" else "Welcome back", style = MaterialTheme.typography.headlineMedium)
+       Text(if (needsOwnerSetup) "Let’s set up your shop" else "Welcome back", style = MaterialTheme.typography.headlineMedium)
        Spacer(Modifier.height(8.dp))
        Text(if (needsOwnerSetup) "Create the owner account to protect billing, customers and shop records." else "Sign in with your staff account to continue.", style = MaterialTheme.typography.bodyLarge)
        Spacer(Modifier.height(20.dp))
