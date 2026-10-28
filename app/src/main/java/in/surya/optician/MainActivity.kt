@@ -144,6 +144,8 @@ class MainActivity : ComponentActivity() {
      prescriptionCustomerId.toLongOrNull()?.let { db.dao().prescriptions(it) } ?: flowOf<List<Prescription>>(emptyList())
     }
     val savedPrescriptions by prescriptionsFlow.collectAsState(initial = emptyList())
+    val paymentHistoryFlow = remember(paymentInvoiceId) { paymentInvoiceId.toLongOrNull()?.let { db.dao().payments(it) } ?: flowOf<List<Payment>>(emptyList()) }
+    val paymentHistory by paymentHistoryFlow.collectAsState(initial = emptyList())
     val customers by db.dao().customers().collectAsState(initial = emptyList())
     val products by db.dao().products().collectAsState(initial = emptyList())
     val due by db.dao().outstanding().collectAsState(initial = 0L)
@@ -268,8 +270,11 @@ class MainActivity : ComponentActivity() {
          else runCatching { BillingRepository(db).recordPayment(id,(amount*100).toLong(),paymentMethod.trim().ifBlank{"Cash"}) }
           .onSuccess { toast("Payment recorded"); paymentAmount="" }.onFailure { toast(it.message ?: "Payment failed") }
         } }, modifier=Modifier.fillMaxWidth()) { Text("Record payment") }
-        Text("Find the invoice database ID in the invoice list below.", style=MaterialTheme.typography.bodySmall)
-        Column { invoices.forEach { Text("#${it.id} · ${it.number} · ${it.customerName} · due ₹${"%.2f".format(it.duePaise/100.0)}", Modifier.padding(8.dp)) } }
+        Text("Select an invoice below to view its recorded payment history.", style=MaterialTheme.typography.bodySmall)
+        Column { invoices.forEach { TextButton(onClick={ paymentInvoiceId=it.id.toString() }) { Text("#${it.id} · ${it.number} · ${it.customerName} · due ₹${"%.2f".format(it.duePaise/100.0)}") } } }
+        Text("Payment history for selected invoice", style=MaterialTheme.typography.titleMedium)
+        if(paymentHistory.isEmpty()) Text("No payments found for this invoice ID.", style=MaterialTheme.typography.bodySmall)
+        paymentHistory.forEach { payment -> Text("${java.text.SimpleDateFormat("dd MMM yyyy, hh:mm a", java.util.Locale.getDefault()).format(java.util.Date(payment.paidAt))} · ₹${"%.2f".format(payment.amountPaise/100.0)} · ${payment.method} ${payment.reference}", Modifier.padding(vertical=3.dp)) }
        }
        "Prescription" -> {
         Text("Eye prescription", style=MaterialTheme.typography.titleLarge)
@@ -343,6 +348,9 @@ class MainActivity : ComponentActivity() {
         val totalSales = reportInvoices.sumOf { it.totalPaise }
         val totalPaid = reportInvoices.sumOf { it.paidPaise }
         val totalDue = reportInvoices.sumOf { it.duePaise }
+        val profitFrom = fromMillis ?: Long.MIN_VALUE
+        val profitTo = toMillisExclusive ?: Long.MAX_VALUE
+        val estimatedProfit by remember(profitFrom, profitTo) { db.dao().estimatedProfit(profitFrom, profitTo) }.collectAsState(initial = 0L)
         Row(horizontalArrangement=Arrangement.spacedBy(8.dp), modifier=Modifier.fillMaxWidth()) {
          Card(Modifier.weight(1f)) { Column(Modifier.padding(12.dp)) { Text("Invoices"); Text("${reportInvoices.size}", style=MaterialTheme.typography.headlineSmall) } }
          Card(Modifier.weight(1f)) { Column(Modifier.padding(12.dp)) { Text("Sales"); Text("₹${"%.2f".format(totalSales/100.0)}", style=MaterialTheme.typography.titleMedium) } }
@@ -351,6 +359,7 @@ class MainActivity : ComponentActivity() {
          Card(Modifier.weight(1f)) { Column(Modifier.padding(12.dp)) { Text("Collected"); Text("₹${"%.2f".format(totalPaid/100.0)}", style=MaterialTheme.typography.titleMedium) } }
          Card(Modifier.weight(1f)) { Column(Modifier.padding(12.dp)) { Text("Outstanding"); Text("₹${"%.2f".format(totalDue/100.0)}", style=MaterialTheme.typography.titleMedium) } }
         }
+        Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(12.dp)) { Text("Estimated gross profit (excluding tax)"); Text("₹${"%.2f".format(estimatedProfit/100.0)}", style=MaterialTheme.typography.titleLarge); Text("Uses purchase cost saved at invoice time. Older invoices migrated from v1 have zero recorded cost and cannot show historical profit accurately.", style=MaterialTheme.typography.bodySmall) } }
         Button(onClick={ if (invalidDateRange) toast("Correct the date range before exporting") else InvoiceCsv.share(this@MainActivity, reportInvoices) }, enabled = !invalidDateRange, modifier=Modifier.fillMaxWidth()) { Text("Export date-filtered invoices to CSV") }
         Text("Customer invoice report", style=MaterialTheme.typography.titleMedium)
         OutlinedTextField(query, { query=it }, label={Text("Filter by invoice number, customer or phone")}, modifier=Modifier.fillMaxWidth())
@@ -365,7 +374,7 @@ class MainActivity : ComponentActivity() {
           }
          }
         }
-        Text("Note: totals reflect recorded invoice values; cost of goods is not stored, so this is not a profit report. Dates use the device local time zone.", style=MaterialTheme.typography.bodySmall)
+        Text("Profit is an estimate: invoice tax is excluded and recorded item cost is deducted. It is not net profit and excludes rent, wages and other operating expenses. Dates use the device local time zone.", style=MaterialTheme.typography.bodySmall)
        }
        "Settings" -> {
         var shopName by remember { mutableStateOf("Surya Optician") }
