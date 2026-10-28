@@ -31,6 +31,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.lifecycle.lifecycleScope
@@ -246,6 +247,9 @@ class MainActivity : ComponentActivity() {
     var productLowStock by remember { mutableStateOf("3") }
     var billCustomer by remember { mutableStateOf("") }
     var billCustomerId by remember { mutableStateOf("") }
+    var billCustomerSearch by remember { mutableStateOf("") }
+    var billCustomerAddress by remember { mutableStateOf("") }
+    var billCustomerAge by remember { mutableStateOf("") }
     var billLines by remember { mutableStateOf(listOf<BillLine>()) }
     var billPhone by remember { mutableStateOf("") }
     var billProductId by remember { mutableStateOf("") }
@@ -608,9 +612,14 @@ class MainActivity : ComponentActivity() {
         } }
        }
        "New Bill" -> {
-        Text(if(editingInvoiceId==null) "Create a complete bill" else "Edit existing bill", style=MaterialTheme.typography.headlineSmall)
-        Text("Build an accurate invoice, attach a prescription if needed, and record the deposit.", style=MaterialTheme.typography.bodyMedium)
-        Spacer(Modifier.height(10.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.SpaceBetween, verticalAlignment=Alignment.CenterVertically) {
+         Column(Modifier.weight(1f)) {
+          Text(if(editingInvoiceId==null) "New bill" else "Edit bill", style=MaterialTheme.typography.headlineSmall)
+          Text("Quick checkout · prescription · payment", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSurfaceVariant)
+         }
+         OutlinedButton(onClick={ showBillPreview=true }, enabled=billLines.isNotEmpty()) { Text("👁 Preview") }
+        }
+        Spacer(Modifier.height(8.dp))
         Card(Modifier.fillMaxWidth(), colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surfaceVariant)) {
          Column(Modifier.padding(14.dp)) {
           Text(if(billLines.isEmpty()) "BILL SUMMARY" else "${billLines.size} ${if(billLines.size==1) "item" else "items"} added", style=MaterialTheme.typography.labelLarge)
@@ -619,10 +628,20 @@ class MainActivity : ComponentActivity() {
           Text(if(billLines.isEmpty()) "Add a product or custom item to begin." else "Live total · taxes and item discounts included", style=MaterialTheme.typography.bodySmall)
          }
         }
-        OutlinedTextField(billCustomerId, { billCustomerId=it; billPrescriptionId="" }, label={ Text("Existing customer ID (optional)") }, modifier=Modifier.fillMaxWidth())
-        customers.forEach { customer -> TextButton(onClick={ billCustomerId=customer.id.toString(); billCustomer=customer.name; billPhone=customer.phone; billPrescriptionId="" }) { Text("Use #${customer.id} · ${customer.name} · ${customer.phone}") } }
-        OutlinedTextField(billCustomer, { billCustomer=it }, label={ Text("Customer name *") }, modifier=Modifier.fillMaxWidth())
-        OutlinedTextField(billPhone, { billPhone=it }, label={ Text("Customer phone") }, modifier=Modifier.fillMaxWidth())
+        Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(12.dp), verticalArrangement=Arrangement.spacedBy(8.dp)) {
+         Text("1 · CUSTOMER", style=MaterialTheme.typography.labelLarge, color=MaterialTheme.colorScheme.primary)
+         OutlinedTextField(billCustomerSearch, { billCustomerSearch=it }, label={ Text("Find saved customer by name / phone") }, placeholder={ Text("Search or enter a new customer below") }, modifier=Modifier.fillMaxWidth(), singleLine=true)
+         val matchedCustomers = customers.filter { billCustomerSearch.isNotBlank() && (it.name.contains(billCustomerSearch, true) || it.phone.contains(billCustomerSearch, true)) }.take(4)
+         matchedCustomers.forEach { customer -> TextButton(onClick={ billCustomerId=customer.id.toString(); billCustomer=customer.name; billPhone=customer.phone; billCustomerAddress=customer.address; billCustomerAge=customer.age?.toString().orEmpty(); billPrescriptionId=""; billCustomerSearch=customer.name }) { Text("↳ ${customer.name} · ${customer.phone.ifBlank { "No phone" }}") } }
+         Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+          OutlinedTextField(billCustomer, { billCustomer=it }, label={ Text("Customer name *") }, modifier=Modifier.weight(1.4f), singleLine=true)
+          OutlinedTextField(billPhone, { billPhone=it }, label={ Text("Phone") }, modifier=Modifier.weight(1f), singleLine=true)
+         }
+         OutlinedTextField(billCustomerAddress, { billCustomerAddress=it }, label={ Text("Address (optional)") }, modifier=Modifier.fillMaxWidth(), singleLine=true)
+         OutlinedTextField(billCustomerAge, { billCustomerAge=it }, label={ Text("Age") }, modifier=Modifier.fillMaxWidth(), singleLine=true)
+         if(billCustomerId.isNotBlank()) Text("Saved customer selected · details will update when bill is saved", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.secondary)
+        } }
+        Text("2 · ORDER DETAILS", style=MaterialTheme.typography.labelLarge, color=MaterialTheme.colorScheme.primary)
         Text("Glass / lens type", style=MaterialTheme.typography.titleMedium)
         Text("Choose the main lens or product type for the customer’s order.", style=MaterialTheme.typography.bodySmall)
         OutlinedTextField(billGlassType, { billGlassType=it }, label={ Text("Glass type (e.g. Single Vision, Progressive, Sunglasses)") }, modifier=Modifier.fillMaxWidth())
@@ -645,14 +664,18 @@ class MainActivity : ComponentActivity() {
           TextButton(onClick={billPrescriptionId=""}) { Text("Remove prescription") }
          } } }
         }
-        Text("Tap a product below to fill item details, then adjust quantity/discount/tax. Sunglasses and non-prescription products work the same way.", style=MaterialTheme.typography.bodySmall)
+        Text("3 · ADD ITEMS", style=MaterialTheme.typography.labelLarge, color=MaterialTheme.colorScheme.primary)
+        Text("Tap a product to fill the item. Adjust quantity, discount and tax, then add it to the bill.", style=MaterialTheme.typography.bodySmall)
         products.forEach { product -> TextButton(onClick={ billProductId=product.id.toString(); billDescription=product.name; billRate="%.2f".format(product.pricePaise/100.0) }) { Text("#${product.id} · ${product.name} · ₹${"%.2f".format(product.pricePaise/100.0)} · stock ${product.stock}") } }
-        OutlinedTextField(billProductId, { billProductId=it }, label={ Text("Product ID (blank for custom item)") }, modifier=Modifier.fillMaxWidth())
-        OutlinedTextField(billDescription, { billDescription=it }, label={ Text("Item description *") }, modifier=Modifier.fillMaxWidth())
-        OutlinedTextField(billQty, { billQty=it }, label={ Text("Quantity") }, modifier=Modifier.fillMaxWidth())
-        OutlinedTextField(billRate, { billRate=it }, label={ Text("Unit rate in ₹") }, modifier=Modifier.fillMaxWidth())
-        OutlinedTextField(billDiscount, { billDiscount=it }, label={ Text("Line discount in ₹") }, modifier=Modifier.fillMaxWidth())
-        OutlinedTextField(billTax, { billTax=it }, label={ Text("Line tax in ₹") }, modifier=Modifier.fillMaxWidth())
+        OutlinedTextField(billDescription, { billDescription=it }, label={ Text("Item / frame / lens description *") }, modifier=Modifier.fillMaxWidth(), singleLine=true)
+        Row(horizontalArrangement=Arrangement.spacedBy(8.dp), modifier=Modifier.fillMaxWidth()) {
+         OutlinedTextField(billQty, { billQty=it }, label={ Text("Qty") }, modifier=Modifier.weight(0.7f), singleLine=true)
+         OutlinedTextField(billRate, { billRate=it }, label={ Text("Rate ₹") }, modifier=Modifier.weight(1f), singleLine=true)
+        }
+        Row(horizontalArrangement=Arrangement.spacedBy(8.dp), modifier=Modifier.fillMaxWidth()) {
+         OutlinedTextField(billDiscount, { billDiscount=it }, label={ Text("Discount ₹") }, modifier=Modifier.weight(1f), singleLine=true)
+         OutlinedTextField(billTax, { billTax=it }, label={ Text("Tax ₹") }, modifier=Modifier.weight(1f), singleLine=true)
+        }
         Button(onClick={
          val qty=billQty.toIntOrNull(); val rate=billRate.toDoubleOrNull(); val discount=billDiscount.toDoubleOrNull(); val tax=billTax.toDoubleOrNull(); val pid=billProductId.toLongOrNull()
          if(billDescription.isBlank() || qty==null || qty<=0 || rate==null || rate<0 || discount==null || discount<0 || tax==null || tax<0 || (billProductId.isNotBlank() && pid==null)) toast("Check item description, product ID, quantity and amounts")
@@ -660,7 +683,8 @@ class MainActivity : ComponentActivity() {
           .onSuccess { line -> billLines=billLines+line; billProductId=""; billDescription=""; billQty="1"; billRate=""; billDiscount="0"; billTax="0"; toast("Item added to bill") }
           .onFailure { toast(it.message ?: "Invalid item") }
         }, modifier=Modifier.fillMaxWidth()) { Text("Add item to bill") }
-        Text("Items in cart: ${billLines.size} · Cart total ₹${"%.2f".format(billLines.sumOf { it.total }/100.0)}", style=MaterialTheme.typography.titleSmall)
+        Text("4 · BILL ITEMS (${billLines.size})", style=MaterialTheme.typography.labelLarge, color=MaterialTheme.colorScheme.primary)
+        Text("Items in cart · ₹${"%.2f".format(billLines.sumOf { it.total }/100.0)}", style=MaterialTheme.typography.titleSmall)
         billLines.forEachIndexed { index, line ->
          Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.SpaceBetween) {
           Text("${index+1}. ${line.description} × ${line.qty} · ₹${"%.2f".format(line.total/100.0)}", modifier=Modifier.weight(1f))
@@ -678,7 +702,8 @@ class MainActivity : ComponentActivity() {
          Text("Grand total: ₹${"%.2f".format(draftTotal/100.0)}", style=MaterialTheme.typography.titleLarge)
          Text("Balance after payment: ₹${"%.2f".format((draftTotal-(billPaid.toDoubleOrNull()?.times(100)?.toLong() ?: 0L)).coerceAtLeast(0)/100.0)}")
         } }
-        OutlinedTextField(billPaid, { billPaid=it }, label={ Text("Amount received in ₹") }, modifier=Modifier.fillMaxWidth())
+        Text("5 · PAYMENT", style=MaterialTheme.typography.labelLarge, color=MaterialTheme.colorScheme.primary)
+        OutlinedTextField(billPaid, { billPaid=it }, label={ Text("Amount received ₹") }, modifier=Modifier.fillMaxWidth(), singleLine=true)
         Text("Payment type", style=MaterialTheme.typography.titleSmall)
         Row(horizontalArrangement=Arrangement.spacedBy(6.dp), modifier=Modifier.fillMaxWidth()) {
          listOf("Cash", "Online", "Other").forEach { method ->
