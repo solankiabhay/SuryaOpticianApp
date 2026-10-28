@@ -8,10 +8,14 @@ import kotlinx.coroutines.flow.Flow
 interface OpticianDao {
     @Query("SELECT * FROM customers ORDER BY name")
     fun customers(): Flow<List<Customer>>
+    @Query("SELECT * FROM customers ORDER BY id")
+    suspend fun allCustomers(): List<Customer>
     @Insert suspend fun addCustomer(c: Customer): Long
 
     @Query("SELECT * FROM products ORDER BY name")
     fun products(): Flow<List<Product>>
+    @Query("SELECT * FROM products ORDER BY id")
+    suspend fun allProducts(): List<Product>
     @Query("SELECT * FROM products WHERE id=:id")
     suspend fun product(id: Long): Product?
     @Insert suspend fun addProduct(p: Product): Long
@@ -21,6 +25,10 @@ interface OpticianDao {
     @Insert suspend fun addItems(items: List<InvoiceItem>)
     @Query("SELECT * FROM invoices ORDER BY createdAt DESC")
     fun invoices(): Flow<List<Invoice>>
+    @Query("SELECT * FROM invoices ORDER BY id")
+    suspend fun allInvoices(): List<Invoice>
+    @Query("SELECT * FROM invoice_items ORDER BY id")
+    suspend fun allInvoiceItems(): List<InvoiceItem>
     @Query("SELECT * FROM invoices WHERE number LIKE '%'||:q||'%' OR customerName LIKE '%'||:q||'%' OR phone LIKE '%'||:q||'%' ORDER BY createdAt DESC")
     fun searchInvoices(q: String): Flow<List<Invoice>>
     @Query("SELECT * FROM invoice_items WHERE invoiceId=:id ORDER BY id")
@@ -37,10 +45,14 @@ interface OpticianDao {
     suspend fun setPaid(id: Long, amount: Long)
     @Query("SELECT * FROM payments WHERE invoiceId=:id ORDER BY paidAt DESC")
     fun payments(id: Long): Flow<List<Payment>>
+    @Query("SELECT * FROM payments ORDER BY id")
+    suspend fun allPayments(): List<Payment>
 
     @Insert suspend fun addPrescription(p: Prescription): Long
     @Query("SELECT * FROM prescriptions WHERE customerId=:customerId ORDER BY createdAt DESC")
     fun prescriptions(customerId: Long): Flow<List<Prescription>>
+    @Query("SELECT * FROM prescriptions ORDER BY id")
+    suspend fun allPrescriptions(): List<Prescription>
 
     @Query("SELECT * FROM shop_settings WHERE id=1")
     suspend fun settings(): ShopSettings?
