@@ -1,4 +1,4 @@
-package in.surya.optician.data
+package com.surya.optician.data
 import androidx.room.*
 @Entity(tableName="customers") data class Customer(@PrimaryKey(autoGenerate=true) val id:Long=0,val name:String,val phone:String="",val address:String="")
 @Entity(tableName="products") data class Product(@PrimaryKey(autoGenerate=true) val id:Long=0,val name:String,val sku:String="",val pricePaise:Long,val stock:Int,val lowStock:Int=3)
