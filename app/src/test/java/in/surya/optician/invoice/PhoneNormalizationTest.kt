@@ -1,4 +1,4 @@
-package in.surya.optician.invoice
+package com.surya.optician.invoice
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
