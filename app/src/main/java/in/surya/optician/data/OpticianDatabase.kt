@@ -59,6 +59,12 @@ abstract class OpticianDatabase : RoomDatabase() {
    }
   }
   @Volatile private var instance: OpticianDatabase?=null
+  fun resetInstance() {
+   synchronized(this) {
+    instance?.close()
+    instance = null
+   }
+  }
   fun get(context: Context): OpticianDatabase = instance ?: synchronized(this) {
    instance ?: Room.databaseBuilder(context.applicationContext,OpticianDatabase::class.java,"surya-optician.db")
     .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
