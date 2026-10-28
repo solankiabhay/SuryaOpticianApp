@@ -1,4 +1,4 @@
-package in.surya.optician.invoice
+package com.surya.optician.invoice
 
 /** Normalizes common Indian mobile-number formats to country-code + digits for wa.me links. */
 object IndianPhoneNumber {
