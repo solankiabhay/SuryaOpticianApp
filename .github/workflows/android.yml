@@ -26,6 +26,8 @@ jobs:
     name: Unit tests and debug APK
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -36,11 +38,24 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Locate Android SDK manager
+        shell: bash
+        run: |
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n 1)"
+          if [[ -z "$SDKMANAGER" ]]; then
+            echo "Android SDK command-line tools were not found on this runner."
+            exit 1
+          fi
+          echo "SDKMANAGER=$SDKMANAGER" >> "$GITHUB_ENV"
+
+      - name: Accept Android SDK licenses
+        shell: bash
+        run: |
+          set +o pipefail
+          yes | "$SDKMANAGER" --licenses >/dev/null
 
       - name: Install Android platform and build tools
-        run: sdkmanager "platforms;android-35" "build-tools;35.0.0" "platform-tools"
+        run: "$SDKMANAGER" --sdk_root="$ANDROID_HOME" "platforms;android-35" "build-tools;35.0.0" "platform-tools"
 
       - name: Install Gradle 8.9
         run: |
@@ -54,7 +69,7 @@ jobs:
         run: |
           java -version
           gradle --version
-          sdkmanager --list_installed
+          "$SDKMANAGER" --list_installed
 
       - name: Run unit tests
         run: gradle --no-daemon --stacktrace testDebugUnitTest
