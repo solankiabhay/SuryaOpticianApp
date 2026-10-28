@@ -2,6 +2,7 @@ package in.surya.optician.data
 
 import android.content.Context
 import androidx.room.*
+import androidx.room.migration.Migration
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -12,7 +13,7 @@ interface OpticianDao {
  @Update suspend fun updateCustomer(c: Customer)
  @Delete suspend fun deleteCustomer(c: Customer)
  @Query("SELECT COUNT(*) FROM invoices WHERE customerId=:id") suspend fun customerInvoiceCount(id: Long): Int
- @Query("SELECT COUNT(*) FROM prescriptions WHERE customerId=:id") suspend fun customerPrescriptionCount(id: Long)
+ @Query("SELECT COUNT(*) FROM prescriptions WHERE customerId=:id") suspend fun customerPrescriptionCount(id: Long): Int
  @Query("SELECT * FROM products ORDER BY name") fun products(): Flow<List<Product>>
  @Query("SELECT * FROM products WHERE id=:id") suspend fun product(id: Long): Product?
  @Insert suspend fun addProduct(p: Product): Long
