@@ -23,6 +23,20 @@ import in.surya.optician.invoice.InvoiceSharing
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.flowOf
 import java.net.URLEncoder
+import java.text.ParsePosition
+import java.util.Calendar
+
+private fun parseReportDate(value: String): Long? {
+ if (!value.matches(Regex("\\d{4}-\\d{2}-\\d{2}"))) return null
+ val formatter = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).apply {
+  isLenient = false
+  timeZone = java.util.TimeZone.getDefault()
+ }
+ val position = ParsePosition(0)
+ val parsed = formatter.parse(value, position) ?: return null
+ if (position.index != value.length || formatter.format(parsed) != value) return null
+ return parsed.time
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 class MainActivity : ComponentActivity() {
@@ -75,7 +89,7 @@ class MainActivity : ComponentActivity() {
     val invoices by db.dao().searchInvoices(query).collectAsState(initial = emptyList())
     val allInvoices by db.dao().invoices().collectAsState(initial = emptyList())
     val prescriptionsFlow = remember(prescriptionCustomerId) {
-     prescriptionCustomerId.toLongOrNull()?.let { db.dao().prescriptions(it) } ?: flowOf(emptyList())
+     prescriptionCustomerId.toLongOrNull()?.let { db.dao().prescriptions(it) } ?: flowOf<List<Prescription>>(emptyList())
     }
     val savedPrescriptions by prescriptionsFlow.collectAsState(initial = emptyList())
     val customers by db.dao().customers().collectAsState(initial = emptyList())
@@ -222,9 +236,12 @@ class MainActivity : ComponentActivity() {
        }
        "Reports" -> {
         Text("Shop reports", style=MaterialTheme.typography.titleLarge)
-        val dateFormat = remember { java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).apply { isLenient = false } }
-        val fromMillis = remember(reportFrom) { if (reportFrom.isBlank()) null else runCatching { dateFormat.parse(reportFrom)?.time }.getOrNull() }
-        val toMillisExclusive = remember(reportTo) { if (reportTo.isBlank()) null else runCatching { dateFormat.parse(reportTo)?.time?.plus(24L * 60 * 60 * 1000) }.getOrNull() }
+        val fromMillis = remember(reportFrom) { if (reportFrom.isBlank()) null else parseReportDate(reportFrom) }
+        val toMillisExclusive = remember(reportTo) {
+         if (reportTo.isBlank()) null else parseReportDate(reportTo)?.let { start ->
+          Calendar.getInstance().apply { timeInMillis = start; add(Calendar.DAY_OF_MONTH, 1) }.timeInMillis
+         }
+        }
         val invalidDateRange = (reportFrom.isNotBlank() && fromMillis == null) || (reportTo.isNotBlank() && toMillisExclusive == null) || (fromMillis != null && toMillisExclusive != null && fromMillis >= toMillisExclusive)
         val reportInvoices = if (invalidDateRange) emptyList() else allInvoices.filter { invoice -> (fromMillis == null || invoice.createdAt >= fromMillis) && (toMillisExclusive == null || invoice.createdAt < toMillisExclusive) }
         Text("Filter sales and collection totals by invoice date (YYYY-MM-DD). Leave blank to include all dates.", style=MaterialTheme.typography.bodyMedium)
