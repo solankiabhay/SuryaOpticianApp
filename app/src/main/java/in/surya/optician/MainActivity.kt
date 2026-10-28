@@ -369,9 +369,10 @@ class MainActivity : ComponentActivity() {
         OutlinedTextField(customerAge, { customerAge = it.filter(Char::isDigit).take(3) }, label = { Text("Age (years, optional)") }, modifier = Modifier.fillMaxWidth(), singleLine=true)
         OutlinedTextField(customerAddress, { customerAddress = it }, label = { Text("Address") }, modifier = Modifier.fillMaxWidth())
         Button(onClick = { lifecycleScope.launch {
-         val ageValue = customerAge.trim().takeIf { it.isNotEmpty() }?.toIntOrNull()
+         val ageValidation = validateCustomerAge(customerAge)
+         val ageValue = ageValidation.age
          if (customerName.isBlank()) toast("Customer name is required")
-         else if (customerAge.isNotBlank() && (ageValue == null || ageValue !in 0..120)) toast("Enter a valid age between 0 and 120")
+         else if (!ageValidation.isValid) toast("Enter a valid age between 0 and 120")
          else if (selectedCustomerId == null) {
           db.dao().addCustomer(Customer(name=customerName.trim(), phone=customerPhone.trim(), address=customerAddress.trim(), age=ageValue))
           customerName=""; customerPhone=""; customerAddress=""; customerAge=""; toast("Customer saved")
