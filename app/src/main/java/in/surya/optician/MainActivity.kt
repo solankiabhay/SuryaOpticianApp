@@ -41,6 +41,8 @@ class MainActivity : ComponentActivity() {
     var productStock by remember { mutableStateOf("1") }
     var productLowStock by remember { mutableStateOf("3") }
     var billCustomer by remember { mutableStateOf("") }
+    var billCustomerId by remember { mutableStateOf("") }
+    var billLines by remember { mutableStateOf(listOf<BillLine>()) }
     var billPhone by remember { mutableStateOf("") }
     var billProductId by remember { mutableStateOf("") }
     var billDescription by remember { mutableStateOf("") }
@@ -101,6 +103,7 @@ class MainActivity : ComponentActivity() {
        }
        "New Bill" -> {
         Text("Create invoice", style=MaterialTheme.typography.titleLarge)
+        OutlinedTextField(billCustomerId, { billCustomerId=it }, label={ Text("Existing customer ID (optional)") }, modifier=Modifier.fillMaxWidth())
         OutlinedTextField(billCustomer, { billCustomer=it }, label={ Text("Customer name *") }, modifier=Modifier.fillMaxWidth())
         OutlinedTextField(billPhone, { billPhone=it }, label={ Text("Customer phone") }, modifier=Modifier.fillMaxWidth())
         Text("Products: ${products.joinToString { "#${it.id} ${it.name} (stock ${it.stock})" }}", style=MaterialTheme.typography.bodySmall)
@@ -110,17 +113,31 @@ class MainActivity : ComponentActivity() {
         OutlinedTextField(billRate, { billRate=it }, label={ Text("Unit rate in ₹") }, modifier=Modifier.fillMaxWidth())
         OutlinedTextField(billDiscount, { billDiscount=it }, label={ Text("Line discount in ₹") }, modifier=Modifier.fillMaxWidth())
         OutlinedTextField(billTax, { billTax=it }, label={ Text("Line tax in ₹") }, modifier=Modifier.fillMaxWidth())
+        Button(onClick={
+         val qty=billQty.toIntOrNull(); val rate=billRate.toDoubleOrNull(); val discount=billDiscount.toDoubleOrNull(); val tax=billTax.toDoubleOrNull(); val pid=billProductId.toLongOrNull()
+         if(billDescription.isBlank() || qty==null || qty<=0 || rate==null || rate<0 || discount==null || discount<0 || tax==null || tax<0) toast("Check item description, quantity and amounts")
+         else runCatching { BillLine(pid,billDescription.trim(),qty,(rate*100).toLong(),(discount*100).toLong(),(tax*100).toLong()) }
+          .onSuccess { line -> billLines=billLines+line; billProductId=""; billDescription=""; billQty="1"; billRate=""; billDiscount="0"; billTax="0"; toast("Item added to bill") }
+          .onFailure { toast(it.message ?: "Invalid item") }
+        }, modifier=Modifier.fillMaxWidth()) { Text("Add item to bill") }
+        Text("Items in cart: ${billLines.size} · Subtotal ₹${"%.2f".format(billLines.sumOf { it.total }/100.0)}", style=MaterialTheme.typography.titleSmall)
+        billLines.forEachIndexed { index, line ->
+         Text("${index+1}. ${line.description} × ${line.qty} · ₹${"%.2f".format(line.total/100.0)}")
+        }
         OutlinedTextField(billPaid, { billPaid=it }, label={ Text("Amount received in ₹") }, modifier=Modifier.fillMaxWidth())
         Button(onClick={ lifecycleScope.launch {
-         val qty=billQty.toIntOrNull(); val rate=billRate.toDoubleOrNull(); val discount=billDiscount.toDoubleOrNull(); val tax=billTax.toDoubleOrNull(); val paid=billPaid.toDoubleOrNull(); val pid=billProductId.toLongOrNull()
-         if (billCustomer.isBlank() || billDescription.isBlank() || qty==null || qty<=0 || rate==null || rate<0 || discount==null || discount<0 || tax==null || tax<0 || paid==null || paid<0) toast("Check customer, item, quantity and amounts")
+         val paid=billPaid.toDoubleOrNull()
+         val cid=billCustomerId.toLongOrNull()
+         val existingCustomer=if(cid!=null) db.dao().customer(cid) else null
+         if(billCustomer.isBlank() || billLines.isEmpty() || paid==null || paid<0) toast("Enter customer, add at least one item and check payment")
+         else if(billCustomerId.isNotBlank() && existingCustomer==null) toast("Existing customer ID was not found")
          else runCatching {
-          BillingRepository(db).createBill(NewBill(customerId=null, customerName=billCustomer.trim(), phone=billPhone.trim(), lines=listOf(BillLine(pid,billDescription.trim(),qty,(rate*100).toLong(),(discount*100).toLong(),(tax*100).toLong())), paidPaise=(paid*100).toLong()))
-         }.onSuccess { id -> toast("Invoice created: #$id"); section="Bills"; billCustomer=""; billPhone=""; billProductId=""; billDescription=""; billQty="1"; billRate=""; billDiscount="0"; billTax="0"; billPaid="0" }
+          BillingRepository(db).createBill(NewBill(customerId=existingCustomer?.id, customerName=existingCustomer?.name ?: billCustomer.trim(), phone=existingCustomer?.phone?.ifBlank { billPhone.trim() } ?: billPhone.trim(), lines=billLines, paidPaise=(paid*100).toLong()))
+         }.onSuccess { id -> toast("Invoice created: #$id"); section="Bills"; billCustomer=""; billCustomerId=""; billPhone=""; billLines=emptyList(); billProductId=""; billDescription=""; billQty="1"; billRate=""; billDiscount="0"; billTax="0"; billPaid="0" }
           .onFailure { toast(it.message ?: "Could not create invoice") }
         } }, modifier=Modifier.fillMaxWidth()) { Text("Create bill and deduct stock") }
        }
-       "Payment" -> {
+        "Payment" -> {
         OutlinedTextField(paymentInvoiceId, { paymentInvoiceId=it }, label={ Text("Invoice database ID") }, modifier=Modifier.fillMaxWidth())
         OutlinedTextField(paymentAmount, { paymentAmount=it }, label={ Text("Payment amount in ₹") }, modifier=Modifier.fillMaxWidth())
         OutlinedTextField(paymentMethod, { paymentMethod=it }, label={ Text("Method (Cash / UPI / Card / Bank)") }, modifier=Modifier.fillMaxWidth())
