@@ -162,8 +162,10 @@ class MainActivity : ComponentActivity() {
                         }
                     )
                     "bill" -> BillDialog(
+                        customers = customers,
+                        products = products,
                         onDismiss = { dialog = "" },
-                        onSave = { customerName, phone, description, qty, rate, discount, tax, paid ->
+                        onSave = { customerId, customerName, phone, productId, description, qty, rate, discount, tax, paid ->
                             lifecycleScope.launch {
                                 runCatching {
                                     require(customerName.isNotBlank()) { "Customer name is required" }
@@ -171,11 +173,11 @@ class MainActivity : ComponentActivity() {
                                     require(qty > 0) { "Quantity must be greater than zero" }
                                     require(rate >= 0 && discount >= 0 && tax >= 0 && paid >= 0) { "Amounts cannot be negative" }
                                     billing.createBill(NewBill(
-                                        customerId = null,
+                                        customerId = customerId,
                                         customerName = customerName.trim(),
                                         phone = phone.trim(),
                                         lines = listOf(BillLine(
-                                            productId = null, description = description.trim(),
+                                            productId = productId, description = description.trim(),
                                             qty = qty, ratePaise = toPaise(rate),
                                             discountPaise = toPaise(discount), taxPaise = toPaise(tax)
                                         )),
@@ -295,11 +297,17 @@ private fun ProductDialog(onDismiss: () -> Unit, onSave: (String, String, String
 
 @Composable
 private fun BillDialog(
+    customers: List<Customer>,
+    products: List<Product>,
     onDismiss: () -> Unit,
-    onSave: (String, String, String, Int, String, String, String, String) -> Unit
+    onSave: (Long?, String, String, Long?, String, Int, String, String, String, String) -> Unit
 ) {
     var customer by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
+    var selectedCustomerId by remember { mutableStateOf<Long?>(null) }
+    var customerMenu by remember { mutableStateOf(false) }
+    var selectedProductId by remember { mutableStateOf<Long?>(null) }
+    var productMenu by remember { mutableStateOf(false) }
     var description by remember { mutableStateOf("") }
     var qty by remember { mutableStateOf("1") }
     var rate by remember { mutableStateOf("") }
@@ -311,9 +319,51 @@ private fun BillDialog(
         title = { Text("Create invoice") },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("Quick invoice for a free-text item. Stock-linked checkout is a follow-up workflow.")
-                OutlinedTextField(customer, { customer = it }, label = { Text("Customer name *") }, singleLine = true)
+                Text("Select saved records or enter a walk-in customer and free-text item.")
+                Box {
+                    OutlinedTextField(
+                        value = customers.firstOrNull { it.id == selectedCustomerId }?.name ?: "",
+                        onValueChange = {}, readOnly = true, label = { Text("Select saved customer (optional)") },
+                        modifier = Modifier.fillMaxWidth(),
+                        trailingIcon = { TextButton(onClick = { customerMenu = true }) { Text("Choose") } }
+                    )
+                    DropdownMenu(expanded = customerMenu, onDismissRequest = { customerMenu = false }) {
+                        customers.forEach { saved ->
+                            DropdownMenuItem(text = { Text(saved.name) }, onClick = {
+                                selectedCustomerId = saved.id
+                                customer = saved.name
+                                phone = saved.phone
+                                customerMenu = false
+                            })
+                        }
+                    }
+                }
+                OutlinedTextField(customer, { customer = it; selectedCustomerId = null }, label = { Text("Customer name *") }, singleLine = true)
                 OutlinedTextField(phone, { phone = it }, label = { Text("Phone") }, singleLine = true)
+                Box {
+                    OutlinedTextField(
+                        value = products.firstOrNull { it.id == selectedProductId }?.name ?: "Free-text item",
+                        onValueChange = {}, readOnly = true, label = { Text("Select stock product (optional)") },
+                        modifier = Modifier.fillMaxWidth(),
+                        trailingIcon = { TextButton(onClick = { productMenu = true }) { Text("Choose") } }
+                    )
+                    DropdownMenu(expanded = productMenu, onDismissRequest = { productMenu = false }) {
+                        DropdownMenuItem(text = { Text("Free-text item (no stock tracking)") }, onClick = {
+                            selectedProductId = null
+                            description = ""
+                            rate = ""
+                            productMenu = false
+                        })
+                        products.forEach { product ->
+                            DropdownMenuItem(text = { Text("\${product.name} · stock \${product.stock}") }, onClick = {
+                                selectedProductId = product.id
+                                description = product.name
+                                rate = String.format(Locale.US, "%.2f", product.pricePaise / 100.0)
+                                productMenu = false
+                            })
+                        }
+                    }
+                }
                 OutlinedTextField(description, { description = it }, label = { Text("Item / frame / lens *") }, singleLine = true)
                 OutlinedTextField(qty, { qty = it }, label = { Text("Quantity") }, singleLine = true)
                 OutlinedTextField(rate, { rate = it }, label = { Text("Unit rate (₹)") }, singleLine = true)
@@ -325,7 +375,7 @@ private fun BillDialog(
         confirmButton = {
             TextButton(onClick = {
                 if (qty.toIntOrNull() == null || listOf(rate, discount, tax, paid).any { it.toBigDecimalOrNull() == null }) return@TextButton
-                onSave(customer, phone, description, qty.toInt(), rate, discount, tax, paid)
+                onSave(selectedCustomerId, customer, phone, selectedProductId, description, qty.toInt(), rate, discount, tax, paid)
             }) { Text("Create") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
