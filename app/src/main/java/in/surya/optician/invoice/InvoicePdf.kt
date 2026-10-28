@@ -1,8 +1,8 @@
-package in.surya.optician.invoice
+package com.surya.optician.invoice
 import android.content.Context
 import android.graphics.Paint
 import android.graphics.pdf.PdfDocument
-import in.surya.optician.data.*
+import com.surya.optician.data.*
 import java.io.File
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
