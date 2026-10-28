@@ -165,7 +165,8 @@ class MainActivity : ComponentActivity() {
     )
    ) {
     val backupLauncher = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.CreateDocument("application/vnd.sqlite3")) { uri ->
-     if (uri != null) lifecycleScope.launch {
+     if (loggedInUser?.role != "Owner") { Toast.makeText(this@MainActivity, "Only the Owner can export a database backup.", Toast.LENGTH_LONG).show() }
+     else if (uri != null) lifecycleScope.launch {
       runCatching {
        db.openHelper.writableDatabase.query("PRAGMA wal_checkpoint(FULL)").close()
        val databaseFile = getDatabasePath("surya-optician.db")
@@ -175,7 +176,8 @@ class MainActivity : ComponentActivity() {
      }
     }
     val restoreLauncher = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { uri ->
-     if (uri != null) lifecycleScope.launch {
+     if (loggedInUser?.role != "Owner") { Toast.makeText(this@MainActivity, "Only the Owner can restore a backup.", Toast.LENGTH_LONG).show() }
+     else if (uri != null) lifecycleScope.launch {
       val temp = File(cacheDir, "restore-validation.db")
       runCatching {
        contentResolver.openInputStream(uri)?.use { input -> FileOutputStream(temp).use { output -> input.copyTo(output) } } ?: error("Cannot read selected backup")
@@ -282,6 +284,16 @@ class MainActivity : ComponentActivity() {
     val lowStock by db.dao().lowStock().collectAsState(initial = emptyList())
 
     fun toast(message: String) = Toast.makeText(this@MainActivity, message, Toast.LENGTH_LONG).show()
+    val currentRole = loggedInUser?.role ?: "Staff"
+    fun isOwner() = currentRole == "Owner"
+    fun canManageRecords() = currentRole == "Owner" || currentRole == "Manager"
+    fun canDeleteRecords() = isOwner()
+    fun canAccess(tab: String): Boolean = when (tab) {
+     "Users" -> isOwner()
+     "Reports" -> currentRole != "Staff"
+     else -> true
+    }
+    fun denyPermission(action: String) { toast("Permission denied: only the Owner can $action.") }
     if (loggedInUser == null) {
      val needsOwnerSetup = accountStore.loadUsers().isEmpty()
      Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
@@ -324,7 +336,7 @@ class MainActivity : ComponentActivity() {
     }) { padding ->
      Column(Modifier.fillMaxSize().padding(padding).padding(12.dp)) {
       Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
-       (listOf("Dashboard", "Bills", "New Bill", "Customers", "Products", "Payment", "Prescription", "Reports", "Settings") + if(loggedInUser?.role=="Owner") listOf("Users") else emptyList()).forEach { tab ->
+       (listOf("Dashboard", "Bills", "New Bill", "Customers", "Products", "Payment", "Prescription", "Reports", "Settings") + if(isOwner()) listOf("Users") else emptyList()).filter { canAccess(it) }.forEach { tab ->
         if(section==tab) Button(onClick={section=tab}, contentPadding=PaddingValues(horizontal=12.dp,vertical=8.dp)) { Text(tab) }
         else TextButton(onClick = { section = tab }) { Text(tab) }
        }
@@ -390,7 +402,7 @@ class MainActivity : ComponentActivity() {
         OutlinedTextField(customerPhone, { customerPhone = it }, label = { Text("Phone (WhatsApp)") }, modifier = Modifier.fillMaxWidth(), singleLine=true)
         OutlinedTextField(customerAge, { customerAge = it.filter(Char::isDigit).take(3) }, label = { Text("Age (years, optional)") }, modifier = Modifier.fillMaxWidth(), singleLine=true)
         OutlinedTextField(customerAddress, { customerAddress = it }, label = { Text("Address") }, modifier = Modifier.fillMaxWidth())
-        Button(onClick = { lifecycleScope.launch {
+        Button(onClick = { if(!canManageRecords()) { denyPermission("edit customer records") } else lifecycleScope.launch {
          val ageValidation = validateCustomerAge(customerAge)
          val ageValue = ageValidation.age
          if (customerName.isBlank()) toast("Customer name is required")
@@ -412,8 +424,8 @@ class MainActivity : ComponentActivity() {
           Text(customer.name, style=MaterialTheme.typography.titleMedium)
           Text(listOfNotNull(customer.phone.takeIf { it.isNotBlank() }, customer.age?.let { "Age $it years" }, customer.address.takeIf { it.isNotBlank() }).joinToString("  ·  ").ifBlank { "No additional details" }, style=MaterialTheme.typography.bodyMedium)
           Row {
-           TextButton(onClick={ selectedCustomerId=customer.id; customerName=customer.name; customerPhone=customer.phone; customerAddress=customer.address; customerAge=customer.age?.toString() ?: "" }) { Text("Edit") }
-           TextButton(onClick={ lifecycleScope.launch {
+           if(canManageRecords()) TextButton(onClick={ selectedCustomerId=customer.id; customerName=customer.name; customerPhone=customer.phone; customerAddress=customer.address; customerAge=customer.age?.toString() ?: "" }) { Text("Edit") }
+           if(canDeleteRecords()) TextButton(onClick={ if(!canDeleteRecords()) denyPermission("delete customers") else lifecycleScope.launch {
             val hasInvoices=db.dao().customerInvoiceCount(customer.id)>0
             val hasPrescriptions=db.dao().customerPrescriptionCount(customer.id)>0
             if(hasInvoices || hasPrescriptions) toast("Cannot delete: customer has invoice or prescription history")
@@ -431,7 +443,7 @@ class MainActivity : ComponentActivity() {
         OutlinedTextField(productCategory, { productCategory = it }, label = { Text("Category (Frame / Lens / Sunglasses / Other)") }, modifier = Modifier.fillMaxWidth())
         OutlinedTextField(productStock, { productStock = it }, label = { Text("Opening stock") }, modifier = Modifier.fillMaxWidth())
         OutlinedTextField(productLowStock, { productLowStock = it }, label = { Text("Low stock alert at") }, modifier = Modifier.fillMaxWidth())
-        Button(onClick = { lifecycleScope.launch {
+        Button(onClick = { if(!canManageRecords()) { denyPermission("manage inventory") } else lifecycleScope.launch {
          val price = productPrice.toDoubleOrNull()
          val cost = productCost.toDoubleOrNull()
          val stock = productStock.toIntOrNull()
@@ -447,8 +459,8 @@ class MainActivity : ComponentActivity() {
          Card(Modifier.fillMaxWidth().padding(vertical=3.dp)) { Column(Modifier.padding(8.dp)) {
           Text("#${product.id} · ${product.name} · Sell ₹${"%.2f".format(product.pricePaise/100.0)} · Cost ₹${"%.2f".format(product.costPaise/100.0)} · ${product.category.ifBlank { "Uncategorised" }} · stock ${product.stock}")
           Row {
-           TextButton(onClick={ selectedProductId=product.id; productName=product.name; productSku=product.sku; productPrice="%.2f".format(product.pricePaise/100.0); productCost="%.2f".format(product.costPaise/100.0); productCategory=product.category; productStock=product.stock.toString(); productLowStock=product.lowStock.toString() }) { Text("Edit") }
-           TextButton(onClick={ lifecycleScope.launch {
+           if(canManageRecords()) TextButton(onClick={ selectedProductId=product.id; productName=product.name; productSku=product.sku; productPrice="%.2f".format(product.pricePaise/100.0); productCost="%.2f".format(product.costPaise/100.0); productCategory=product.category; productStock=product.stock.toString(); productLowStock=product.lowStock.toString() }) { Text("Edit") }
+           if(canDeleteRecords()) TextButton(onClick={ if(!canDeleteRecords()) denyPermission("delete products") else lifecycleScope.launch {
             if(db.dao().productInvoiceItemCount(product.id)>0) toast("Cannot delete: product appears on invoice history")
             else runCatching { db.dao().deleteProduct(product) }.onSuccess { toast("Product deleted") }.onFailure { toast("Could not delete product") }
            } }) { Text("Delete") }
@@ -635,7 +647,7 @@ class MainActivity : ComponentActivity() {
         OutlinedTextField(leftAdd, { leftAdd=it }, label={ Text("ADD / Near addition (+ or −)") }, placeholder={ Text("e.g. +1.50") }, modifier=Modifier.fillMaxWidth(), singleLine=true)
         OutlinedTextField(pd, { pd=it }, label={ Text("Pupillary distance (PD, mm)") }, modifier=Modifier.fillMaxWidth())
         OutlinedTextField(prescriptionNotes, { prescriptionNotes=it }, label={ Text("Notes / lens recommendation") }, modifier=Modifier.fillMaxWidth(), minLines=2)
-        Button(onClick={ lifecycleScope.launch {
+        Button(onClick={ if(!canManageRecords()) { denyPermission("manage prescriptions") } else lifecycleScope.launch {
          val cid=prescriptionCustomerId.toLongOrNull()
          val rightAxisValue=rightAxis.toIntOrNull()
          val leftAxisValue=leftAxis.toIntOrNull()
@@ -661,11 +673,11 @@ class MainActivity : ComponentActivity() {
            Text("PD: ${rx.pd.ifBlank{"—"}} mm")
            if(rx.notes.isNotBlank()) Text("Notes: ${rx.notes}")
            Row {
-            TextButton(onClick={ editingPrescriptionId=rx.id; prescriptionCustomerId=rx.customerId.toString(); rightSphere=rx.rightSphere;rightCylinder=rx.rightCylinder;rightAxis=rx.rightAxis;rightAdd=rx.rightAdd;leftSphere=rx.leftSphere;leftCylinder=rx.leftCylinder;leftAxis=rx.leftAxis;leftAdd=rx.leftAdd;pd=rx.pd;prescriptionNotes=rx.notes }) { Text("Edit") }
+            if(canManageRecords()) TextButton(onClick={ editingPrescriptionId=rx.id; prescriptionCustomerId=rx.customerId.toString(); rightSphere=rx.rightSphere;rightCylinder=rx.rightCylinder;rightAxis=rx.rightAxis;rightAdd=rx.rightAdd;leftSphere=rx.leftSphere;leftCylinder=rx.leftCylinder;leftAxis=rx.leftAxis;leftAdd=rx.leftAdd;pd=rx.pd;prescriptionNotes=rx.notes }) { Text("Edit") }
             val prescriptionCustomerName = customers.firstOrNull { it.id==rx.customerId }?.name ?: "Customer #${rx.customerId}"
             TextButton(onClick={ sharePrescriptionPdf(rx, prescriptionCustomerName) }) { Text("PDF / Share") }
             TextButton(onClick={ printPrescriptionPdf(rx, prescriptionCustomerName) }) { Text("Print") }
-            TextButton(onClick={ lifecycleScope.launch { runCatching { db.dao().deletePrescription(rx) }.onSuccess { if(editingPrescriptionId==rx.id) editingPrescriptionId=null; toast("Prescription deleted") }.onFailure { toast("Could not delete prescription") } } }) { Text("Delete") }
+            if(canDeleteRecords()) TextButton(onClick={ if(!canDeleteRecords()) denyPermission("delete prescriptions") else lifecycleScope.launch { runCatching { db.dao().deletePrescription(rx) }.onSuccess { if(editingPrescriptionId==rx.id) editingPrescriptionId=null; toast("Prescription deleted") }.onFailure { toast("Could not delete prescription") } } }) { Text("Delete") }
            }
           }
          }
@@ -747,7 +759,7 @@ class MainActivity : ComponentActivity() {
          FilterChip(selected=newStaffRole=="Manager",onClick={newStaffRole="Manager"},label={Text("Manager")})
         }
         Button(onClick={
-         runCatching {
+         if(!isOwner()) denyPermission("manage user accounts") else runCatching {
           accountStore.create(newStaffName.trim(),newStaffPassword,newStaffRole)
           accountVersion++
           newStaffName="";newStaffPassword=""
@@ -759,7 +771,7 @@ class MainActivity : ComponentActivity() {
         accountStore.loadUsers().forEach { user ->
          Card(Modifier.fillMaxWidth().padding(vertical=3.dp)) { Row(Modifier.fillMaxWidth().padding(12.dp),horizontalArrangement=Arrangement.SpaceBetween) {
           Column(Modifier.weight(1f)) { Text(user.username,style=MaterialTheme.typography.titleSmall); Text(user.role,style=MaterialTheme.typography.bodySmall) }
-          if(user.role!="Owner" && user.username!=loggedInUser?.username) TextButton(onClick={accountStore.remove(user.username);accountVersion++;toast("Account removed")}) { Text("Remove") }
+          if(isOwner() && user.role!="Owner" && user.username!=loggedInUser?.username) TextButton(onClick={ if(isOwner()) { accountStore.remove(user.username);accountVersion++;toast("Account removed") } else denyPermission("manage user accounts") }) { Text("Remove") }
          } }
         }
         Text("This is device-local account management, not cloud identity or multi-device synchronization.",style=MaterialTheme.typography.bodySmall)
@@ -778,6 +790,7 @@ class MainActivity : ComponentActivity() {
         OutlinedTextField(shopFooter,{shopFooter=it},label={Text("Invoice footer")},modifier=Modifier.fillMaxWidth())
         Button(onClick={lifecycleScope.launch{db.dao().saveSettings(ShopSettings(name=shopName,address=shopAddress,phone=shopPhone,gstin=shopGstin,footer=shopFooter));toast("Shop settings saved")}},modifier=Modifier.fillMaxWidth()){Text("Save settings")}
         Divider()
+        if(isOwner()) {
         Text("Optional app PIN lock", style=MaterialTheme.typography.titleMedium)
         Text("Set a 4–8 digit local PIN to require unlocking when the app opens. If you forget it, clear app data to remove it; there is no online recovery.", style=MaterialTheme.typography.bodySmall)
         OutlinedTextField(newPin, { newPin=it.filter(Char::isDigit).take(8) }, label={Text("New PIN (4–8 digits)")}, modifier=Modifier.fillMaxWidth(), singleLine=true)
@@ -796,8 +809,9 @@ class MainActivity : ComponentActivity() {
         Divider()
         Text("Database backup and restore", style=MaterialTheme.typography.titleMedium)
         Text("Export a full local database backup and keep it private. Restore replaces the current local database; only restore a backup made by this app.", style=MaterialTheme.typography.bodySmall)
-        Button(onClick={ backupLauncher.launch("surya-optician-backup.db") }, modifier=Modifier.fillMaxWidth()) { Text("Export database backup") }
-        OutlinedButton(onClick={ restoreLauncher.launch(arrayOf("application/vnd.sqlite3", "application/octet-stream", "application/x-sqlite3", "*/*")) }, modifier=Modifier.fillMaxWidth()) { Text("Restore database backup") }
+        if(isOwner()) Button(onClick={ backupLauncher.launch("surya-optician-backup.db") }, modifier=Modifier.fillMaxWidth()) { Text("Export database backup") }
+        if(isOwner()) OutlinedButton(onClick={ restoreLauncher.launch(arrayOf("application/vnd.sqlite3", "application/octet-stream", "application/x-sqlite3", "*/*")) }, modifier=Modifier.fillMaxWidth()) { Text("Restore database backup") }
+        }
        }
        else -> {
         OutlinedTextField(query, { query=it }, label={Text("Search invoice, customer, phone")}, modifier=Modifier.fillMaxWidth())
@@ -825,8 +839,8 @@ class MainActivity : ComponentActivity() {
             Text("Payment status: $paymentStatus", color=if(invoice.duePaise<=0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error, style=MaterialTheme.typography.labelMedium)
             if(invoice.duePaise>0) TextButton(onClick={ paymentInvoiceId=invoice.id.toString(); paymentAmount=""; section="Payment" }) { Text("Collect due payment") }
             Row(horizontalArrangement=Arrangement.spacedBy(6.dp)) {
-             TextButton(onClick={ lifecycleScope.launch { runCatching { val items=db.dao().items(invoice.id); billCustomer=invoice.customerName; billCustomerId=invoice.customerId?.toString() ?: ""; billPhone=invoice.phone; billLines=items.map { BillLine(it.productId,it.description,it.qty,it.ratePaise,it.discountPaise,it.taxPaise) }; billPaid="%.2f".format(invoice.paidPaise/100.0); billPrescriptionId=""; billPrescriptionSummary=invoice.prescriptionSummary; billGlassType=invoice.glassType; billDeliveryDate=invoice.deliveryDate; editingInvoiceId=invoice.id; section="New Bill" }.onFailure { toast("Could not load bill for editing") } } }) { Text("Edit") }
-             TextButton(onClick={ invoiceDeleteTarget=invoice }) { Text("Delete") }
+             if(canManageRecords()) TextButton(onClick={ lifecycleScope.launch { runCatching { val items=db.dao().items(invoice.id); billCustomer=invoice.customerName; billCustomerId=invoice.customerId?.toString() ?: ""; billPhone=invoice.phone; billLines=items.map { BillLine(it.productId,it.description,it.qty,it.ratePaise,it.discountPaise,it.taxPaise) }; billPaid="%.2f".format(invoice.paidPaise/100.0); billPrescriptionId=""; billPrescriptionSummary=invoice.prescriptionSummary; billGlassType=invoice.glassType; billDeliveryDate=invoice.deliveryDate; editingInvoiceId=invoice.id; section="New Bill" }.onFailure { toast("Could not load bill for editing") } } }) { Text("Edit") }
+             if(canDeleteRecords()) TextButton(onClick={ invoiceDeleteTarget=invoice }) { Text("Delete") }
              TextButton(onClick={lifecycleScope.launch{runCatching{val file=InvoicePdf.generate(this@MainActivity,invoice,db.dao().items(invoice.id),db.dao().settings()?:ShopSettings());val uri=FileProvider.getUriForFile(this@MainActivity,"${packageName}.fileprovider",file);startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(uri,"application/pdf").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION))}.onFailure{toast("PDF preview failed. Install a PDF viewer.")}}}){Text("Preview PDF")}
              TextButton(onClick={lifecycleScope.launch{runCatching{val file=InvoicePdf.generate(this@MainActivity,invoice,db.dao().items(invoice.id),db.dao().settings()?:ShopSettings());printPdf(file,"Invoice ${invoice.number}")}.onFailure{toast("Could not start system print")}}}){Text("Print")}
              Button(onClick={lifecycleScope.launch{runCatching{val file=InvoicePdf.generate(this@MainActivity,invoice,db.dao().items(invoice.id),db.dao().settings()?:ShopSettings());InvoiceSharing.share(this@MainActivity,file,invoice.phone,true)}.onFailure{toast("Invoice share failed")}}}){Text("WhatsApp PDF")}
