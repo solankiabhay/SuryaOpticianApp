@@ -299,7 +299,7 @@ class MainActivity : ComponentActivity() {
     fun canManageRecords() = RolePermissions.canManageRecords(currentRole)
     fun canDeleteRecords() = RolePermissions.canDeleteRecords(currentRole)
     fun canAccess(tab: String): Boolean = RolePermissions.canAccess(currentRole, tab)
-    fun denyPermission(action: String) { toast("Permission denied: only the Owner can $action.") }
+    fun denyPermission(action: String) { toast("Permission denied: your role cannot $action.") }
     if (loggedInUser == null) {
      val needsOwnerSetup = accountStore.loadUsers().isEmpty()
      Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
