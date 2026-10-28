@@ -1,4 +1,4 @@
-package in.surya.optician.data
+package com.surya.optician.data
 
 /** Pure monetary calculations. All amounts are integer paise, never floating point. */
 object BillingMath {
