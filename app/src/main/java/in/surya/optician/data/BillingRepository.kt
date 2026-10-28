@@ -103,6 +103,69 @@ class BillingRepository(private val db: OpticianDatabase) {
         invoiceId
     }
 
+    suspend fun updateBill(invoiceId: Long, b: NewBill) = db.withTransaction {
+        require(b.customerName.isNotBlank()) { "Customer name is required" }
+        require(b.lines.isNotEmpty()) { "Add at least one bill item" }
+        val dao = db.dao()
+        val existing = dao.invoice(invoiceId) ?: error("Invoice not found")
+        val paid = dao.paid(invoiceId)
+        val subtotal = b.lines.fold(0L) { total, line -> Math.addExact(total, line.subtotalPaise) }
+        val lineDiscounts = b.lines.fold(0L) { total, line -> Math.addExact(total, line.discountPaise) }
+        val discounts = Math.addExact(lineDiscounts, b.discountPaise)
+        val taxes = b.lines.fold(0L) { total, line -> Math.addExact(total, line.taxPaise) }
+        require(discounts <= subtotal) { "Total discounts cannot exceed subtotal" }
+        val total = Math.addExact(Math.subtractExact(subtotal, discounts), taxes)
+        require(paid <= total) { "The revised total is below payments already received. Record a refund/payment adjustment first." }
+        b.customerId?.let { require(dao.customer(it) != null) { "Customer not found" } }
+
+        val oldItems = dao.items(invoiceId)
+        oldItems.filter { it.productId != null }.groupBy { it.productId!! }.forEach { (id, lines) ->
+            val product = dao.product(id) ?: error("Previously billed product is missing: $id")
+            dao.updateProduct(product.copy(stock = Math.addExact(product.stock, lines.sumOf { it.qty })))
+        }
+        val productCosts = mutableMapOf<Long, Long>()
+        b.lines.filter { it.productId != null }.groupBy { it.productId!! }.forEach { (id, lines) ->
+            val product = dao.product(id) ?: error("Product not found")
+            require(product.stock >= lines.sumOf { it.qty }) { "Insufficient stock: ${product.name}" }
+            productCosts[id] = product.costPaise
+        }
+        dao.updateInvoice(existing.copy(
+            customerId = b.customerId,
+            customerName = b.customerName.trim(),
+            phone = b.phone.trim(),
+            subtotalPaise = subtotal,
+            discountPaise = discounts,
+            taxPaise = taxes,
+            totalPaise = total,
+            paidPaise = paid,
+            prescriptionSummary = b.prescriptionSummary.trim()
+        ))
+        dao.deleteItemsForInvoice(invoiceId)
+        dao.addItems(b.lines.map { line ->
+            InvoiceItem(invoiceId=invoiceId, productId=line.productId, description=line.description.trim(),
+                qty=line.qty, ratePaise=line.ratePaise, discountPaise=line.discountPaise,
+                taxPaise=line.taxPaise, totalPaise=line.total,
+                costPaise=line.productId?.let { productCosts[it] } ?: 0L)
+        })
+        b.lines.filter { it.productId != null }.groupBy { it.productId!! }.forEach { (id, lines) ->
+            val product = dao.product(id) ?: error("Product not found")
+            dao.updateProduct(product.copy(stock = product.stock - lines.sumOf { it.qty }))
+        }
+    }
+
+    suspend fun deleteBill(invoiceId: Long) = db.withTransaction {
+        val dao = db.dao()
+        dao.invoice(invoiceId) ?: error("Invoice not found")
+        val items = dao.items(invoiceId)
+        items.filter { it.productId != null }.groupBy { it.productId!! }.forEach { (id, lines) ->
+            val product = dao.product(id) ?: error("Cannot restore stock: product $id no longer exists")
+            dao.updateProduct(product.copy(stock = Math.addExact(product.stock, lines.sumOf { it.qty })))
+        }
+        dao.deletePaymentsForInvoice(invoiceId)
+        dao.deleteItemsForInvoice(invoiceId)
+        dao.deleteInvoice(invoiceId)
+    }
+
     suspend fun recordPayment(invoiceId: Long, amountPaise: Long, method: String, reference: String = "") =
         db.withTransaction {
             require(amountPaise > 0) { "Payment must be greater than zero" }
