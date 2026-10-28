@@ -19,7 +19,8 @@ The app now includes a starter Android UI and local Room-backed workflows. Statu
 | Phone normalization | Implemented baseline | 10-digit Indian number, +91 and leading zero supported |
 | Invoice search | Partial | Invoice number, customer and phone; date filter not included |
 | Payment reminder | Basic | Confirmation dialog before opening a prefilled WhatsApp message; user must review/send |
-| Reports/export, print, authentication | Not implemented | Add after core flows are verified |
+| Reports/export | Basic CSV export | Exports visible/filtered invoices to a shareable CSV; richer date/category reports still needed |
+| Print, authentication | Not implemented | Add after core flows are verified |
 | Migrations | Not implemented beyond schema v1 | Write/test explicit migrations before changing schema |
 | Automated build/device acceptance | Pending | GitHub Actions workflow added; verify its result and test WhatsApp on a physical device |
 
