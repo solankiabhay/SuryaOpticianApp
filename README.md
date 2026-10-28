@@ -29,7 +29,7 @@ gradle testDebugUnitTest
 gradle assembleDebug
 ```
 
-See [feature audit](docs/FEATURE_AUDIT.md) and [device acceptance checklist](docs/REAL_DEVICE_ACCEPTANCE.md).
+**App UI documentation:** [screen-by-screen layout, visual design, navigation map, and user-flow diagrams](docs/APP_LAYOUT_AND_FLOW.md). This documents the current implementation, including authentication, Dashboard, Customers (age included), Products, New Bill, Bills/PDF, Payments, Prescriptions, Reports, Settings, Users, local data and known limitations.\n\nAlso see the [feature audit](docs/FEATURE_AUDIT.md) and [device acceptance checklist](docs/REAL_DEVICE_ACCEPTANCE.md).
 
 ## Important limitations
 This remains an MVP, not a production-ready billing product. Staff roles and role-based permissions are not implemented. The optional local PIN lock and database backup/restore are implemented but must be verified before production use. Category and cost reports are estimates; v1 invoices have no historical cost snapshot, so their profit is not reliable. Direct WhatsApp recipient routing depends on the installed WhatsApp version and must be confirmed by the user before sending. Date filters affect invoice summaries and CSV exports; dates are entered as YYYY-MM-DD in the device local time zone. The app cannot verify WhatsApp recipient selection, message delivery or read status. Build/test results and physical-device acceptance must pass before real shop use.
