@@ -299,28 +299,28 @@ class MainActivity : ComponentActivity() {
       Row(horizontalArrangement=Arrangement.spacedBy(8.dp), modifier=Modifier.fillMaxWidth()) {
        Card(Modifier.weight(1f), colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.primaryContainer)) { Column(Modifier.padding(12.dp)) {
         Text("Outstanding", style=MaterialTheme.typography.labelMedium)
-        Text("₹\${"%.2f".format(due/100.0)}", style=MaterialTheme.typography.titleLarge)
+        Text("₹${"%.2f".format(due/100.0)}", style=MaterialTheme.typography.titleLarge)
        } }
        Card(Modifier.weight(1f), colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.secondaryContainer)) { Column(Modifier.padding(12.dp)) {
         Text("Low stock items", style=MaterialTheme.typography.labelMedium)
-        Text("\${lowStock.size}", style=MaterialTheme.typography.titleLarge)
+        Text("${lowStock.size}", style=MaterialTheme.typography.titleLarge)
        } }
       }
       Spacer(Modifier.height(8.dp))
       Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())) {
       when (section) {
        "Dashboard" -> {
-        Text("Good day, \${loggedInUser?.username}", style=MaterialTheme.typography.headlineSmall)
+        Text("Good day, ${loggedInUser?.username}", style=MaterialTheme.typography.headlineSmall)
         Text("Your shop at a glance", style=MaterialTheme.typography.bodyMedium)
         Spacer(Modifier.height(12.dp))
         Row(horizontalArrangement=Arrangement.spacedBy(8.dp), modifier=Modifier.fillMaxWidth()) {
-         Card(Modifier.weight(1f)) { Column(Modifier.padding(12.dp)) { Text("Invoices",style=MaterialTheme.typography.labelMedium); Text("\${allInvoices.size}",style=MaterialTheme.typography.headlineSmall) } }
-         Card(Modifier.weight(1f)) { Column(Modifier.padding(12.dp)) { Text("Customers",style=MaterialTheme.typography.labelMedium); Text("\${customers.size}",style=MaterialTheme.typography.headlineSmall) } }
+         Card(Modifier.weight(1f)) { Column(Modifier.padding(12.dp)) { Text("Invoices",style=MaterialTheme.typography.labelMedium); Text("${allInvoices.size}",style=MaterialTheme.typography.headlineSmall) } }
+         Card(Modifier.weight(1f)) { Column(Modifier.padding(12.dp)) { Text("Customers",style=MaterialTheme.typography.labelMedium); Text("${customers.size}",style=MaterialTheme.typography.headlineSmall) } }
         }
         Spacer(Modifier.height(8.dp))
         Row(horizontalArrangement=Arrangement.spacedBy(8.dp), modifier=Modifier.fillMaxWidth()) {
-         Card(Modifier.weight(1f)) { Column(Modifier.padding(12.dp)) { Text("Products",style=MaterialTheme.typography.labelMedium); Text("\${products.size}",style=MaterialTheme.typography.headlineSmall) } }
-         Card(Modifier.weight(1f)) { Column(Modifier.padding(12.dp)) { Text("Low stock",style=MaterialTheme.typography.labelMedium); Text("\${lowStock.size}",style=MaterialTheme.typography.headlineSmall) } }
+         Card(Modifier.weight(1f)) { Column(Modifier.padding(12.dp)) { Text("Products",style=MaterialTheme.typography.labelMedium); Text("${products.size}",style=MaterialTheme.typography.headlineSmall) } }
+         Card(Modifier.weight(1f)) { Column(Modifier.padding(12.dp)) { Text("Low stock",style=MaterialTheme.typography.labelMedium); Text("${lowStock.size}",style=MaterialTheme.typography.headlineSmall) } }
         }
         Spacer(Modifier.height(16.dp))
         Text("Quick actions", style=MaterialTheme.typography.titleMedium)
@@ -332,9 +332,9 @@ class MainActivity : ComponentActivity() {
         Text("Recent bills", style=MaterialTheme.typography.titleMedium)
         allInvoices.take(5).forEach { invoice ->
          Card(Modifier.fillMaxWidth().padding(vertical=3.dp)) { Column(Modifier.padding(12.dp)) {
-          Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.SpaceBetween) { Text(invoice.number,style=MaterialTheme.typography.titleSmall); Text("₹\${"%.2f".format(invoice.totalPaise/100.0)}",style=MaterialTheme.typography.titleSmall) }
+          Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.SpaceBetween) { Text(invoice.number,style=MaterialTheme.typography.titleSmall); Text("₹${"%.2f".format(invoice.totalPaise/100.0)}",style=MaterialTheme.typography.titleSmall) }
           Text(invoice.customerName,style=MaterialTheme.typography.bodyMedium)
-          Text(if(invoice.duePaise>0) "Due ₹\${"%.2f".format(invoice.duePaise/100.0)}" else "Paid",style=MaterialTheme.typography.bodySmall)
+          Text(if(invoice.duePaise>0) "Due ₹${"%.2f".format(invoice.duePaise/100.0)}" else "Paid",style=MaterialTheme.typography.bodySmall)
          } }
         }
        }
