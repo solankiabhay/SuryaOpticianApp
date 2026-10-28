@@ -1,24 +1,26 @@
 # Feature audit
 
-The repository originally contained only README.md. This branch adds a runnable Android project scaffold and core billing infrastructure. Status is source-level only; build and device behavior still need verification.
+The app now includes a starter Android UI and local Room-backed workflows. Status is source-level until GitHub Actions succeeds and real-device acceptance is completed.
 
 | Area | Status | Notes |
 |---|---|---|
-| Kotlin + Compose + Room | Implemented baseline | Android project, Room v1 entities and DAO |
+| Kotlin + Compose + Room | Implemented baseline | Android project, Room v1 entities and DAO; schema export configured |
 | Transactional billing | Implemented baseline | Invoice, items, initial payment and stock updates use one Room transaction |
 | Invoice numbering | Implemented baseline | Unique DB index plus timestamp/collision check |
-| PDF generation and preview | Partial | Local PDF; single-page layout currently truncates very long bills |
+| Customer management | Basic create/list | Create form and list; edit/delete/search by customer still needed |
+| Product/stock management | Basic create/list | Product entry, stock count and low-stock indicator; edit/stock-adjustment flow still needed |
+| Billing | Basic single-line invoice | Customer text, optional product ID, quantity, line discount/tax and initial payment; multi-item cart and customer linking still needed |
+| Payment collection | Basic | Records additional payments transactionally; lookup uses invoice database ID |
+| Prescription management | Basic | Customer ID, right/left sphere and PD; full Rx fields/history/editing needed |
+| Shop settings | Basic | Name/address/phone/GSTIN/footer stored locally |
+| PDF generation and preview | Improved baseline | Creates multi-page PDFs for long item lists; physical PDF layout still needs QA |
 | Secure PDF sharing | Partial | FileProvider, content URI and read grant |
 | WhatsApp PDF sharing | Partial | User-initiated document share; exact recipient routing varies by WhatsApp version and requires device test |
 | Phone normalization | Implemented baseline | 10-digit Indian number, +91 and leading zero supported |
 | Invoice search | Partial | Invoice number, customer and phone; date filter not included |
-| Payments/history | Partial | Persistence and transactional payment method; payment-entry UI not included |
-| Reminder | Partial | Prefilled external WhatsApp link; add explicit confirmation dialog before production use |
-| Customers/products | Partial | Data entities and read-only list/dashboard; create/edit forms not yet implemented |
-| Prescription management | Data model only | Right/left fields exist; UI and DAO flows not completed |
-| Reports/settings editor/logo | Partial | Basic outstanding dashboard and settings model; reports/settings screens absent |
-| Print, backup/export, authentication | Not implemented | Must be added |
-| Migrations | Not implemented beyond schema v1 | Export schema and write/test explicit migrations before schema changes |
-| Automated build/device acceptance | Not run | Requires Android SDK/Gradle and a physical Android device for WhatsApp verification |
+| Payment reminder | Basic | Confirmation dialog before opening a prefilled WhatsApp message; user must review/send |
+| Reports/export, print, authentication | Not implemented | Add after core flows are verified |
+| Migrations | Not implemented beyond schema v1 | Write/test explicit migrations before changing schema |
+| Automated build/device acceptance | Pending | GitHub Actions workflow added; verify its result and test WhatsApp on a physical device |
 
-Do not describe WhatsApp opening as delivery/read confirmation.
+Do not describe WhatsApp opening as delivery/read confirmation. This MVP is not production-ready until the build/test workflow passes, database migrations and backup are planned, and real-device acceptance is complete.
