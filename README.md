@@ -12,6 +12,8 @@ Android optical-shop billing MVP built with Kotlin, Jetpack Compose and Room/SQL
 - Reports with invoice count, sales, collected, outstanding, estimated gross profit, stock valuation and category/low-stock summaries; optional inclusive date range (YYYY-MM-DD), customer/invoice/phone search and date-filtered CSV export
 - Payment history by invoice and historical item-cost snapshots for new invoices
 - Explicit Room migrations from database v1 to v3
+- Optional local PIN lock with salted PBKDF2 hash
+- SQLite database backup export and validated restore via Android document picker
 - Multi-page invoice PDF generation/preview and user-initiated WhatsApp sharing
 - Payment-reminder confirmation before opening WhatsApp
 - Horizontally scrollable navigation on narrow phone screens
@@ -30,4 +32,4 @@ gradle assembleDebug
 See [feature audit](docs/FEATURE_AUDIT.md) and [device acceptance checklist](docs/REAL_DEVICE_ACCEPTANCE.md).
 
 ## Important limitations
-This remains an MVP, not a production-ready billing product. Authentication/role management and dedicated in-app print integration remain incomplete. Database backup/restore is implemented in Settings but must be verified before production use. Category and cost reports are estimates; v1 invoices have no historical cost snapshot, so their profit is not reliable. Direct WhatsApp recipient routing depends on the installed WhatsApp version and must be confirmed by the user before sending. Date filters affect invoice summaries and CSV exports; dates are entered as YYYY-MM-DD in the device local time zone. The app cannot verify WhatsApp recipient selection, message delivery or read status. Build/test results and physical-device acceptance must pass before real shop use.
+This remains an MVP, not a production-ready billing product. Staff roles and dedicated in-app print integration remain incomplete. Optional local PIN lock and database backup/restore are implemented but must be tested before production use. Database backup/restore is implemented in Settings but must be verified before production use. Category and cost reports are estimates; v1 invoices have no historical cost snapshot, so their profit is not reliable. Direct WhatsApp recipient routing depends on the installed WhatsApp version and must be confirmed by the user before sending. Date filters affect invoice summaries and CSV exports; dates are entered as YYYY-MM-DD in the device local time zone. The app cannot verify WhatsApp recipient selection, message delivery or read status. Build/test results and physical-device acceptance must pass before real shop use.
