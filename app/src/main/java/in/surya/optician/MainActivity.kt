@@ -68,7 +68,6 @@ class MainActivity : ComponentActivity() {
             val phone = InvoiceSharing.normalizeIndianPhone(invoice.phone)
             if (phone.isBlank()) Toast.makeText(this@MainActivity, "Customer phone is missing or invalid", Toast.LENGTH_LONG).show()
             else {
-             val shop = db.dao().settings()
              lifecycleScope.launch {
               val settings = db.dao().settings() ?: ShopSettings()
               val message = "Payment reminder for invoice ${invoice.number}: outstanding ₹${"%.2f".format(invoice.duePaise / 100.0)}. Please contact ${settings.name} ${settings.phone}."
