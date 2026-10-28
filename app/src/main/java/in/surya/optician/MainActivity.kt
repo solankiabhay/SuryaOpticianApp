@@ -1026,7 +1026,47 @@ class MainActivity : ComponentActivity() {
         }
        }
        else -> {
-        OutlinedTextField(query, { query=it }, label={Text("Search invoice, customer, phone")}, modifier=Modifier.fillMaxWidth())
+        Card(
+         modifier=Modifier.fillMaxWidth(),
+         colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.primaryContainer),
+         shape=androidx.compose.foundation.shape.RoundedCornerShape(20.dp)
+        ) {
+         Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement=Arrangement.spacedBy(8.dp)) {
+          Row(verticalAlignment=Alignment.CenterVertically, horizontalArrangement=Arrangement.spacedBy(10.dp)) {
+           Surface(shape=androidx.compose.foundation.shape.RoundedCornerShape(12.dp), color=MaterialTheme.colorScheme.primary, modifier=Modifier.size(42.dp)) {
+            Box(contentAlignment=Alignment.Center) { Text("⌕", color=MaterialTheme.colorScheme.onPrimary, style=MaterialTheme.typography.headlineSmall) }
+           }
+           Column(Modifier.weight(1f), verticalArrangement=Arrangement.spacedBy(2.dp)) {
+            Text("Find a bill", style=MaterialTheme.typography.titleMedium, color=MaterialTheme.colorScheme.onPrimaryContainer)
+            Text("Search by customer name, bill number or phone", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onPrimaryContainer)
+           }
+          }
+          OutlinedTextField(
+           value=query,
+           onValueChange={ query=it },
+           modifier=Modifier.fillMaxWidth(),
+           placeholder={ Text("e.g. Rahul or SO-20261028") },
+           leadingIcon={ androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Default.Search, contentDescription="Search bills") },
+           trailingIcon={
+            if(query.isNotBlank()) androidx.compose.material3.IconButton(onClick={ query="" }) {
+             androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Default.Close, contentDescription="Clear search")
+            }
+           },
+           singleLine=true,
+           shape=androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
+           colors=OutlinedTextFieldDefaults.colors(
+            focusedContainerColor=MaterialTheme.colorScheme.surface,
+            unfocusedContainerColor=MaterialTheme.colorScheme.surface,
+            focusedBorderColor=MaterialTheme.colorScheme.primary,
+            unfocusedBorderColor=MaterialTheme.colorScheme.outline
+           )
+          )
+          Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.SpaceBetween, verticalAlignment=Alignment.CenterVertically) {
+           Text(if(query.isBlank()) "Latest bills first" else "${invoices.size} matching bill(s)", style=MaterialTheme.typography.labelMedium, color=MaterialTheme.colorScheme.onPrimaryContainer)
+           if(query.isNotBlank()) TextButton(onClick={ query="" }) { Text("Clear") }
+          }
+         }
+        }
         Button(onClick={ InvoiceCsv.share(this@MainActivity, invoices) }, modifier=Modifier.fillMaxWidth()) { Text("Export matching invoices as CSV") }
         Card(Modifier.fillMaxWidth(), colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface)) {
          Row(Modifier.fillMaxWidth().padding(horizontal=8.dp, vertical=4.dp), verticalAlignment=Alignment.CenterVertically, horizontalArrangement=Arrangement.SpaceBetween) {
