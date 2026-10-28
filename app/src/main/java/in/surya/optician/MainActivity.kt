@@ -694,8 +694,37 @@ class MainActivity : ComponentActivity() {
          if((billCustomer.isBlank() && existingCustomer==null) || billLines.isEmpty() || paid==null || paid<0) toast("Enter/select a customer, add at least one item and check payment")
          else if(billCustomerId.isNotBlank() && existingCustomer==null) toast("Existing customer ID was not found")
          else runCatching {
-          run { val draft = NewBill(customerId=existingCustomer?.id, customerName=existingCustomer?.name ?: billCustomer.trim(), phone=existingCustomer?.phone?.ifBlank { billPhone.trim() } ?: billPhone.trim(), lines=billLines, paidPaise=(paid*100).toLong(), method=billPaymentMethod, glassType=billGlassType.trim(), deliveryDate=billDeliveryDate.trim(), prescriptionSummary=selectedBillPrescription?.let { rx -> listOf("Right eye (OD): SPH ${rx.rightSphere.ifBlank{"—"}}, CYL ${rx.rightCylinder.ifBlank{"—"}}, Axis ${rx.rightAxis.ifBlank{"—"}}, ADD ${rx.rightAdd.ifBlank{"—"}}", "Left eye (OS): SPH ${rx.leftSphere.ifBlank{"—"}}, CYL ${rx.leftCylinder.ifBlank{"—"}}, Axis ${rx.leftAxis.ifBlank{"—"}}, ADD ${rx.leftAdd.ifBlank{"—"}}", "PD: ${rx.pd.ifBlank{"—"}}", rx.notes.takeIf { it.isNotBlank() }?.let { "Notes: $it" }).filterNotNull().joinToString("\n") } ?: billPrescriptionSummary); if(editingInvoiceId==null) BillingRepository(db).createBill(draft) else { BillingRepository(db).updateBill(editingInvoiceId!!,draft); editingInvoiceId!! } }
-         }.onSuccess { id -> toast(if(editingInvoiceId==null) "Invoice created: #$id" else "Invoice updated"); section="Bills"; editingInvoiceId=null; billCustomer=""; billCustomerId=""; billPhone=""; billLines=emptyList(); billProductId=""; billDescription=""; billQty="1"; billRate=""; billDiscount="0"; billTax="0"; billPaid="0"; billPaymentMethod="Cash"; billPrescriptionId=""; billPrescriptionSummary=""; billGlassType=""; billDeliveryDate="" }
+          run {
+           val allCustomers = db.dao().customers().first()
+           val age = billCustomerAge.toIntOrNull()
+           require(billCustomerAge.isBlank() || (age != null && age in 0..120)) { "Age must be between 0 and 120" }
+           val phoneDigits = billPhone.filter(Char::isDigit)
+           val matchedCustomer = existingCustomer
+            ?: if (phoneDigits.isNotBlank()) allCustomers.firstOrNull { it.phone.filter(Char::isDigit) == phoneDigits }
+            else allCustomers.filter { it.name.equals(billCustomer.trim(), ignoreCase=true) }.singleOrNull()
+           val finalCustomerName = billCustomer.trim().ifBlank { matchedCustomer?.name.orEmpty() }
+           require(finalCustomerName.isNotBlank()) { "Customer name is required" }
+           val savedCustomerId = if (matchedCustomer != null) {
+            db.dao().updateCustomer(Customer(id=matchedCustomer.id, name=finalCustomerName, phone=billPhone.trim().ifBlank { matchedCustomer.phone }, address=billCustomerAddress.trim().ifBlank { matchedCustomer.address }, age=age ?: matchedCustomer.age))
+            matchedCustomer.id
+           } else {
+            db.dao().addCustomer(Customer(name=finalCustomerName, phone=billPhone.trim(), address=billCustomerAddress.trim(), age=age))
+           }
+           val finalPhone = billPhone.trim().ifBlank { matchedCustomer?.phone.orEmpty() }
+           val draft = NewBill(
+            customerId=savedCustomerId, customerName=finalCustomerName, phone=finalPhone,
+            lines=billLines, paidPaise=(paid*100).toLong(), method=billPaymentMethod,
+            glassType=billGlassType.trim(), deliveryDate=billDeliveryDate.trim(),
+            prescriptionSummary=selectedBillPrescription?.let { rx -> listOf(
+             "Right eye (OD): SPH ${rx.rightSphere.ifBlank{"—"}}, CYL ${rx.rightCylinder.ifBlank{"—"}}, Axis ${rx.rightAxis.ifBlank{"—"}}, ADD ${rx.rightAdd.ifBlank{"—"}}",
+             "Left eye (OS): SPH ${rx.leftSphere.ifBlank{"—"}}, CYL ${rx.leftCylinder.ifBlank{"—"}}, Axis ${rx.leftAxis.ifBlank{"—"}}, ADD ${rx.leftAdd.ifBlank{"—"}}",
+             "PD: ${rx.pd.ifBlank{"—"}}", rx.notes.takeIf { it.isNotBlank() }?.let { "Notes: $it" }
+            ).filterNotNull().joinToString("\n") } ?: billPrescriptionSummary
+           )
+           if(editingInvoiceId==null) BillingRepository(db).createBill(draft)
+           else { BillingRepository(db).updateBill(editingInvoiceId!!,draft); editingInvoiceId!! }
+          }
+         }.onSuccess { id -> toast(if(editingInvoiceId==null) "Invoice created: #$id" else "Invoice updated"); section="Bills"; editingInvoiceId=null; billCustomer=""; billCustomerId=""; billPhone=""; billCustomerAddress=""; billCustomerAge=""; billCustomerSearch=""; billLines=emptyList(); billProductId=""; billDescription=""; billQty="1"; billRate=""; billDiscount="0"; billTax="0"; billPaid="0"; billPaymentMethod="Cash"; billPrescriptionId=""; billPrescriptionSummary=""; billGlassType=""; billDeliveryDate="" }
           .onFailure { toast(it.message ?: "Could not create invoice") }
         } }, modifier=Modifier.fillMaxWidth()) { Text(if(editingInvoiceId==null) "Create bill and deduct stock" else "Save bill changes") }
        }
@@ -978,7 +1007,7 @@ class MainActivity : ComponentActivity() {
             Text("Payment status: $paymentStatus", color=if(invoice.duePaise<=0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error, style=MaterialTheme.typography.labelMedium)
             if(invoice.duePaise>0) TextButton(onClick={ paymentInvoiceId=invoice.id.toString(); paymentAmount=""; section="Payment" }) { Text("Collect due payment") }
             Row(horizontalArrangement=Arrangement.spacedBy(6.dp)) {
-             if(canManageRecords()) TextButton(onClick={ lifecycleScope.launch { runCatching { val items=db.dao().items(invoice.id); billCustomer=invoice.customerName; billCustomerId=invoice.customerId?.toString() ?: ""; billPhone=invoice.phone; billLines=items.map { BillLine(it.productId,it.description,it.qty,it.ratePaise,it.discountPaise,it.taxPaise) }; billPaid="%.2f".format(invoice.paidPaise/100.0); billPrescriptionId=""; billPrescriptionSummary=invoice.prescriptionSummary; billGlassType=invoice.glassType; billDeliveryDate=invoice.deliveryDate; editingInvoiceId=invoice.id; section="New Bill" }.onFailure { toast("Could not load bill for editing") } } }) { Text("Edit") }
+             if(canManageRecords()) TextButton(onClick={ lifecycleScope.launch { runCatching { val items=db.dao().items(invoice.id); billCustomer=invoice.customerName; billCustomerId=invoice.customerId?.toString() ?: ""; billPhone=invoice.phone; val linkedCustomer=invoice.customerId?.let { db.dao().customer(it) }; billCustomerAddress=linkedCustomer?.address.orEmpty(); billCustomerAge=linkedCustomer?.age?.toString() ?: ""; billCustomerSearch=linkedCustomer?.name.orEmpty(); billLines=items.map { BillLine(it.productId,it.description,it.qty,it.ratePaise,it.discountPaise,it.taxPaise) }; billPaid="%.2f".format(invoice.paidPaise/100.0); billPrescriptionId=""; billPrescriptionSummary=invoice.prescriptionSummary; billGlassType=invoice.glassType; billDeliveryDate=invoice.deliveryDate; editingInvoiceId=invoice.id; section="New Bill" }.onFailure { toast("Could not load bill for editing") } } }) { Text("Edit") }
              if(canDeleteRecords()) TextButton(onClick={ invoiceDeleteTarget=invoice }) { Text("Delete") }
              TextButton(onClick={lifecycleScope.launch{runCatching{val file=InvoicePdf.generate(this@MainActivity,invoice,db.dao().items(invoice.id),db.dao().settings()?:ShopSettings());val uri=FileProvider.getUriForFile(this@MainActivity,"${packageName}.fileprovider",file);startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(uri,"application/pdf").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION))}.onFailure{toast("PDF preview failed. Install a PDF viewer.")}}}){Text("Preview PDF")}
              TextButton(onClick={lifecycleScope.launch{runCatching{val file=InvoicePdf.generate(this@MainActivity,invoice,db.dao().items(invoice.id),db.dao().settings()?:ShopSettings());printPdf(file,"Invoice ${invoice.number}")}.onFailure{toast("Could not start system print")}}}){Text("Print")}
@@ -1019,6 +1048,8 @@ class MainActivity : ComponentActivity() {
         Text("SURYA OPTICIAN", style=MaterialTheme.typography.titleMedium)
         Text("Customer: " + billCustomer.ifBlank { customers.firstOrNull { it.id.toString()==billCustomerId }?.name ?: "Not selected" })
         Text("Phone: " + billPhone.ifBlank { customers.firstOrNull { it.id.toString()==billCustomerId }?.phone ?: "—" })
+        if (billCustomerAddress.isNotBlank()) Text("Address: $billCustomerAddress")
+        if (billCustomerAge.isNotBlank()) Text("Age: $billCustomerAge")
         if (billGlassType.isNotBlank()) Text("Glass type: $billGlassType")
         if (billDeliveryDate.isNotBlank()) Text("Expected delivery: $billDeliveryDate")
         Spacer(Modifier.height(8.dp))
