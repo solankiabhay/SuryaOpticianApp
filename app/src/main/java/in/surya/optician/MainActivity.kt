@@ -371,8 +371,7 @@ class MainActivity : ComponentActivity() {
          alwaysShowLabel=true
         )
        }
-       Box {
-        NavigationBarItem(
+       Row {        NavigationBarItem(
          selected=section !in primaryTabs,
          onClick={ showMoreMenu=true },
          icon={ Text("☰", style=MaterialTheme.typography.titleLarge) },
