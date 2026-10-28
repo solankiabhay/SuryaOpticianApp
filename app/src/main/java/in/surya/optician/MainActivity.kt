@@ -585,7 +585,7 @@ class MainActivity : ComponentActivity() {
         paymentHistory.forEach { payment ->
          Card(Modifier.fillMaxWidth().padding(vertical=3.dp)) {
           Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement=Arrangement.spacedBy(10.dp), verticalAlignment=androidx.compose.ui.Alignment.CenterVertically) {
-           Surface(shape=androidx.compose.foundation.shape.CircleShape, color=MaterialTheme.colorScheme.secondaryContainer, modifier=Modifier.size(40.dp)) { Box(contentAlignment=androidx.compose.ui.Alignment.Center) { androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Default.CheckCircle, contentDescription=null, tint=MaterialTheme.colorScheme.primary) } }
+           Surface(shape=androidx.compose.foundation.shape.CircleShape, color=MaterialTheme.colorScheme.secondaryContainer, modifier=Modifier.size(40.dp)) { Box(contentAlignment=androidx.compose.ui.Alignment.Center) { Text("✓", style=MaterialTheme.typography.titleMedium, color=MaterialTheme.colorScheme.primary) } }
            Column(Modifier.weight(1f)) {
             Text(payment.method, style=MaterialTheme.typography.titleSmall)
             Text(java.text.SimpleDateFormat("dd MMM yyyy, hh:mm a", java.util.Locale.getDefault()).format(java.util.Date(payment.paidAt)), style=MaterialTheme.typography.bodySmall)
