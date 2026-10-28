@@ -1,4 +1,4 @@
-package in.surya.optician.data
+package com.surya.optician.data
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
