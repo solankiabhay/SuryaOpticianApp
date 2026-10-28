@@ -34,7 +34,9 @@ data class NewBill(
     val discountPaise: Long = 0,
     val paidPaise: Long = 0,
     val method: String = "Cash",
-    val prescriptionSummary: String = ""
+    val prescriptionSummary: String = "",
+    val glassType: String = "",
+    val deliveryDate: String = ""
 )
 
 class BillingRepository(private val db: OpticianDatabase) {
@@ -77,7 +79,9 @@ class BillingRepository(private val db: OpticianDatabase) {
                 taxPaise = taxes,
                 totalPaise = total,
                 paidPaise = b.paidPaise,
-                prescriptionSummary = b.prescriptionSummary.trim()
+                prescriptionSummary = b.prescriptionSummary.trim(),
+                glassType = b.glassType.trim(),
+                deliveryDate = b.deliveryDate.trim()
             )
         )
         dao.addItems(b.lines.map { line ->
@@ -138,7 +142,9 @@ class BillingRepository(private val db: OpticianDatabase) {
             taxPaise = taxes,
             totalPaise = total,
             paidPaise = paid,
-            prescriptionSummary = b.prescriptionSummary.trim()
+            prescriptionSummary = b.prescriptionSummary.trim(),
+            glassType = b.glassType.trim(),
+            deliveryDate = b.deliveryDate.trim()
         ))
         dao.deleteItemsForInvoice(invoiceId)
         dao.addItems(b.lines.map { line ->
