@@ -248,6 +248,7 @@ class MainActivity : ComponentActivity() {
     var billCustomer by remember { mutableStateOf("") }
     var billCustomerId by remember { mutableStateOf("") }
     var billCustomerSearch by remember { mutableStateOf("") }
+    var billItemSearch by remember { mutableStateOf("") }
     var billCustomerAddress by remember { mutableStateOf("") }
     var billCustomerAge by remember { mutableStateOf("") }
     var billLines by remember { mutableStateOf(listOf<BillLine>()) }
@@ -666,7 +667,8 @@ class MainActivity : ComponentActivity() {
         }
         Text("3 · ADD ITEMS", style=MaterialTheme.typography.labelLarge, color=MaterialTheme.colorScheme.primary)
         Text("Tap a product to fill the item. Adjust quantity, discount and tax, then add it to the bill.", style=MaterialTheme.typography.bodySmall)
-        products.forEach { product -> TextButton(onClick={ billProductId=product.id.toString(); billDescription=product.name; billRate="%.2f".format(product.pricePaise/100.0) }) { Text("#${product.id} · ${product.name} · ₹${"%.2f".format(product.pricePaise/100.0)} · stock ${product.stock}") } }
+        OutlinedTextField(billItemSearch, { billItemSearch=it }, label={ Text("Search frame / lens / product") }, modifier=Modifier.fillMaxWidth(), singleLine=true)
+        products.filter { billItemSearch.isBlank() || it.name.contains(billItemSearch, true) || it.sku.contains(billItemSearch, true) || it.category.contains(billItemSearch, true) }.take(6).forEach { product -> TextButton(onClick={ billProductId=product.id.toString(); billDescription=product.name; billRate="%.2f".format(product.pricePaise/100.0); billItemSearch=product.name }) { Text("${product.name} · ₹${"%.2f".format(product.pricePaise/100.0)} · stock ${product.stock}") } }
         OutlinedTextField(billDescription, { billDescription=it }, label={ Text("Item / frame / lens description *") }, modifier=Modifier.fillMaxWidth(), singleLine=true)
         Row(horizontalArrangement=Arrangement.spacedBy(8.dp), modifier=Modifier.fillMaxWidth()) {
          OutlinedTextField(billQty, { billQty=it }, label={ Text("Qty") }, modifier=Modifier.weight(0.7f), singleLine=true)
