@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="240" viewBox="0 0 640 240" role="img" aria-labelledby="title desc">
+  <title id="title">Surya Optician</title><desc id="desc">Navy blue optical frames with a golden sun, and the Surya Optician wordmark.</desc>
+  <rect width="640" height="240" rx="28" fill="#F7FAFE"/>
+  <g transform="translate(34 44)">
+    <circle cx="82" cy="64" r="48" fill="#F4B544"/>
+    <g stroke="#F4B544" stroke-width="5" stroke-linecap="round">
+      <path d="M82 3v-12M82 125v12M21 64H9M143 64h12M39 21l-9-9M125 107l9 9M125 21l9-9M39 107l-9 9"/>
+    </g>
+    <g fill="none" stroke="#12385E" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 52h35l8 37c2 11-5 19-16 19H29c-11 0-18-8-16-19z"/>
+      <path d="M82 52h35l8 37c2 11-5 19-16 19H99c-11 0-18-8-16-19z"/>
+      <path d="M55 62c8-7 19-7 27 0M12 58 2 54M125 58l10-4"/>
+    </g>
+  </g>
+  <text x="210" y="106" font-family="Arial, Helvetica, sans-serif" font-size="42" font-weight="700" fill="#12385E">SURYA</text>
+  <text x="210" y="151" font-family="Arial, Helvetica, sans-serif" font-size="32" font-weight="700" letter-spacing="2" fill="#2877B8">OPTICIAN</text>
+  <text x="212" y="184" font-family="Arial, Helvetica, sans-serif" font-size="15" letter-spacing="1.8" fill="#5C6F82">CLEAR VISION. BETTER LIFE.</text>
+</svg>
