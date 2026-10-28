@@ -24,6 +24,7 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -582,7 +583,7 @@ class MainActivity : ComponentActivity() {
         Spacer(Modifier.height(16.dp))
         Text("Choose an invoice", style=MaterialTheme.typography.titleLarge)
         invoices.forEach { inv ->
-         Card(Modifier.fillMaxWidth().padding(vertical=4.dp), onClick={ paymentInvoiceId=inv.id.toString(); paymentAmount="" }) {
+         Card(Modifier.fillMaxWidth().padding(vertical=4.dp).clickable { paymentInvoiceId=inv.id.toString(); paymentAmount="" }) {
           Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement=Arrangement.spacedBy(10.dp), verticalAlignment=androidx.compose.ui.Alignment.CenterVertically) {
            Surface(shape=androidx.compose.foundation.shape.RoundedCornerShape(12.dp), color=if(inv.duePaise<=0) androidx.compose.ui.graphics.Color(0xFFE0F4E8) else androidx.compose.ui.graphics.Color(0xFFFFE8D6), modifier=Modifier.size(44.dp)) {
             Box(contentAlignment=androidx.compose.ui.Alignment.Center) { Text(if(inv.duePaise<=0) "✓" else "₹", style=MaterialTheme.typography.titleMedium, color=if(inv.duePaise<=0) androidx.compose.ui.graphics.Color(0xFF176B3A) else androidx.compose.ui.graphics.Color(0xFF9A4D00)) }
