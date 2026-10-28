@@ -294,7 +294,7 @@ class MainActivity : ComponentActivity() {
          else { db.dao().updateProduct(Product(id=selectedProductId!!, name=productName.trim(), sku=productSku.trim(), pricePaise=(price*100).toLong(), stock=stock, lowStock=low, costPaise=(cost*100).toLong(), category=productCategory.trim())); selectedProductId=null; productName=""; productSku=""; productPrice=""; productCost="0"; productCategory=""; productStock="1"; productLowStock="3"; toast("Product and stock updated") }
         } }, modifier = Modifier.fillMaxWidth()) { Text(if (selectedProductId == null) "Save product" else "Update product / stock") }
         if (selectedProductId != null) TextButton(onClick={ selectedProductId=null; productName=""; productSku=""; productPrice=""; productCost="0"; productCategory=""; productStock="1"; productLowStock="3" }) { Text("Cancel product edit") }
-        OutlinedTextField(productSearch, { productSearch=it }, label={Text("Search products by name or SKU")}, modifier=Modifier.fillMaxWidth())
+        OutlinedTextField(productSearch, { productSearch=it }, label={Text("Search products by name, SKU or category")}, modifier=Modifier.fillMaxWidth())
         Text("Tap Edit to change product details. Products used on invoices cannot be deleted.", style=MaterialTheme.typography.bodySmall)
         Column { products.filter { productSearch.isBlank() || it.name.contains(productSearch,true) || it.sku.contains(productSearch,true) || it.category.contains(productSearch,true) }.forEach { product ->
          Card(Modifier.fillMaxWidth().padding(vertical=3.dp)) { Column(Modifier.padding(8.dp)) {
