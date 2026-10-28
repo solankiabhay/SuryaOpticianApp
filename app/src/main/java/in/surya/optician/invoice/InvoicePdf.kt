@@ -19,7 +19,7 @@ object InvoicePdf {
     private val pale = android.graphics.Color.rgb(238, 247, 246)
     private val lineColor = android.graphics.Color.rgb(222, 229, 233)
 
-    fun generate(context: Context, invoice: Invoice, items: List<InvoiceItem>, shop: ShopSettings): File {
+    fun generate(context: Context, invoice: Invoice, items: List<InvoiceItem>, shop: ShopSettings, customer: Customer? = null): File {
         val dir = File(context.filesDir, "invoices")
         check(dir.exists() || dir.mkdirs()) { "Unable to create invoice directory" }
         val file = File(dir, invoice.number.replace(Regex("[^A-Za-z0-9_-]"), "_") + ".pdf")
@@ -78,14 +78,16 @@ object InvoicePdf {
             text("BILL TO", left, y, paint(accent, 9f, true))
             text(invoice.customerName.ifBlank { "Walk-in customer" }, left, y + 23f, paint(ink, 15f, true))
             if (invoice.phone.isNotBlank()) text("Phone: ${invoice.phone}", left, y + 41f, secondary)
-            if (invoice.glassType.isNotBlank()) text("Glass type: ${invoice.glassType}", left, y + 56f, secondary)
-            if (invoice.deliveryDate.isNotBlank()) text("Expected delivery: ${invoice.deliveryDate}", left, y + 71f, paint(accent, 9f, true))
+            if (customer?.address?.isNotBlank() == true) text("Address: ${customer.address}", left, y + 56f, secondary)
+            if (customer?.age != null) text("Age: ${customer.age}", left, y + 71f, secondary)
+            if (invoice.glassType.isNotBlank()) text("Glass type: ${invoice.glassType}", left, y + 86f, secondary)
+            if (invoice.deliveryDate.isNotBlank()) text("Expected delivery: ${invoice.deliveryDate}", left, y + 101f, paint(accent, 9f, true))
             text("Invoice status", 400f, y, secondary)
             val status = if (invoice.duePaise <= 0) "PAID" else if (invoice.paidPaise > 0) "PARTIALLY PAID" else "PAYMENT DUE"
             val statusPaint = paint(if (invoice.duePaise <= 0) accent else android.graphics.Color.rgb(166, 91, 22), 9f, true)
             canvas.drawRoundRect(395f, y + 8f, 553f, y + 31f, 5f, 5f, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = if (invoice.duePaise <= 0) pale else android.graphics.Color.rgb(255, 245, 228) })
             text(status, 405f, y + 23f, statusPaint)
-            y += if (invoice.glassType.isNotBlank() || invoice.deliveryDate.isNotBlank()) 99f else 69f
+            y += if (customer?.address?.isNotBlank() == true || customer?.age != null || invoice.glassType.isNotBlank() || invoice.deliveryDate.isNotBlank()) 129f else 69f
             if (invoice.prescriptionSummary.isNotBlank()) {
                 ensureSpace(82f)
                 canvas.drawRoundRect(left, y, right, y + 22f, 4f, 4f, Paint().apply { color = pale })
