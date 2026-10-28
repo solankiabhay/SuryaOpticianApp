@@ -1,4 +1,4 @@
-name: Android build and tests (verification)
+name: Android build and tests
 on:
   push:
     branches: [main, "feature/**"]
@@ -6,8 +6,10 @@ on:
     types: [opened, synchronize, reopened]
     branches: [main]
   workflow_dispatch:
+
 permissions:
   contents: read
+
 jobs:
   android:
     runs-on: ubuntu-latest
@@ -15,26 +17,40 @@ jobs:
       ANDROID_HOME: /usr/local/lib/android/sdk
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
+
+      - name: Install Gradle 8.9
+        run: |
+          curl --fail --location --retry 3 --retry-delay 2 \
+            https://services.gradle.org/distributions/gradle-8.9-bin.zip \
+            --output /tmp/gradle-8.9-bin.zip
+          unzip -q /tmp/gradle-8.9-bin.zip -d "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/gradle-8.9/bin" >> "$GITHUB_PATH"
+
       - uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: "8.9"
+
       - name: Locate Android SDK tools
         run: |
           SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n 1)"
           test -n "$SDKMANAGER"
           echo "SDKMANAGER=$SDKMANAGER" >> "$GITHUB_ENV"
+
       - name: Accept Android SDK licenses
-        run: yes | "$SDKMANAGER" --licenses
+        run: yes | "$SDKMANAGER" --licenses >/dev/null
+
       - name: Install Android SDK platform
         run: "$SDKMANAGER" --sdk_root="$ANDROID_HOME" "platforms;android-35" "build-tools;35.0.0" "platform-tools"
+
       - name: Unit tests
         run: gradle --no-daemon testDebugUnitTest
+
       - name: Assemble debug APK
         run: gradle --no-daemon assembleDebug
+
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
