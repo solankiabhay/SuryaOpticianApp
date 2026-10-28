@@ -495,16 +495,17 @@ class MainActivity : ComponentActivity() {
         customers.forEach { customer ->
          TextButton(onClick={ prescriptionCustomerId=customer.id.toString() }) { Text("Select #${customer.id} · ${customer.name} · ${customer.phone}") }
         }
+        Text("Power signs: + means plus power; − means minus power. Example: +1.25 or -2.00. Copy values exactly from the optometrist's prescription.", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.secondary)
         Text("Right eye (OD)", style=MaterialTheme.typography.titleMedium)
-        OutlinedTextField(rightSphere, { rightSphere=it }, label={ Text("SPH") }, modifier=Modifier.fillMaxWidth())
-        OutlinedTextField(rightCylinder, { rightCylinder=it }, label={ Text("CYL") }, modifier=Modifier.fillMaxWidth())
-        OutlinedTextField(rightAxis, { rightAxis=it }, label={ Text("Axis (0–180)") }, modifier=Modifier.fillMaxWidth())
-        OutlinedTextField(rightAdd, { rightAdd=it }, label={ Text("ADD") }, modifier=Modifier.fillMaxWidth())
+        OutlinedTextField(rightSphere, { rightSphere=it }, label={ Text("SPH / Sphere (+ or −)") }, placeholder={ Text("e.g. -2.00 or +1.25") }, modifier=Modifier.fillMaxWidth(), singleLine=true)
+        OutlinedTextField(rightCylinder, { rightCylinder=it }, label={ Text("CYL / Cylinder (+ or −)") }, placeholder={ Text("e.g. -0.75 or +0.75") }, modifier=Modifier.fillMaxWidth(), singleLine=true)
+        OutlinedTextField(rightAxis, { rightAxis=it }, label={ Text("Axis (0–180°)") }, placeholder={ Text("e.g. 90") }, modifier=Modifier.fillMaxWidth(), singleLine=true)
+        OutlinedTextField(rightAdd, { rightAdd=it }, label={ Text("ADD / Near addition (+ or −)") }, placeholder={ Text("e.g. +1.50") }, modifier=Modifier.fillMaxWidth(), singleLine=true)
         Text("Left eye (OS)", style=MaterialTheme.typography.titleMedium)
-        OutlinedTextField(leftSphere, { leftSphere=it }, label={ Text("SPH") }, modifier=Modifier.fillMaxWidth())
-        OutlinedTextField(leftCylinder, { leftCylinder=it }, label={ Text("CYL") }, modifier=Modifier.fillMaxWidth())
-        OutlinedTextField(leftAxis, { leftAxis=it }, label={ Text("Axis (0–180)") }, modifier=Modifier.fillMaxWidth())
-        OutlinedTextField(leftAdd, { leftAdd=it }, label={ Text("ADD") }, modifier=Modifier.fillMaxWidth())
+        OutlinedTextField(leftSphere, { leftSphere=it }, label={ Text("SPH / Sphere (+ or −)") }, placeholder={ Text("e.g. -1.50 or +1.00") }, modifier=Modifier.fillMaxWidth(), singleLine=true)
+        OutlinedTextField(leftCylinder, { leftCylinder=it }, label={ Text("CYL / Cylinder (+ or −)") }, placeholder={ Text("e.g. -0.50 or +0.50") }, modifier=Modifier.fillMaxWidth(), singleLine=true)
+        OutlinedTextField(leftAxis, { leftAxis=it }, label={ Text("Axis (0–180°)") }, placeholder={ Text("e.g. 180") }, modifier=Modifier.fillMaxWidth(), singleLine=true)
+        OutlinedTextField(leftAdd, { leftAdd=it }, label={ Text("ADD / Near addition (+ or −)") }, placeholder={ Text("e.g. +1.50") }, modifier=Modifier.fillMaxWidth(), singleLine=true)
         OutlinedTextField(pd, { pd=it }, label={ Text("Pupillary distance (PD, mm)") }, modifier=Modifier.fillMaxWidth())
         OutlinedTextField(prescriptionNotes, { prescriptionNotes=it }, label={ Text("Notes / lens recommendation") }, modifier=Modifier.fillMaxWidth(), minLines=2)
         Button(onClick={ lifecycleScope.launch {
