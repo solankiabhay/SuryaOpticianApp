@@ -33,7 +33,8 @@ data class NewBill(
     val lines: List<BillLine>,
     val discountPaise: Long = 0,
     val paidPaise: Long = 0,
-    val method: String = "Cash"
+    val method: String = "Cash",
+    val prescriptionSummary: String = ""
 )
 
 class BillingRepository(private val db: OpticianDatabase) {
@@ -75,7 +76,8 @@ class BillingRepository(private val db: OpticianDatabase) {
                 discountPaise = discounts,
                 taxPaise = taxes,
                 totalPaise = total,
-                paidPaise = b.paidPaise
+                paidPaise = b.paidPaise,
+                prescriptionSummary = b.prescriptionSummary.trim()
             )
         )
         dao.addItems(b.lines.map { line ->
