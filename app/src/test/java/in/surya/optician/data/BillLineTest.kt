@@ -17,16 +17,15 @@ class BillLineTest {
         assertEquals(24_500L, line.total)
     }
 
-    @Test
-    fun totalNeverBecomesNegative() {
-        val line = BillLine(
+    @Test(expected = IllegalArgumentException::class)
+    fun rejectsDiscountGreaterThanLineSubtotal() {
+        BillLine(
             productId = null,
             description = "Adjustment",
             qty = 1,
             ratePaise = 100,
             discountPaise = 500
         )
-        assertEquals(0L, line.total)
     }
 
     @Test(expected = IllegalArgumentException::class)
