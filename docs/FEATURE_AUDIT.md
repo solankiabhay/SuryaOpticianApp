@@ -1,28 +1,28 @@
 # Feature audit
 
-The app includes a local Room-backed Android UI, multi-item bill cart, expanded prescription form/history, and invoice reports with date-range filters. Status is source-level until GitHub Actions succeeds and real-device acceptance is completed.
+This audit reflects source code currently on the feature branch. It is not a claim that the app has compiled or passed device acceptance.
 
 | Area | Status | Notes |
 |---|---|---|
-| Kotlin + Compose + Room | Implemented baseline | Android project, Room v1 entities and DAO; schema export configured |
-| Transactional billing | Implemented baseline | Invoice, items, initial payment and stock updates use one Room transaction |
+| Kotlin + Compose + Room | Implemented baseline | Room database schema v3 with explicit v1→v2 and v2→v3 migrations |
+| Transactional billing | Implemented baseline | Invoice, items, initial payment and stock updates share one Room transaction; monetary arithmetic uses overflow checks |
 | Invoice numbering | Implemented baseline | Unique DB index plus timestamp/collision check |
-| Customer management | Create/list/edit | Tap a listed customer to load and update name, phone and address; delete and dedicated search remain unimplemented |
-| Product/stock management | Create/list/edit | Tap a product to edit name, SKU, selling price, stock quantity and low-stock threshold; delete remains unimplemented |
-| Billing | Basic multi-line cart | Add items to cart, optionally link an existing customer by ID, set quantity/line discount/tax and initial payment; richer product picker and customer search still needed |
-| Payment collection | Basic | Records additional payments transactionally; lookup uses invoice database ID |
-| Prescription management | Improved baseline | Customer selection shortcuts, OD/OS SPH/CYL/axis/ADD, PD, notes and per-customer history; edit/delete and PDF/print still needed |
-| Shop settings | Basic | Name/address/phone/GSTIN/footer stored locally |
-| PDF generation and preview | Improved baseline | Creates multi-page PDFs for long item lists; physical PDF layout still needs QA |
-| Secure PDF sharing | Partial | FileProvider, content URI and read grant |
-| WhatsApp PDF sharing | Partial | User-initiated document share; exact recipient routing varies by WhatsApp version and requires device test |
-| Phone normalization | Implemented baseline | 10-digit Indian number, +91 and leading zero supported |
-| Invoice search | Partial | Invoice number, customer and phone; date range is available in Reports, not in the main Bills screen |
+| Customer management | Implemented baseline | Create/list/edit/search; delete is blocked when invoice or prescription history exists |
+| Product/stock management | Implemented baseline | Create/list/edit/search by name/SKU/category; selling price, purchase cost, category, stock and low-stock threshold; delete blocked when invoice lines reference product |
+| Billing | Improved baseline | Multi-item cart, selectable customer/product shortcuts, line discounts/tax and initial payment; product stock is checked transactionally |
+| Payment collection | Improved baseline | Additional payments are transactional, overpayment is rejected, payment history is shown by invoice |
+| Prescription management | Improved baseline | OD/OS SPH/CYL/axis/ADD, PD, notes, customer history, edit/delete and PDF sharing |
+| Shop settings | Basic | Shop name/address/phone/GSTIN/footer stored locally |
+| Invoice PDF | Implemented baseline | Multi-page PDF generation and preview; physical layout and long descriptions still need device QA |
+| Invoice/CSV sharing | Partial | FileProvider sharing; WhatsApp direct-recipient hint is attempted, but the user must confirm the recipient and attachment in the installed WhatsApp version |
 | Payment reminder | Basic | Confirmation dialog before opening a prefilled WhatsApp message; user must review/send |
-| Reports/export | Improved baseline | Invoice count, sales, collected and due totals; inclusive From/To dates (YYYY-MM-DD), invoice/customer/phone filter and date-filtered CSV. Cost/profit and product/category reports are not available |
-| Print, authentication | Not implemented | Add after core flows are verified |
-| Migrations | Not implemented beyond schema v1 | Write/test explicit migrations before changing schema |
-| Mobile navigation | Improved baseline | Navigation tabs scroll horizontally on narrow screens; verify on multiple screen sizes |
-| Automated build/device acceptance | Pending | GitHub Actions workflow added; verify its result and test WhatsApp on a physical device |
+| Sales reports/export | Improved baseline | Invoice count, sales, collected and due totals; inclusive From/To dates, invoice/customer/phone filter and date-filtered CSV |
+| Inventory and category reports | Implemented baseline | Current stock units, purchase-cost valuation, retail valuation, low-stock list and category roll-up |
+| Gross-profit estimate | Implemented baseline | Uses item cost snapshot captured on new invoices, excludes tax; migrated v1 invoice lines have cost zero, so their historical profit is not reliable |
+| Database migrations | Implemented baseline | v1→v2 adds cost snapshots; v2→v3 adds product category |
+| Full backup/restore | Not implemented | Required before production use |
+| Authentication/roles | Not implemented | Required if app data must be protected from other device users or staff roles |
+| Dedicated print integration | Not implemented | PDF can be opened/shared to a compatible viewer; direct in-app print flow remains |
+| Automated build/device acceptance | Pending | Do not declare release-ready until Gradle tests/build and physical-device checklist pass |
 
-Do not describe WhatsApp opening as delivery/read confirmation. This MVP is not production-ready until the build/test workflow passes, database migrations and backup are planned, and real-device acceptance is complete.
+Do not describe WhatsApp opening as delivery/read confirmation. This remains an MVP until build verification, backup/restore, access control decisions and real-device acceptance are complete.
