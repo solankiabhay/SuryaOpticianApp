@@ -1,5 +1,6 @@
 package com.surya.optician
 
+import android.content.ClipData
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -18,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.lifecycle.lifecycleScope
 import com.surya.optician.data.*
+import com.surya.optician.export.BackupExporter
 import com.surya.optician.invoice.InvoicePdf
 import com.surya.optician.invoice.InvoiceSharing
 import kotlinx.coroutines.launch
@@ -74,6 +76,26 @@ class MainActivity : ComponentActivity() {
                             OutlinedButton(onClick = { dialog = "prescription" }) { Text("Add prescription") }
                             OutlinedButton(onClick = { dialog = "settings" }) { Text("Shop settings") }
                         }
+                        OutlinedButton(
+                            onClick = {
+                                lifecycleScope.launch {
+                                    runCatching {
+                                        val file = BackupExporter.export(this@MainActivity, db.dao())
+                                        val uri = FileProvider.getUriForFile(
+                                            this@MainActivity, "${packageName}.fileprovider", file
+                                        )
+                                        val send = Intent(Intent.ACTION_SEND).apply {
+                                            type = "application/json"
+                                            putExtra(Intent.EXTRA_STREAM, uri)
+                                            clipData = ClipData.newUri(contentResolver, "Surya Optician backup", uri)
+                                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                        }
+                                        startActivity(Intent.createChooser(send, "Export backup"))
+                                    }.onFailure { showToast(it.message ?: "Backup export failed") }
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text("Export full backup (JSON)") }
                         Spacer(Modifier.height(10.dp))
                         OutlinedTextField(
                             value = query, onValueChange = { query = it },
