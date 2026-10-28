@@ -3,7 +3,7 @@
 Android optical-shop billing MVP built with Kotlin, Jetpack Compose and Room/SQLite.
 
 ## Current features
-- Customer and product creation with stock tracking and low-stock visibility
+- Customer creation/editing and product creation/editing with stock adjustment and low-stock visibility
 - Multi-item invoice cart with line discounts/tax, optional existing-customer ID linking and initial payment
 - Transactional stock deduction, invoice persistence and additional payment collection
 - Expanded eye prescription entry (OD/OS SPH, CYL, axis, ADD, PD and notes), customer selection and prescription history
