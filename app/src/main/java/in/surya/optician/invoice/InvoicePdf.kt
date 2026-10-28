@@ -84,6 +84,18 @@ object InvoicePdf {
             canvas.drawRoundRect(395f, y + 8f, 553f, y + 31f, 5f, 5f, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = if (invoice.duePaise <= 0) pale else android.graphics.Color.rgb(255, 245, 228) })
             text(status, 405f, y + 23f, statusPaint)
             y += 69f
+            if (invoice.prescriptionSummary.isNotBlank()) {
+                ensureSpace(82f)
+                canvas.drawRoundRect(left, y, right, y + 22f, 4f, 4f, Paint().apply { color = pale })
+                text("PRESCRIPTION DETAILS", left + 9f, y + 15f, paint(accent, 9f, true))
+                y += 34f
+                invoice.prescriptionSummary.split("\\n").filter { it.isNotBlank() }.forEach { detail ->
+                    ensureSpace(16f)
+                    text(detail, left + 4f, y, paint(ink, 8.5f))
+                    y += 13f
+                }
+                y += 8f
+            }
 
             canvas.drawRoundRect(left, y, right, y + 29f, 4f, 4f, Paint().apply { color = ink })
             text("ITEM DESCRIPTION", left + 10f, y + 19f, paint(android.graphics.Color.WHITE, 8.5f, true))
