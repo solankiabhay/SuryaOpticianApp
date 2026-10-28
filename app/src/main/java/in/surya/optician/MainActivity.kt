@@ -192,11 +192,20 @@ class MainActivity : ComponentActivity() {
         }
        }
        val databaseFile = getDatabasePath("surya-optician.db")
+       val stagedFile = File(databaseFile.parentFile, "surya-optician-restore-staged.db")
+       val recoveryFile = File(cacheDir, "surya-optician-before-restore.db")
+       check(temp.copyTo(stagedFile, overwrite = true).exists()) { "Could not stage the restored database" }
+       if (databaseFile.exists()) {
+        check(databaseFile.copyTo(recoveryFile, overwrite = true).exists()) { "Could not create a recovery copy of the current database" }
+       }
        OpticianDatabase.resetInstance()
-       databaseFile.delete()
        File(databaseFile.absolutePath + "-wal").delete()
        File(databaseFile.absolutePath + "-shm").delete()
-       check(temp.copyTo(databaseFile, overwrite = true).exists()) { "Could not restore database file" }
+       if (databaseFile.exists()) check(databaseFile.delete()) { "Could not replace the current database file" }
+       if (!stagedFile.renameTo(databaseFile)) {
+        if (recoveryFile.exists()) recoveryFile.copyTo(databaseFile, overwrite = true)
+        error("Could not install the restored database; the previous database was retained when possible")
+       }
       }.onSuccess { temp.delete(); Toast.makeText(this@MainActivity, "Backup restored. Reopening app.", Toast.LENGTH_LONG).show(); recreate() }.onFailure { Toast.makeText(this@MainActivity, "Restore failed: ${it.message ?: "unknown error"}. A recovery copy was retained in app cache.", Toast.LENGTH_LONG).show() }
      }
     }
