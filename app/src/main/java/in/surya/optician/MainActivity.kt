@@ -1046,10 +1046,10 @@ class MainActivity : ComponentActivity() {
            onValueChange={ query=it },
            modifier=Modifier.fillMaxWidth(),
            placeholder={ Text("e.g. Rahul or SO-20261028") },
-           leadingIcon={ androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Default.Search, contentDescription="Search bills") },
+           leadingIcon={ Text("⌕", style=MaterialTheme.typography.titleLarge, color=MaterialTheme.colorScheme.primary) },
            trailingIcon={
             if(query.isNotBlank()) androidx.compose.material3.IconButton(onClick={ query="" }) {
-             androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Default.Close, contentDescription="Clear search")
+             Text("×", style=MaterialTheme.typography.titleLarge, color=MaterialTheme.colorScheme.primary)
             }
            },
            singleLine=true,
