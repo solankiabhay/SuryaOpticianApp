@@ -122,7 +122,10 @@ class MainActivity : ComponentActivity() {
        contentResolver.openInputStream(uri)?.use { input -> FileOutputStream(temp).use { output -> input.copyTo(output) } } ?: error("Cannot read selected backup")
        SQLiteDatabase.openDatabase(temp.absolutePath, null, SQLiteDatabase.OPEN_READONLY).use { sqlite ->
         sqlite.rawQuery("PRAGMA integrity_check", null).use { cursor -> check(cursor.moveToFirst() && cursor.getString(0) == "ok") { "Backup database integrity check failed" } }
-        sqlite.rawQuery("SELECT name FROM sqlite_master WHERE type='table' AND name='invoices'", null).use { cursor -> check(cursor.moveToFirst()) { "Selected file is not a Surya Optician database backup" } }
+        check(sqlite.version in 1..3) { "Unsupported database backup version" }
+        sqlite.rawQuery("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN ('customers','products','invoices','invoice_items','payments','prescriptions','shop_settings')", null).use { cursor ->
+         check(cursor.moveToFirst() && cursor.getInt(0) == 7) { "Selected file is not a complete Surya Optician database backup" }
+        }
        }
        val databaseFile = getDatabasePath("surya-optician.db")
        OpticianDatabase.resetInstance()
