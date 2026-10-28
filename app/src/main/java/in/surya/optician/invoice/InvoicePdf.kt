@@ -89,7 +89,7 @@ object InvoicePdf {
                 canvas.drawRoundRect(left, y, right, y + 22f, 4f, 4f, Paint().apply { color = pale })
                 text("PRESCRIPTION DETAILS", left + 9f, y + 15f, paint(accent, 9f, true))
                 y += 34f
-                invoice.prescriptionSummary.split("\\n").filter { it.isNotBlank() }.forEach { detail ->
+                invoice.prescriptionSummary.split("\n").filter { it.isNotBlank() }.forEach { detail ->
                     ensureSpace(16f)
                     text(detail, left + 4f, y, paint(ink, 8.5f))
                     y += 13f
