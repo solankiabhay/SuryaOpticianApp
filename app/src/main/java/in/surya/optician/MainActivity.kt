@@ -144,6 +144,12 @@ class MainActivity : ComponentActivity() {
                                             }) { Text("WhatsApp PDF") }
                                         }
                                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                            TextButton(onClick = {
+                                                selectedInvoice = invoice
+                                                dialog = "history"
+                                            }) { Text("Payment history") }
+                                        }
+                                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                             if (invoice.duePaise > 0) {
                                                 TextButton(onClick = {
                                                     selectedInvoice = invoice
@@ -258,6 +264,13 @@ class MainActivity : ComponentActivity() {
                             }
                         }
                     )
+                    "history" -> selectedInvoice?.let { invoice ->
+                        PaymentHistoryDialog(
+                            invoice = invoice,
+                            paymentsFlow = db.dao().payments(invoice.id),
+                            onDismiss = { dialog = ""; selectedInvoice = null }
+                        )
+                    }
                     "payment" -> selectedInvoice?.let { invoice ->
                         PaymentDialog(
                             invoice = invoice,
@@ -586,5 +599,35 @@ private fun SettingsDialog(
             }) { Text("Save") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
+}
+
+
+@Composable
+private fun PaymentHistoryDialog(
+    invoice: Invoice,
+    paymentsFlow: kotlinx.coroutines.flow.Flow<List<Payment>>,
+    onDismiss: () -> Unit
+) {
+    val payments by paymentsFlow.collectAsState(initial = emptyList())
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Payments · \${invoice.number}") },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Invoice total ₹\${money(invoice.totalPaise)} · paid ₹\${money(invoice.paidPaise)} · due ₹\${money(invoice.duePaise)}")
+                if (payments.isEmpty()) Text("No payments recorded.")
+                payments.forEach { payment ->
+                    Card(Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(8.dp)) {
+                            Text("₹\${money(payment.amountPaise)} · \${payment.method}", style = MaterialTheme.typography.titleSmall)
+                            if (payment.reference.isNotBlank()) Text("Reference: \${payment.reference}")
+                            Text(java.text.SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault()).format(java.util.Date(payment.paidAt)))
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } }
     )
 }
