@@ -1,10 +1,12 @@
 package in.surya.optician
 
 import android.content.Intent
+import android.database.sqlite.SQLiteDatabase
 import android.graphics.Paint
 import android.graphics.pdf.PdfDocument
 import java.io.File
 import java.io.FileOutputStream
+import java.io.FileInputStream
 import android.net.Uri
 import android.os.Bundle
 import android.widget.Toast
@@ -94,6 +96,35 @@ class MainActivity : ComponentActivity() {
   lifecycleScope.launch { if (db.dao().settings() == null) db.dao().saveSettings(ShopSettings()) }
   setContent {
    MaterialTheme {
+    val backupLauncher = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.CreateDocument("application/vnd.sqlite3")) { uri ->
+     if (uri != null) lifecycleScope.launch {
+      runCatching {
+       db.openHelper.writableDatabase.query("PRAGMA wal_checkpoint(FULL)").close()
+       val databaseFile = getDatabasePath("surya-optician.db")
+       check(databaseFile.exists()) { "Database file not found" }
+       contentResolver.openOutputStream(uri)?.use { output -> FileInputStream(databaseFile).use { input -> input.copyTo(output) } } ?: error("Cannot write backup file")
+      }.onSuccess { toast("Database backup exported. Keep it in a safe location.") }.onFailure { toast(it.message ?: "Backup failed") }
+     }
+    }
+    val restoreLauncher = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { uri ->
+     if (uri != null) lifecycleScope.launch {
+      val temp = File(cacheDir, "restore-validation.db")
+      runCatching {
+       contentResolver.openInputStream(uri)?.use { input -> FileOutputStream(temp).use { output -> input.copyTo(output) } } ?: error("Cannot read selected backup")
+       SQLiteDatabase.openDatabase(temp.absolutePath, null, SQLiteDatabase.OPEN_READONLY).use { sqlite ->
+        sqlite.rawQuery("PRAGMA integrity_check", null).use { cursor -> check(cursor.moveToFirst() && cursor.getString(0) == "ok") { "Backup database integrity check failed" } }
+        sqlite.rawQuery("SELECT name FROM sqlite_master WHERE type='table' AND name='invoices'", null).use { cursor -> check(cursor.moveToFirst()) { "Selected file is not a Surya Optician database backup" } }
+       }
+       val databaseFile = getDatabasePath("surya-optician.db")
+       OpticianDatabase.resetInstance()
+       databaseFile.delete()
+       File(databaseFile.absolutePath + "-wal").delete()
+       File(databaseFile.absolutePath + "-shm").delete()
+       check(temp.copyTo(databaseFile, overwrite = true).exists()) { "Could not restore database file" }
+      }.onSuccess { toast("Backup restored. Reopening app."); recreate() }.onFailure { toast("Restore failed: ${it.message ?: "unknown error"}") }
+      temp.delete()
+     }
+    }
     var section by remember { mutableStateOf("Bills") }
     var query by remember { mutableStateOf("") }
     var customerSearch by remember { mutableStateOf("") }
@@ -409,6 +440,11 @@ class MainActivity : ComponentActivity() {
         OutlinedTextField(shopGstin,{shopGstin=it},label={Text("GSTIN")},modifier=Modifier.fillMaxWidth())
         OutlinedTextField(shopFooter,{shopFooter=it},label={Text("Invoice footer")},modifier=Modifier.fillMaxWidth())
         Button(onClick={lifecycleScope.launch{db.dao().saveSettings(ShopSettings(name=shopName,address=shopAddress,phone=shopPhone,gstin=shopGstin,footer=shopFooter));toast("Shop settings saved")}},modifier=Modifier.fillMaxWidth()){Text("Save settings")}
+        Divider()
+        Text("Database backup and restore", style=MaterialTheme.typography.titleMedium)
+        Text("Export a full local database backup and keep it private. Restore replaces the current local database; only restore a backup made by this app.", style=MaterialTheme.typography.bodySmall)
+        Button(onClick={ backupLauncher.launch("surya-optician-backup.db") }, modifier=Modifier.fillMaxWidth()) { Text("Export database backup") }
+        OutlinedButton(onClick={ restoreLauncher.launch(arrayOf("application/vnd.sqlite3", "application/octet-stream", "application/x-sqlite3", "*/*")) }, modifier=Modifier.fillMaxWidth()) { Text("Restore database backup") }
        }
        else -> {
         OutlinedTextField(query, { query=it }, label={Text("Search invoice, customer, phone")}, modifier=Modifier.fillMaxWidth())
