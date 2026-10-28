@@ -1,4 +1,4 @@
-name: Android build and tests
+name: Android build and tests (verification)
 on:
   push:
     branches: [main, "feature/**"]
