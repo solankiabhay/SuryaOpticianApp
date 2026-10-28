@@ -7,6 +7,10 @@ import android.graphics.pdf.PdfDocument
 import java.io.File
 import java.io.FileOutputStream
 import java.io.FileInputStream
+import java.security.MessageDigest
+import java.security.SecureRandom
+import javax.crypto.SecretKeyFactory
+import javax.crypto.spec.PBEKeySpec
 import android.net.Uri
 import android.os.Bundle
 import android.widget.Toast
@@ -43,6 +47,11 @@ private fun parseReportDate(value: String): Long? {
  val parsed = formatter.parse(value, position) ?: return null
  if (position.index != value.length || formatter.format(parsed) != value) return null
  return parsed.time
+}
+
+private fun derivePinHash(pin: String, salt: ByteArray): ByteArray {
+ val spec = PBEKeySpec(pin.toCharArray(), salt, 120_000, 256)
+ return try { SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(spec).encoded } finally { spec.clearPassword() }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -124,6 +133,12 @@ class MainActivity : ComponentActivity() {
       }.onSuccess { temp.delete(); toast("Backup restored. Reopening app."); recreate() }.onFailure { toast("Restore failed: ${it.message ?: "unknown error"}. A recovery copy was retained in app cache.") }
      }
     }
+    val securityPrefs = remember { getSharedPreferences("surya_security", MODE_PRIVATE) }
+    var unlocked by remember { mutableStateOf(securityPrefs.getString("pin_hash", null) == null) }
+    var unlockPin by remember { mutableStateOf("") }
+    var pinError by remember { mutableStateOf("") }
+    var newPin by remember { mutableStateOf("") }
+    var confirmPin by remember { mutableStateOf("") }
     var section by remember { mutableStateOf("Bills") }
     var query by remember { mutableStateOf("") }
     var customerSearch by remember { mutableStateOf("") }
@@ -440,6 +455,22 @@ class MainActivity : ComponentActivity() {
         OutlinedTextField(shopFooter,{shopFooter=it},label={Text("Invoice footer")},modifier=Modifier.fillMaxWidth())
         Button(onClick={lifecycleScope.launch{db.dao().saveSettings(ShopSettings(name=shopName,address=shopAddress,phone=shopPhone,gstin=shopGstin,footer=shopFooter));toast("Shop settings saved")}},modifier=Modifier.fillMaxWidth()){Text("Save settings")}
         Divider()
+        Text("Optional app PIN lock", style=MaterialTheme.typography.titleMedium)
+        Text("Set a 4–8 digit local PIN to require unlocking when the app opens. If you forget it, clear app data to remove it; there is no online recovery.", style=MaterialTheme.typography.bodySmall)
+        OutlinedTextField(newPin, { newPin=it.filter(Char::isDigit).take(8) }, label={Text("New PIN (4–8 digits)")}, modifier=Modifier.fillMaxWidth(), singleLine=true)
+        OutlinedTextField(confirmPin, { confirmPin=it.filter(Char::isDigit).take(8) }, label={Text("Confirm PIN")}, modifier=Modifier.fillMaxWidth(), singleLine=true)
+        Button(onClick={
+         if(newPin.length !in 4..8 || newPin != confirmPin) toast("PIN must be 4–8 digits and both entries must match")
+         else runCatching {
+          val salt=ByteArray(16).also { SecureRandom().nextBytes(it) }
+          val encodedSalt=java.util.Base64.getEncoder().encodeToString(salt)
+          val encodedHash=java.util.Base64.getEncoder().encodeToString(derivePinHash(newPin,salt))
+          securityPrefs.edit().putString("pin_salt",encodedSalt).putString("pin_hash",encodedHash).apply()
+          newPin="";confirmPin=""
+         }.onSuccess { toast("App PIN saved. It will be required next time the app opens.") }.onFailure { toast("Could not save PIN") }
+        }, modifier=Modifier.fillMaxWidth()) { Text("Save / change app PIN") }
+        OutlinedButton(onClick={ securityPrefs.edit().remove("pin_hash").remove("pin_salt").apply(); newPin="";confirmPin="";toast("App PIN disabled") }, modifier=Modifier.fillMaxWidth()) { Text("Disable app PIN") }
+        Divider()
         Text("Database backup and restore", style=MaterialTheme.typography.titleMedium)
         Text("Export a full local database backup and keep it private. Restore replaces the current local database; only restore a backup made by this app.", style=MaterialTheme.typography.bodySmall)
         Button(onClick={ backupLauncher.launch("surya-optician-backup.db") }, modifier=Modifier.fillMaxWidth()) { Text("Export database backup") }
@@ -467,6 +498,29 @@ class MainActivity : ComponentActivity() {
       }
       }
      }
+    }
+    if (!unlocked) {
+     AlertDialog(
+      onDismissRequest = {},
+      title = { Text("Unlock Surya Optician") },
+      text = {
+       Column {
+        Text("Enter your app PIN to access shop records.")
+        OutlinedTextField(unlockPin, { unlockPin=it.filter(Char::isDigit).take(8); pinError="" }, label={Text("PIN")}, singleLine=true, modifier=Modifier.fillMaxWidth())
+        if(pinError.isNotBlank()) Text(pinError, color=MaterialTheme.colorScheme.error)
+       }
+      },
+      confirmButton = {
+       TextButton(onClick={
+        runCatching {
+         val salt=securityPrefs.getString("pin_salt",null)?.let { java.util.Base64.getDecoder().decode(it) } ?: error("PIN is not configured correctly")
+         val expected=securityPrefs.getString("pin_hash",null)?.let { java.util.Base64.getDecoder().decode(it) } ?: error("PIN is not configured correctly")
+         check(MessageDigest.isEqual(derivePinHash(unlockPin,salt),expected)) { "Incorrect PIN" }
+         unlocked=true;unlockPin="";pinError=""
+        }.onFailure { pinError=it.message ?: "Unable to unlock" }
+       }) { Text("Unlock") }
+      }
+     )
     }
     reminderInvoice?.let { invoice ->
      AlertDialog(onDismissRequest={reminderInvoice=null},title={Text("Send payment reminder?")},text={Text("Open WhatsApp with a reminder for ${invoice.customerName}, invoice ${invoice.number}, outstanding ₹${"%.2f".format(invoice.duePaise/100.0)}. You must review and send it in WhatsApp.")},confirmButton={TextButton(onClick={
