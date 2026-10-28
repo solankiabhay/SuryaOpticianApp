@@ -43,7 +43,7 @@ interface OpticianDao {
  @Query("SELECT COALESCE(SUM((totalPaise-taxPaise)-(costPaise*qty)),0) FROM invoice_items WHERE invoiceId IN (SELECT id FROM invoices WHERE createdAt>=:fromInclusive AND createdAt<:toExclusive)") fun estimatedProfit(fromInclusive: Long, toExclusive: Long): Flow<Long>
 }
 
-@Database(entities=[Customer::class,Product::class,Invoice::class,InvoiceItem::class,Payment::class,Prescription::class,ShopSettings::class],version=4,exportSchema=true)
+@Database(entities=[Customer::class,Product::class,Invoice::class,InvoiceItem::class,Payment::class,Prescription::class,ShopSettings::class],version=5,exportSchema=true)
 abstract class OpticianDatabase : RoomDatabase() {
  abstract fun dao(): OpticianDao
  companion object {
@@ -63,6 +63,11 @@ abstract class OpticianDatabase : RoomDatabase() {
     db.execSQL("ALTER TABLE customers ADD COLUMN age INTEGER")
    }
   }
+  private val MIGRATION_4_5 = object : Migration(4, 5) {
+   override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+    db.execSQL("ALTER TABLE invoices ADD COLUMN prescriptionSummary TEXT NOT NULL DEFAULT ''")
+   }
+  }
   @Volatile private var instance: OpticianDatabase?=null
   fun resetInstance() {
    synchronized(this) {
@@ -72,7 +77,7 @@ abstract class OpticianDatabase : RoomDatabase() {
   }
   fun get(context: Context): OpticianDatabase = instance ?: synchronized(this) {
    instance ?: Room.databaseBuilder(context.applicationContext,OpticianDatabase::class.java,"surya-optician.db")
-    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
     .build().also { instance=it }
   }
  }
