@@ -731,6 +731,40 @@ class MainActivity : ComponentActivity() {
      }
     }
     }
+    if (showBillPreview) {
+     val previewTotal = billLines.sumOf { it.total }
+     AlertDialog(
+      onDismissRequest = { showBillPreview = false },
+      title = { Text("Bill preview") },
+      text = {
+       Column(Modifier.heightIn(max=460.dp).verticalScroll(rememberScrollState())) {
+        Text("SURYA OPTICIAN", style=MaterialTheme.typography.titleMedium)
+        Text("Customer: " + billCustomer.ifBlank { customers.firstOrNull { it.id.toString()==billCustomerId }?.name ?: "Not selected" })
+        Text("Phone: " + billPhone.ifBlank { customers.firstOrNull { it.id.toString()==billCustomerId }?.phone ?: "—" })
+        Spacer(Modifier.height(8.dp))
+        billLines.forEachIndexed { index, line ->
+         Text("${index+1}. ${line.description} × ${line.qty} — ₹${"%.2f".format(line.total/100.0)}")
+        }
+        Divider(Modifier.padding(vertical=8.dp))
+        Text("Subtotal: ₹${"%.2f".format(billLines.sumOf { it.subtotalPaise }/100.0)}")
+        Text("Discount: ₹${"%.2f".format(billLines.sumOf { it.discountPaise }/100.0)}")
+        Text("Tax: ₹${"%.2f".format(billLines.sumOf { it.taxPaise }/100.0)}")
+        Text("GRAND TOTAL: ₹${"%.2f".format(previewTotal/100.0)}", style=MaterialTheme.typography.titleMedium)
+        Text("Paid: ₹${"%.2f".format(((billPaid.toDoubleOrNull() ?: 0.0)*100).toLong()/100.0)}")
+        Text("Balance: ₹${"%.2f".format((previewTotal-((billPaid.toDoubleOrNull() ?: 0.0)*100).toLong()).coerceAtLeast(0)/100.0)}")
+        selectedBillPrescription?.let { rx ->
+         Spacer(Modifier.height(8.dp))
+         Text("EYE PRESCRIPTION", style=MaterialTheme.typography.titleSmall)
+         Text("OD: SPH ${rx.rightSphere.ifBlank{"—"}} · CYL ${rx.rightCylinder.ifBlank{"—"}} · Axis ${rx.rightAxis.ifBlank{"—"}} · ADD ${rx.rightAdd.ifBlank{"—"}}")
+         Text("OS: SPH ${rx.leftSphere.ifBlank{"—"}} · CYL ${rx.leftCylinder.ifBlank{"—"}} · Axis ${rx.leftAxis.ifBlank{"—"}} · ADD ${rx.leftAdd.ifBlank{"—"}}")
+         Text("PD: ${rx.pd.ifBlank{"—"}}")
+        }
+       }
+      },
+      confirmButton = { TextButton(onClick={ showBillPreview=false }) { Text("Back to edit") } },
+      dismissButton = { TextButton(onClick={ showBillPreview=false }) { Text("Close preview") } }
+     )
+    }
     if (loggedInUser != null && !unlocked) {
      AlertDialog(
       onDismissRequest = {},
