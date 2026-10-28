@@ -33,6 +33,8 @@ class MainActivity : ComponentActivity() {
    MaterialTheme {
     var section by remember { mutableStateOf("Bills") }
     var query by remember { mutableStateOf("") }
+    var reportFrom by remember { mutableStateOf("") }
+    var reportTo by remember { mutableStateOf("") }
     var customerName by remember { mutableStateOf("") }
     var customerPhone by remember { mutableStateOf("") }
     var customerAddress by remember { mutableStateOf("") }
@@ -81,7 +83,7 @@ class MainActivity : ComponentActivity() {
     fun toast(message: String) = Toast.makeText(this@MainActivity, message, Toast.LENGTH_LONG).show()
     Scaffold(topBar = { TopAppBar(title = { Text("Surya Optician") }) }) { padding ->
      Column(Modifier.fillMaxSize().padding(padding).padding(12.dp)) {
-      Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.fillMaxWidth()) {
+      Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
        listOf("Bills", "Customers", "Products", "New Bill", "Payment", "Prescription", "Reports", "Settings").forEach { tab ->
         TextButton(onClick = { section = tab }) { Text(tab) }
        }
@@ -211,10 +213,20 @@ class MainActivity : ComponentActivity() {
        }
        "Reports" -> {
         Text("Shop reports", style=MaterialTheme.typography.titleLarge)
-        Text("Invoice summary · all saved invoices", style=MaterialTheme.typography.bodyMedium)
-        val totalSales = allInvoices.sumOf { it.totalPaise }
-        val totalPaid = allInvoices.sumOf { it.paidPaise }
-        val totalDue = allInvoices.sumOf { it.duePaise }
+        Text("Filter sales and collection totals by invoice date (YYYY-MM-DD). Leave blank to include all dates.", style=MaterialTheme.typography.bodyMedium)
+        OutlinedTextField(reportFrom, { reportFrom = it.trim() }, label = { Text("From date (YYYY-MM-DD)") }, placeholder = { Text("2026-10-01") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+        OutlinedTextField(reportTo, { reportTo = it.trim() }, label = { Text("To date (YYYY-MM-DD)") }, placeholder = { Text("2026-10-31") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+        if (invalidDateRange) Text("Enter valid dates in YYYY-MM-DD format and ensure From is not after To.", color = MaterialTheme.colorScheme.error)
+        TextButton(onClick = { reportFrom = ""; reportTo = "" }) { Text("Clear date filters") }
+        Text("Invoice summary · ${reportInvoices.size} invoices in selected date range", style=MaterialTheme.typography.bodyMedium)
+        val dateFormat = remember { java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).apply { isLenient = false } }
+        val fromMillis = remember(reportFrom) { if (reportFrom.isBlank()) null else runCatching { dateFormat.parse(reportFrom)?.time }.getOrNull() }
+        val toMillisExclusive = remember(reportTo) { if (reportTo.isBlank()) null else runCatching { dateFormat.parse(reportTo)?.time?.plus(24L * 60 * 60 * 1000) }.getOrNull() }
+        val invalidDateRange = (reportFrom.isNotBlank() && fromMillis == null) || (reportTo.isNotBlank() && toMillisExclusive == null) || (fromMillis != null && toMillisExclusive != null && fromMillis >= toMillisExclusive)
+        val reportInvoices = if (invalidDateRange) emptyList() else allInvoices.filter { invoice -> (fromMillis == null || invoice.createdAt >= fromMillis) && (toMillisExclusive == null || invoice.createdAt < toMillisExclusive) }
+        val totalSales = reportInvoices.sumOf { it.totalPaise }
+        val totalPaid = reportInvoices.sumOf { it.paidPaise }
+        val totalDue = reportInvoices.sumOf { it.duePaise }
         Row(horizontalArrangement=Arrangement.spacedBy(8.dp), modifier=Modifier.fillMaxWidth()) {
          Card(Modifier.weight(1f)) { Column(Modifier.padding(12.dp)) { Text("Invoices"); Text("${allInvoices.size}", style=MaterialTheme.typography.headlineSmall) } }
          Card(Modifier.weight(1f)) { Column(Modifier.padding(12.dp)) { Text("Sales"); Text("₹${"%.2f".format(totalSales/100.0)}", style=MaterialTheme.typography.titleMedium) } }
@@ -223,10 +235,12 @@ class MainActivity : ComponentActivity() {
          Card(Modifier.weight(1f)) { Column(Modifier.padding(12.dp)) { Text("Collected"); Text("₹${"%.2f".format(totalPaid/100.0)}", style=MaterialTheme.typography.titleMedium) } }
          Card(Modifier.weight(1f)) { Column(Modifier.padding(12.dp)) { Text("Outstanding"); Text("₹${"%.2f".format(totalDue/100.0)}", style=MaterialTheme.typography.titleMedium) } }
         }
-        Button(onClick={ InvoiceCsv.share(this@MainActivity, allInvoices) }, modifier=Modifier.fillMaxWidth()) { Text("Export all invoices to CSV") }
+        Button(onClick={ if (invalidDateRange) toast("Correct the date range before exporting") else InvoiceCsv.share(this@MainActivity, reportInvoices) }, enabled = !invalidDateRange, modifier=Modifier.fillMaxWidth()) { Text("Export date-filtered invoices to CSV") }
         Text("Customer invoice report", style=MaterialTheme.typography.titleMedium)
         OutlinedTextField(query, { query=it }, label={Text("Filter by invoice number, customer or phone")}, modifier=Modifier.fillMaxWidth())
-        invoices.forEach { invoice ->
+        val visibleReportInvoices = reportInvoices.filter { invoice -> query.isBlank() || invoice.number.contains(query, true) || invoice.customerName.contains(query, true) || invoice.phone.contains(query, true) }
+        Text("${visibleReportInvoices.size} invoices match the date and search filters.", style = MaterialTheme.typography.bodySmall)
+        visibleReportInvoices.forEach { invoice ->
          Card(Modifier.fillMaxWidth().padding(vertical=3.dp)) {
           Column(Modifier.padding(10.dp)) {
            Text("${invoice.customerName} · ${invoice.number}", style=MaterialTheme.typography.titleSmall)
@@ -235,7 +249,7 @@ class MainActivity : ComponentActivity() {
           }
          }
         }
-        Text("Note: this is a summary of recorded invoice totals, not profit or tax-accounting advice.", style=MaterialTheme.typography.bodySmall)
+        Text("Note: totals reflect recorded invoice values; cost of goods is not stored, so this is not a profit report. Dates use the device local time zone.", style=MaterialTheme.typography.bodySmall)
        }
        "Settings" -> {
         var shopName by remember { mutableStateOf("Surya Optician") }
