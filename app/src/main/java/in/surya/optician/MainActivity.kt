@@ -408,60 +408,121 @@ class MainActivity : ComponentActivity() {
       Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())) {
       when (section) {
        "Dashboard" -> {
+        Text("Good ${java.text.SimpleDateFormat("EEEE, dd MMMM", java.util.Locale.getDefault()).format(java.util.Date())}", style=MaterialTheme.typography.labelLarge, color=MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.height(8.dp))
         Card(
          Modifier.fillMaxWidth(),
          shape=androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
-         colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.primary)
+         colors=CardDefaults.cardColors(containerColor=androidx.compose.ui.graphics.Color(0xFF102F52))
         ) {
-         Column(Modifier.padding(22.dp)) {
+         Column(Modifier.padding(22.dp), verticalArrangement=Arrangement.spacedBy(12.dp)) {
           Row(verticalAlignment=androidx.compose.ui.Alignment.CenterVertically, horizontalArrangement=Arrangement.spacedBy(12.dp)) {
-           Surface(shape=androidx.compose.foundation.shape.RoundedCornerShape(18.dp), color=androidx.compose.ui.graphics.Color(0x33FFFFFF), modifier=Modifier.size(58.dp)) {
-            Box(contentAlignment=androidx.compose.ui.Alignment.Center) { Text("👓", style=MaterialTheme.typography.headlineMedium) }
+           Surface(shape=androidx.compose.foundation.shape.RoundedCornerShape(18.dp), color=androidx.compose.ui.graphics.Color.White, modifier=Modifier.size(58.dp)) {
+            Box(contentAlignment=androidx.compose.ui.Alignment.Center) {
+             Text("👓", style=MaterialTheme.typography.headlineMedium)
+            }
            }
            Column(Modifier.weight(1f)) {
-            Text("SURYA OPTICIAN", style=MaterialTheme.typography.labelLarge, color=androidx.compose.ui.graphics.Color.White)
-            Text("Your shop, in focus.", style=MaterialTheme.typography.titleMedium, color=androidx.compose.ui.graphics.Color.White)
+            Text("SURYA OPTICIAN", style=MaterialTheme.typography.titleMedium, color=androidx.compose.ui.graphics.Color.White)
+            Text("CLEAR VISION. BETTER LIFE.", style=MaterialTheme.typography.labelSmall, color=androidx.compose.ui.graphics.Color(0xFFBDD8F4))
            }
           }
-          Spacer(Modifier.height(18.dp))
-          Text("Namaste, ${loggedInUser?.username} 👋", style=MaterialTheme.typography.headlineSmall, color=androidx.compose.ui.graphics.Color.White)
-          Spacer(Modifier.height(4.dp))
-          Text("Everything you need to run your optical store.", style=MaterialTheme.typography.bodyMedium, color=androidx.compose.ui.graphics.Color(0xFFE2ECF8))
-          Spacer(Modifier.height(18.dp))
+          Spacer(Modifier.height(2.dp))
+          Text("Namaste, ${loggedInUser?.username ?: "there"}!", style=MaterialTheme.typography.headlineSmall, color=androidx.compose.ui.graphics.Color.White)
+          Text("Your optical store, all in one place.", style=MaterialTheme.typography.bodyMedium, color=androidx.compose.ui.graphics.Color(0xFFD9E7F6))
           Button(
            onClick={section="New Bill"},
            modifier=Modifier.fillMaxWidth().height(54.dp),
            shape=androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
-           colors=ButtonDefaults.buttonColors(containerColor=androidx.compose.ui.graphics.Color.White, contentColor=MaterialTheme.colorScheme.primary)
-          ) { Text("＋   Create new bill", style=MaterialTheme.typography.titleMedium) }
+           colors=ButtonDefaults.buttonColors(containerColor=androidx.compose.ui.graphics.Color.White, contentColor=androidx.compose.ui.graphics.Color(0xFF123A63))
+          ) { Text("＋   Create New Bill", style=MaterialTheme.typography.titleMedium) }
          }
         }
-        Spacer(Modifier.height(12.dp))
-        Row(horizontalArrangement=Arrangement.spacedBy(8.dp), modifier=Modifier.fillMaxWidth()) {
-         Card(Modifier.weight(1f)) { Column(Modifier.padding(12.dp)) { Text("Invoices",style=MaterialTheme.typography.labelMedium); Text("${allInvoices.size}",style=MaterialTheme.typography.headlineSmall) } }
-         Card(Modifier.weight(1f)) { Column(Modifier.padding(12.dp)) { Text("Customers",style=MaterialTheme.typography.labelMedium); Text("${customers.size}",style=MaterialTheme.typography.headlineSmall) } }
+        Spacer(Modifier.height(16.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.spacedBy(10.dp)) {
+         Card(Modifier.weight(1f), shape=androidx.compose.foundation.shape.RoundedCornerShape(20.dp)) {
+          Column(Modifier.padding(14.dp), verticalArrangement=Arrangement.spacedBy(7.dp)) {
+           Surface(shape=androidx.compose.foundation.shape.CircleShape, color=androidx.compose.ui.graphics.Color(0xFFE2F2FC), modifier=Modifier.size(38.dp)) { Box(contentAlignment=androidx.compose.ui.Alignment.Center) { Text("₹", color=androidx.compose.ui.graphics.Color(0xFF2677A8), style=MaterialTheme.typography.titleLarge) } }
+           Text("Outstanding", style=MaterialTheme.typography.labelMedium, color=MaterialTheme.colorScheme.onSurfaceVariant)
+           Text("₹${"%.0f".format(due/100.0)}", style=MaterialTheme.typography.titleLarge, color=MaterialTheme.colorScheme.primary)
+          }
+         }
+         Card(Modifier.weight(1f), shape=androidx.compose.foundation.shape.RoundedCornerShape(20.dp)) {
+          Column(Modifier.padding(14.dp), verticalArrangement=Arrangement.spacedBy(7.dp)) {
+           Surface(shape=androidx.compose.foundation.shape.CircleShape, color=androidx.compose.ui.graphics.Color(0xFFFFE8D6), modifier=Modifier.size(38.dp)) { Box(contentAlignment=androidx.compose.ui.Alignment.Center) { Text("▦", color=androidx.compose.ui.graphics.Color(0xFF9A4D00), style=MaterialTheme.typography.titleLarge) } }
+           Text("Low stock alerts", style=MaterialTheme.typography.labelMedium, color=MaterialTheme.colorScheme.onSurfaceVariant)
+           Text("${lowStock.size}", style=MaterialTheme.typography.titleLarge, color=if(lowStock.isEmpty()) MaterialTheme.colorScheme.primary else androidx.compose.ui.graphics.Color(0xFFB45309))
+          }
+         }
+        }
+        Spacer(Modifier.height(10.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.spacedBy(10.dp)) {
+         listOf(Triple("Bills", allInvoices.size, "▤"), Triple("Customers", customers.size, "♙"), Triple("Products", products.size, "◈")).forEach { metric ->
+          Card(Modifier.weight(1f).clickable { section=when(metric.first) { "Bills" -> "Bills"; "Customers" -> "Customers"; else -> "Products" } }, shape=androidx.compose.foundation.shape.RoundedCornerShape(18.dp)) {
+           Column(Modifier.padding(12.dp), verticalArrangement=Arrangement.spacedBy(5.dp)) {
+            Text(metric.third, style=MaterialTheme.typography.titleLarge, color=MaterialTheme.colorScheme.secondary)
+            Text(metric.first, style=MaterialTheme.typography.labelMedium, color=MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("${metric.second}", style=MaterialTheme.typography.headlineSmall)
+           }
+          }
+         }
+        }
+        Spacer(Modifier.height(18.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.SpaceBetween, verticalAlignment=androidx.compose.ui.Alignment.CenterVertically) {
+         Text("Quick actions", style=MaterialTheme.typography.titleLarge)
+         Text("SHORTCUTS", style=MaterialTheme.typography.labelSmall, color=MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Spacer(Modifier.height(8.dp))
-        Row(horizontalArrangement=Arrangement.spacedBy(8.dp), modifier=Modifier.fillMaxWidth()) {
-         Card(Modifier.weight(1f)) { Column(Modifier.padding(12.dp)) { Text("Products",style=MaterialTheme.typography.labelMedium); Text("${products.size}",style=MaterialTheme.typography.headlineSmall) } }
-         Card(Modifier.weight(1f)) { Column(Modifier.padding(12.dp)) { Text("Low stock",style=MaterialTheme.typography.labelMedium); Text("${lowStock.size}",style=MaterialTheme.typography.headlineSmall) } }
-        }
-        Spacer(Modifier.height(16.dp))
-        Text("Quick actions", style=MaterialTheme.typography.titleMedium)
-        Spacer(Modifier.height(6.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-         OutlinedButton(onClick={section="Customers"}, modifier=Modifier.weight(1f)) { Text("Customers") }
-         OutlinedButton(onClick={section="Products"}, modifier=Modifier.weight(1f)) { Text("Inventory") }
-        }
-        OutlinedButton(onClick={section="Payment"}, modifier=Modifier.fillMaxWidth()) { Text("Collect a payment") }
-        Spacer(Modifier.height(12.dp))
-        Text("Recent bills", style=MaterialTheme.typography.titleMedium)
-        allInvoices.take(5).forEach { invoice ->
-         Card(Modifier.fillMaxWidth().padding(vertical=3.dp)) { Column(Modifier.padding(12.dp)) {
-          Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.SpaceBetween) { Text(invoice.number,style=MaterialTheme.typography.titleSmall); Text("₹${"%.2f".format(invoice.totalPaise/100.0)}",style=MaterialTheme.typography.titleSmall) }
-          Text(invoice.customerName,style=MaterialTheme.typography.bodyMedium)
-          Text(if(invoice.duePaise>0) "Due ₹${"%.2f".format(invoice.duePaise/100.0)}" else "Paid",style=MaterialTheme.typography.bodySmall)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.spacedBy(10.dp)) {
+         Card(Modifier.weight(1f).clickable { section="Customers" }, shape=androidx.compose.foundation.shape.RoundedCornerShape(18.dp)) { Column(Modifier.padding(14.dp), verticalArrangement=Arrangement.spacedBy(8.dp)) {
+          Text("♙", style=MaterialTheme.typography.headlineMedium, color=MaterialTheme.colorScheme.primary)
+          Text("Add customer", style=MaterialTheme.typography.titleSmall)
+          Text("Save customer details", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSurfaceVariant)
          } }
+         Card(Modifier.weight(1f).clickable { section="Products" }, shape=androidx.compose.foundation.shape.RoundedCornerShape(18.dp)) { Column(Modifier.padding(14.dp), verticalArrangement=Arrangement.spacedBy(8.dp)) {
+          Text("◈", style=MaterialTheme.typography.headlineMedium, color=MaterialTheme.colorScheme.primary)
+          Text("Manage products", style=MaterialTheme.typography.titleSmall)
+          Text("Frames, lenses & stock", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSurfaceVariant)
+         } }
+        }
+        Spacer(Modifier.height(10.dp))
+        Card(Modifier.fillMaxWidth().clickable { section="Payment" }, shape=androidx.compose.foundation.shape.RoundedCornerShape(18.dp), colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.secondaryContainer)) {
+         Row(Modifier.padding(16.dp), verticalAlignment=androidx.compose.ui.Alignment.CenterVertically, horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+          Surface(shape=androidx.compose.foundation.shape.RoundedCornerShape(12.dp), color=androidx.compose.ui.graphics.Color.White, modifier=Modifier.size(44.dp)) { Box(contentAlignment=androidx.compose.ui.Alignment.Center) { Text("₹", style=MaterialTheme.typography.titleLarge, color=MaterialTheme.colorScheme.primary) } }
+          Column(Modifier.weight(1f)) { Text("Collect a payment", style=MaterialTheme.typography.titleMedium); Text("Record payment and update dues", style=MaterialTheme.typography.bodySmall) }
+          Text("›", style=MaterialTheme.typography.headlineMedium, color=MaterialTheme.colorScheme.primary)
+         }
+        }
+        Spacer(Modifier.height(18.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.SpaceBetween, verticalAlignment=androidx.compose.ui.Alignment.CenterVertically) {
+         Text("Recent bills", style=MaterialTheme.typography.titleLarge)
+         TextButton(onClick={section="Bills"}) { Text("View all") }
+        }
+        if(allInvoices.isEmpty()) {
+         Card(Modifier.fillMaxWidth(), shape=androidx.compose.foundation.shape.RoundedCornerShape(18.dp)) {
+          Column(Modifier.fillMaxWidth().padding(22.dp), horizontalAlignment=androidx.compose.ui.Alignment.CenterHorizontally, verticalArrangement=Arrangement.spacedBy(8.dp)) {
+           Text("▤", style=MaterialTheme.typography.displaySmall, color=MaterialTheme.colorScheme.secondary)
+           Text("Your bills will appear here", style=MaterialTheme.typography.titleMedium)
+           Text("Create your first bill to start tracking sales and payments.", style=MaterialTheme.typography.bodyMedium, color=MaterialTheme.colorScheme.onSurfaceVariant)
+           OutlinedButton(onClick={section="New Bill"}) { Text("Create first bill") }
+          }
+         }
+        }
+        allInvoices.take(5).forEach { invoice ->
+         Card(Modifier.fillMaxWidth().padding(vertical=4.dp).clickable { section="Bills" }, shape=androidx.compose.foundation.shape.RoundedCornerShape(18.dp)) {
+          Row(Modifier.fillMaxWidth().padding(14.dp), horizontalArrangement=Arrangement.spacedBy(12.dp), verticalAlignment=androidx.compose.ui.Alignment.CenterVertically) {
+           Surface(shape=androidx.compose.foundation.shape.RoundedCornerShape(12.dp), color=MaterialTheme.colorScheme.primaryContainer, modifier=Modifier.size(44.dp)) { Box(contentAlignment=androidx.compose.ui.Alignment.Center) { Text("▤", style=MaterialTheme.typography.titleLarge, color=MaterialTheme.colorScheme.primary) } }
+           Column(Modifier.weight(1f), verticalArrangement=Arrangement.spacedBy(3.dp)) {
+            Text(invoice.number, style=MaterialTheme.typography.titleSmall)
+            Text(invoice.customerName, style=MaterialTheme.typography.bodyMedium)
+            Text(if(invoice.duePaise>0) "Payment due" else "Fully paid", style=MaterialTheme.typography.labelSmall, color=if(invoice.duePaise>0) androidx.compose.ui.graphics.Color(0xFFB45309) else androidx.compose.ui.graphics.Color(0xFF16804A))
+           }
+           Column(horizontalAlignment=androidx.compose.ui.Alignment.End, verticalArrangement=Arrangement.spacedBy(3.dp)) {
+            Text("₹${"%.2f".format(invoice.totalPaise/100.0)}", style=MaterialTheme.typography.titleMedium)
+            Text(if(invoice.duePaise>0) "Due ₹${"%.2f".format(invoice.duePaise/100.0)}" else "Paid", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSurfaceVariant)
+           }
+          }
+         }
         }
        }
        "Customers" -> {
