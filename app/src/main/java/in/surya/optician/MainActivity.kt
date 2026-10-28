@@ -39,6 +39,9 @@ class MainActivity : ComponentActivity() {
                 var dialog by remember { mutableStateOf("") }
                 var selectedInvoice by remember { mutableStateOf<Invoice?>(null) }
                 var shopSettings by remember { mutableStateOf(ShopSettings()) }
+                LaunchedEffect(Unit) {
+                    shopSettings = db.dao().settings() ?: ShopSettings().also { db.dao().saveSettings(it) }
+                }
                 val invoices by db.dao().searchInvoices(query).collectAsState(initial = emptyList())
                 val customers by db.dao().customers().collectAsState(initial = emptyList())
                 val products by db.dao().products().collectAsState(initial = emptyList())
