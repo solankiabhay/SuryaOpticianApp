@@ -1,5 +1,6 @@
 package in.surya.optician.data
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
@@ -20,7 +21,7 @@ data class Product(
     val pricePaise: Long,
     val stock: Int,
     val lowStock: Int = 3,
-    val costPaise: Long = 0
+    @ColumnInfo(defaultValue = "0") val costPaise: Long = 0
 )
 
 @Entity(tableName = "invoices", indices = [Index(value = ["number"], unique = true)])
