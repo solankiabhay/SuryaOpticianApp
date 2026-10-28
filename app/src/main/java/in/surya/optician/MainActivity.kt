@@ -174,12 +174,22 @@ class MainActivity : ComponentActivity() {
      }
     }
     val securityPrefs = remember { getSharedPreferences("surya_security", MODE_PRIVATE) }
+    val accountStore = remember { UserAccounts(this@MainActivity) }
+    var accountVersion by remember { mutableIntStateOf(0) }
+    var loggedInUser by remember { mutableStateOf<LocalUser?>(null) }
+    var authName by remember { mutableStateOf("") }
+    var authPassword by remember { mutableStateOf("") }
+    var authConfirmPassword by remember { mutableStateOf("") }
+    var authError by remember { mutableStateOf("") }
+    var newStaffName by remember { mutableStateOf("") }
+    var newStaffPassword by remember { mutableStateOf("") }
+    var newStaffRole by remember { mutableStateOf("Staff") }
     var unlocked by remember { mutableStateOf(securityPrefs.getString("pin_hash", null) == null) }
     var unlockPin by remember { mutableStateOf("") }
     var pinError by remember { mutableStateOf("") }
     var newPin by remember { mutableStateOf("") }
     var confirmPin by remember { mutableStateOf("") }
-    var section by remember { mutableStateOf("Bills") }
+    var section by remember { mutableStateOf("Dashboard") }
     var query by remember { mutableStateOf("") }
     var customerSearch by remember { mutableStateOf("") }
     var productSearch by remember { mutableStateOf("") }
@@ -238,17 +248,96 @@ class MainActivity : ComponentActivity() {
     val lowStock by db.dao().lowStock().collectAsState(initial = emptyList())
 
     fun toast(message: String) = Toast.makeText(this@MainActivity, message, Toast.LENGTH_LONG).show()
-    Scaffold(topBar = { TopAppBar(title = { Text("Surya Optician") }) }) { padding ->
+    if (loggedInUser == null) {
+     val needsOwnerSetup = accountStore.loadUsers().isEmpty()
+     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
+      Column(Modifier.fillMaxSize().padding(24.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.Center) {
+       Text("SURYA OPTICIAN", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+       Spacer(Modifier.height(8.dp))
+       Text(if (needsOwnerSetup) "Set up your shop account" else "Welcome back", style = MaterialTheme.typography.headlineMedium)
+       Spacer(Modifier.height(8.dp))
+       Text(if (needsOwnerSetup) "Create the owner account to protect billing, customers and shop records." else "Sign in with your staff account to continue.", style = MaterialTheme.typography.bodyLarge)
+       Spacer(Modifier.height(20.dp))
+       OutlinedTextField(authName, { authName=it; authError="" }, label={Text(if(needsOwnerSetup) "Owner username" else "Username")}, singleLine=true, modifier=Modifier.fillMaxWidth())
+       OutlinedTextField(authPassword, { authPassword=it; authError="" }, label={Text("Password")}, singleLine=true, modifier=Modifier.fillMaxWidth())
+       if (needsOwnerSetup) OutlinedTextField(authConfirmPassword, { authConfirmPassword=it; authError="" }, label={Text("Confirm password")}, singleLine=true, modifier=Modifier.fillMaxWidth())
+       if (authError.isNotBlank()) { Spacer(Modifier.height(8.dp)); Text(authError, color=MaterialTheme.colorScheme.error) }
+       Spacer(Modifier.height(16.dp))
+       Button(onClick={
+        val username=authName.trim()
+        if(username.length<3) authError="Username must be at least 3 characters."
+        else if(authPassword.length<8) authError="Password must be at least 8 characters."
+        else if(needsOwnerSetup && authPassword!=authConfirmPassword) authError="Passwords do not match."
+        else if(needsOwnerSetup) runCatching { accountStore.create(username,authPassword,"Owner") }
+         .onSuccess { accountVersion++; loggedInUser=accountStore.authenticate(username,authPassword); authPassword="";authConfirmPassword="";section="Dashboard" }
+         .onFailure { authError=it.message ?: "Could not create owner account." }
+        else {
+         val user=accountStore.authenticate(username,authPassword)
+         if(user==null) authError="Incorrect username or password."
+         else { loggedInUser=user;authPassword="";authError="";section="Dashboard" }
+        }
+       }, modifier=Modifier.fillMaxWidth()) { Text(if(needsOwnerSetup) "Create owner account" else "Sign in") }
+       Spacer(Modifier.height(12.dp))
+       Text("Accounts are stored on this device. Keep a backup and do not share your password.", style=MaterialTheme.typography.bodySmall)
+      }
+     }
+    } else {
+    Scaffold(topBar = {
+     TopAppBar(
+      title = { Column { Text("Surya Optician"); Text("Billing & shop management", style=MaterialTheme.typography.labelSmall) } },
+      actions = { TextButton(onClick={ loggedInUser=null;authName="";authPassword="";section="Dashboard" }) { Text("Sign out") } }
+     )
+    }) { padding ->
      Column(Modifier.fillMaxSize().padding(padding).padding(12.dp)) {
-      Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
-       listOf("Bills", "Customers", "Products", "New Bill", "Payment", "Prescription", "Reports", "Settings").forEach { tab ->
-        TextButton(onClick = { section = tab }) { Text(tab) }
+      Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
+       (listOf("Dashboard", "Bills", "New Bill", "Customers", "Products", "Payment", "Prescription", "Reports", "Settings") + if(loggedInUser?.role=="Owner") listOf("Users") else emptyList()).forEach { tab ->
+        if(section==tab) Button(onClick={section=tab}, contentPadding=PaddingValues(horizontal=12.dp,vertical=8.dp)) { Text(tab) }
+        else TextButton(onClick = { section = tab }) { Text(tab) }
        }
       }
-      Text("Outstanding: ₹${"%.2f".format(due / 100.0)}  ·  Low stock: ${lowStock.size}", style = MaterialTheme.typography.titleSmall)
+      Spacer(Modifier.height(8.dp))
+      Row(horizontalArrangement=Arrangement.spacedBy(8.dp), modifier=Modifier.fillMaxWidth()) {
+       Card(Modifier.weight(1f), colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.primaryContainer)) { Column(Modifier.padding(12.dp)) {
+        Text("Outstanding", style=MaterialTheme.typography.labelMedium)
+        Text("₹\${"%.2f".format(due/100.0)}", style=MaterialTheme.typography.titleLarge)
+       } }
+       Card(Modifier.weight(1f), colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.secondaryContainer)) { Column(Modifier.padding(12.dp)) {
+        Text("Low stock items", style=MaterialTheme.typography.labelMedium)
+        Text("\${lowStock.size}", style=MaterialTheme.typography.titleLarge)
+       } }
+      }
       Spacer(Modifier.height(8.dp))
       Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())) {
       when (section) {
+       "Dashboard" -> {
+        Text("Good day, \${loggedInUser?.username}", style=MaterialTheme.typography.headlineSmall)
+        Text("Your shop at a glance", style=MaterialTheme.typography.bodyMedium)
+        Spacer(Modifier.height(12.dp))
+        Row(horizontalArrangement=Arrangement.spacedBy(8.dp), modifier=Modifier.fillMaxWidth()) {
+         Card(Modifier.weight(1f)) { Column(Modifier.padding(12.dp)) { Text("Invoices",style=MaterialTheme.typography.labelMedium); Text("\${allInvoices.size}",style=MaterialTheme.typography.headlineSmall) } }
+         Card(Modifier.weight(1f)) { Column(Modifier.padding(12.dp)) { Text("Customers",style=MaterialTheme.typography.labelMedium); Text("\${customers.size}",style=MaterialTheme.typography.headlineSmall) } }
+        }
+        Spacer(Modifier.height(8.dp))
+        Row(horizontalArrangement=Arrangement.spacedBy(8.dp), modifier=Modifier.fillMaxWidth()) {
+         Card(Modifier.weight(1f)) { Column(Modifier.padding(12.dp)) { Text("Products",style=MaterialTheme.typography.labelMedium); Text("\${products.size}",style=MaterialTheme.typography.headlineSmall) } }
+         Card(Modifier.weight(1f)) { Column(Modifier.padding(12.dp)) { Text("Low stock",style=MaterialTheme.typography.labelMedium); Text("\${lowStock.size}",style=MaterialTheme.typography.headlineSmall) } }
+        }
+        Spacer(Modifier.height(16.dp))
+        Text("Quick actions", style=MaterialTheme.typography.titleMedium)
+        Spacer(Modifier.height(6.dp))
+        Button(onClick={section="New Bill"}, modifier=Modifier.fillMaxWidth()) { Text("+ Create a new bill") }
+        OutlinedButton(onClick={section="Customers"}, modifier=Modifier.fillMaxWidth()) { Text("Manage customers") }
+        OutlinedButton(onClick={section="Products"}, modifier=Modifier.fillMaxWidth()) { Text("Manage inventory") }
+        Spacer(Modifier.height(12.dp))
+        Text("Recent bills", style=MaterialTheme.typography.titleMedium)
+        allInvoices.take(5).forEach { invoice ->
+         Card(Modifier.fillMaxWidth().padding(vertical=3.dp)) { Column(Modifier.padding(12.dp)) {
+          Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.SpaceBetween) { Text(invoice.number,style=MaterialTheme.typography.titleSmall); Text("₹\${"%.2f".format(invoice.totalPaise/100.0)}",style=MaterialTheme.typography.titleSmall) }
+          Text(invoice.customerName,style=MaterialTheme.typography.bodyMedium)
+          Text(if(invoice.duePaise>0) "Due ₹\${"%.2f".format(invoice.duePaise/100.0)}" else "Paid",style=MaterialTheme.typography.bodySmall)
+         } }
+        }
+       }
        "Customers" -> {
         OutlinedTextField(customerName, { customerName = it }, label = { Text("Customer name *") }, modifier = Modifier.fillMaxWidth())
         OutlinedTextField(customerPhone, { customerPhone = it }, label = { Text("Phone (WhatsApp)") }, modifier = Modifier.fillMaxWidth())
@@ -483,6 +572,34 @@ class MainActivity : ComponentActivity() {
         }
         Text("Profit is an estimate: invoice tax is excluded and recorded item cost is deducted. It is not net profit and excludes rent, wages and other operating expenses. Dates use the device local time zone.", style=MaterialTheme.typography.bodySmall)
        }
+       "Users" -> {
+        Text("User management", style=MaterialTheme.typography.headlineSmall)
+        Text("Create separate local accounts for shop staff. Only the owner can manage accounts.", style=MaterialTheme.typography.bodyMedium)
+        Spacer(Modifier.height(12.dp))
+        OutlinedTextField(newStaffName,{newStaffName=it},label={Text("Staff username")},singleLine=true,modifier=Modifier.fillMaxWidth())
+        OutlinedTextField(newStaffPassword,{newStaffPassword=it},label={Text("Temporary password (8+ characters)")},singleLine=true,modifier=Modifier.fillMaxWidth())
+        Row(horizontalArrangement=Arrangement.spacedBy(8.dp), modifier=Modifier.fillMaxWidth()) {
+         FilterChip(selected=newStaffRole=="Staff",onClick={newStaffRole="Staff"},label={Text("Staff")})
+         FilterChip(selected=newStaffRole=="Manager",onClick={newStaffRole="Manager"},label={Text("Manager")})
+        }
+        Button(onClick={
+         runCatching {
+          accountStore.create(newStaffName.trim(),newStaffPassword,newStaffRole)
+          accountVersion++
+          newStaffName="";newStaffPassword=""
+         }.onSuccess { toast("User account created") }.onFailure { toast(it.message ?: "Could not create user") }
+        },modifier=Modifier.fillMaxWidth(),enabled=newStaffName.trim().length>=3&&newStaffPassword.length>=8) { Text("Create staff account") }
+        Spacer(Modifier.height(12.dp))
+        Text("Accounts on this device",style=MaterialTheme.typography.titleMedium)
+        accountVersion
+        accountStore.loadUsers().forEach { user ->
+         Card(Modifier.fillMaxWidth().padding(vertical=3.dp)) { Row(Modifier.fillMaxWidth().padding(12.dp),horizontalArrangement=Arrangement.SpaceBetween) {
+          Column(Modifier.weight(1f)) { Text(user.username,style=MaterialTheme.typography.titleSmall); Text(user.role,style=MaterialTheme.typography.bodySmall) }
+          if(user.role!="Owner" && user.username!=loggedInUser?.username) TextButton(onClick={accountStore.remove(user.username);accountVersion++;toast("Account removed")}) { Text("Remove") }
+         } }
+        }
+        Text("This is device-local account management, not cloud identity or multi-device synchronization.",style=MaterialTheme.typography.bodySmall)
+       }
        "Settings" -> {
         var shopName by remember { mutableStateOf("Surya Optician") }
         var shopAddress by remember { mutableStateOf("") }
@@ -542,7 +659,8 @@ class MainActivity : ComponentActivity() {
       }
      }
     }
-    if (!unlocked) {
+    }
+    if (loggedInUser != null && !unlocked) {
      AlertDialog(
       onDismissRequest = {},
       title = { Text("Unlock Surya Optician") },
