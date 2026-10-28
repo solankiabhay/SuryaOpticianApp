@@ -164,6 +164,9 @@ class MainActivity : ComponentActivity() {
      extraLarge = androidx.compose.foundation.shape.RoundedCornerShape(28.dp)
     )
    ) {
+    val accountStore = remember { UserAccounts(this@MainActivity) }
+    var accountVersion by remember { mutableIntStateOf(0) }
+    var loggedInUser by remember { mutableStateOf<LocalUser?>(null) }
     val backupLauncher = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.CreateDocument("application/vnd.sqlite3")) { uri ->
      if (loggedInUser?.role != "Owner") { Toast.makeText(this@MainActivity, "Only the Owner can export a database backup.", Toast.LENGTH_LONG).show() }
      else if (uri != null) lifecycleScope.launch {
@@ -198,9 +201,7 @@ class MainActivity : ComponentActivity() {
      }
     }
     val securityPrefs = remember { getSharedPreferences("surya_security", MODE_PRIVATE) }
-    val accountStore = remember { UserAccounts(this@MainActivity) }
-    var accountVersion by remember { mutableIntStateOf(0) }
-    var loggedInUser by remember { mutableStateOf<LocalUser?>(null) }
+
     var authName by remember { mutableStateOf("") }
     var authPassword by remember { mutableStateOf("") }
     var authConfirmPassword by remember { mutableStateOf("") }
