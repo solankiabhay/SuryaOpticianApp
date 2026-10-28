@@ -20,7 +20,7 @@ This audit reflects source code currently on the feature branch. It is not a cla
 | Inventory and category reports | Implemented baseline | Current stock units, purchase-cost valuation, retail valuation, low-stock list and category roll-up |
 | Gross-profit estimate | Implemented baseline | Uses item cost snapshot captured on new invoices, excludes tax; migrated v1 invoice lines have cost zero, so their historical profit is not reliable |
 | Database migrations | Implemented baseline | v1→v2 adds cost snapshots; v2→v3 adds product category |
-| Full backup/restore | Not implemented | Required before production use |
+| Database backup/restore | Implemented baseline | Settings exports a checkpointed SQLite database; restore validates SQLite integrity and invoice table presence before replacing the local DB. Must be tested on-device and use backups from this app |
 | Authentication/roles | Not implemented | Required if app data must be protected from other device users or staff roles |
 | Dedicated print integration | Not implemented | PDF can be opened/shared to a compatible viewer; direct in-app print flow remains |
 | Automated build/device acceptance | Pending | Do not declare release-ready until Gradle tests/build and physical-device checklist pass |
