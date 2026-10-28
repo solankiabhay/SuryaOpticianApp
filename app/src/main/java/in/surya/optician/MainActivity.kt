@@ -1,6 +1,10 @@
 package in.surya.optician
 
 import android.content.Intent
+import android.graphics.Paint
+import android.graphics.pdf.PdfDocument
+import java.io.File
+import java.io.FileOutputStream
 import android.net.Uri
 import android.os.Bundle
 import android.widget.Toast
@@ -41,6 +45,49 @@ private fun parseReportDate(value: String): Long? {
 
 @OptIn(ExperimentalMaterial3Api::class)
 class MainActivity : ComponentActivity() {
+ private fun sharePrescriptionPdf(rx: Prescription, customerName: String) {
+  runCatching {
+   val directory = File(filesDir, "prescriptions")
+   check(directory.exists() || directory.mkdirs()) { "Cannot create prescription folder" }
+   val file = File(directory, "prescription-${rx.id}.pdf")
+   val document = PdfDocument()
+   try {
+    val page = document.startPage(PdfDocument.PageInfo.Builder(595, 842, 1).create())
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = android.graphics.Color.BLACK }
+    var y = 52f
+    fun line(value: String, size: Float = 13f, bold: Boolean = false) {
+     paint.textSize = size
+     paint.typeface = android.graphics.Typeface.create("sans-serif", if (bold) android.graphics.Typeface.BOLD else android.graphics.Typeface.NORMAL)
+     val text = value.ifBlank { "—" }
+     page.canvas.drawText(text.take(80), 40f, y, paint)
+     y += size + 12f
+    }
+    line("SURYA OPTICIAN", 22f, true)
+    line("EYE PRESCRIPTION", 18f, true)
+    line("Customer: $customerName", 14f, true)
+    line("Date: " + java.text.SimpleDateFormat("dd MMM yyyy, hh:mm a", java.util.Locale.getDefault()).format(java.util.Date(rx.createdAt)))
+    y += 8f
+    line("RIGHT EYE (OD)", 15f, true)
+    line("SPH: ${rx.rightSphere}   CYL: ${rx.rightCylinder}   Axis: ${rx.rightAxis}   ADD: ${rx.rightAdd}")
+    line("LEFT EYE (OS)", 15f, true)
+    line("SPH: ${rx.leftSphere}   CYL: ${rx.leftCylinder}   Axis: ${rx.leftAxis}   ADD: ${rx.leftAdd}")
+    line("Pupillary distance (PD): ${rx.pd} mm")
+    line("Notes: ${rx.notes}")
+    line("This document records entered prescription details; confirm values with the prescribing optometrist.", 10f)
+    document.finishPage(page)
+    FileOutputStream(file).use { document.writeTo(it) }
+   } finally { document.close() }
+   val uri = FileProvider.getUriForFile(this, "${packageName}.fileprovider", file)
+   val intent = Intent(Intent.ACTION_SEND).apply {
+    type = "application/pdf"
+    putExtra(Intent.EXTRA_STREAM, uri)
+    putExtra(Intent.EXTRA_SUBJECT, "Eye prescription - $customerName")
+    clipData = android.content.ClipData.newUri(contentResolver, "Eye prescription", uri)
+    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+   }
+   startActivity(Intent.createChooser(intent, "Share prescription PDF"))
+  }.onFailure { Toast.makeText(this, it.message ?: "Prescription PDF failed", Toast.LENGTH_LONG).show() }
+ }
  override fun onCreate(savedInstanceState: Bundle?) {
   super.onCreate(savedInstanceState)
   val db = OpticianDatabase.get(this)
@@ -267,6 +314,7 @@ class MainActivity : ComponentActivity() {
            if(rx.notes.isNotBlank()) Text("Notes: ${rx.notes}")
            Row {
             TextButton(onClick={ editingPrescriptionId=rx.id; prescriptionCustomerId=rx.customerId.toString(); rightSphere=rx.rightSphere;rightCylinder=rx.rightCylinder;rightAxis=rx.rightAxis;rightAdd=rx.rightAdd;leftSphere=rx.leftSphere;leftCylinder=rx.leftCylinder;leftAxis=rx.leftAxis;leftAdd=rx.leftAdd;pd=rx.pd;prescriptionNotes=rx.notes }) { Text("Edit") }
+            TextButton(onClick={ sharePrescriptionPdf(rx, customers.firstOrNull { it.id==rx.customerId }?.name ?: "Customer #${rx.customerId}") }) { Text("PDF / Share") }
             TextButton(onClick={ lifecycleScope.launch { runCatching { db.dao().deletePrescription(rx) }.onSuccess { if(editingPrescriptionId==rx.id) editingPrescriptionId=null; toast("Prescription deleted") }.onFailure { toast("Could not delete prescription") } } }) { Text("Delete") }
            }
           }
