@@ -121,8 +121,7 @@ class MainActivity : ComponentActivity() {
        File(databaseFile.absolutePath + "-wal").delete()
        File(databaseFile.absolutePath + "-shm").delete()
        check(temp.copyTo(databaseFile, overwrite = true).exists()) { "Could not restore database file" }
-      }.onSuccess { toast("Backup restored. Reopening app."); recreate() }.onFailure { toast("Restore failed: ${it.message ?: "unknown error"}") }
-      temp.delete()
+      }.onSuccess { temp.delete(); toast("Backup restored. Reopening app."); recreate() }.onFailure { toast("Restore failed: ${it.message ?: "unknown error"}. A recovery copy was retained in app cache.") }
      }
     }
     var section by remember { mutableStateOf("Bills") }
@@ -271,7 +270,7 @@ class MainActivity : ComponentActivity() {
         OutlinedTextField(billTax, { billTax=it }, label={ Text("Line tax in ₹") }, modifier=Modifier.fillMaxWidth())
         Button(onClick={
          val qty=billQty.toIntOrNull(); val rate=billRate.toDoubleOrNull(); val discount=billDiscount.toDoubleOrNull(); val tax=billTax.toDoubleOrNull(); val pid=billProductId.toLongOrNull()
-         if(billDescription.isBlank() || qty==null || qty<=0 || rate==null || rate<0 || discount==null || discount<0 || tax==null || tax<0) toast("Check item description, quantity and amounts")
+         if(billDescription.isBlank() || qty==null || qty<=0 || rate==null || rate<0 || discount==null || discount<0 || tax==null || tax<0 || (billProductId.isNotBlank() && pid==null)) toast("Check item description, product ID, quantity and amounts")
          else runCatching { BillLine(pid,billDescription.trim(),qty,(rate*100).toLong(),(discount*100).toLong(),(tax*100).toLong()) }
           .onSuccess { line -> billLines=billLines+line; billProductId=""; billDescription=""; billQty="1"; billRate=""; billDiscount="0"; billTax="0"; toast("Item added to bill") }
           .onFailure { toast(it.message ?: "Invalid item") }
