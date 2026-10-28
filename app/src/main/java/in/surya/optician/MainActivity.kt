@@ -241,6 +241,7 @@ class MainActivity : ComponentActivity() {
     var billDiscount by remember { mutableStateOf("0") }
     var billTax by remember { mutableStateOf("0") }
     var billPaid by remember { mutableStateOf("0") }
+    var billPaymentMethod by remember { mutableStateOf("Cash") }
     var billPrescriptionId by remember { mutableStateOf("") }
     var billPrescriptionSummary by remember { mutableStateOf("") }
     var billGlassType by remember { mutableStateOf("") }
@@ -507,6 +508,13 @@ class MainActivity : ComponentActivity() {
          Text("Balance after payment: ₹${"%.2f".format((draftTotal-(billPaid.toDoubleOrNull()?.times(100)?.toLong() ?: 0L)).coerceAtLeast(0)/100.0)}")
         } }
         OutlinedTextField(billPaid, { billPaid=it }, label={ Text("Amount received in ₹") }, modifier=Modifier.fillMaxWidth())
+        Text("Payment type", style=MaterialTheme.typography.titleSmall)
+        Row(horizontalArrangement=Arrangement.spacedBy(6.dp), modifier=Modifier.fillMaxWidth()) {
+         listOf("Cash", "Online", "Other").forEach { method ->
+          if (billPaymentMethod == method) Button(onClick={ billPaymentMethod=method }, modifier=Modifier.weight(1f)) { Text(method) }
+          else OutlinedButton(onClick={ billPaymentMethod=method }, modifier=Modifier.weight(1f)) { Text(method) }
+         }
+        }
         OutlinedButton(onClick={ showBillPreview=true }, modifier=Modifier.fillMaxWidth(), enabled=billLines.isNotEmpty()) { Text("Preview bill before saving") }
         Button(onClick={ lifecycleScope.launch {
          val paid=billPaid.toDoubleOrNull()
@@ -515,15 +523,21 @@ class MainActivity : ComponentActivity() {
          if((billCustomer.isBlank() && existingCustomer==null) || billLines.isEmpty() || paid==null || paid<0) toast("Enter/select a customer, add at least one item and check payment")
          else if(billCustomerId.isNotBlank() && existingCustomer==null) toast("Existing customer ID was not found")
          else runCatching {
-          run { val draft = NewBill(customerId=existingCustomer?.id, customerName=existingCustomer?.name ?: billCustomer.trim(), phone=existingCustomer?.phone?.ifBlank { billPhone.trim() } ?: billPhone.trim(), lines=billLines, paidPaise=(paid*100).toLong(), glassType=billGlassType.trim(), deliveryDate=billDeliveryDate.trim(), prescriptionSummary=selectedBillPrescription?.let { rx -> listOf("Right eye (OD): SPH ${rx.rightSphere.ifBlank{"—"}}, CYL ${rx.rightCylinder.ifBlank{"—"}}, Axis ${rx.rightAxis.ifBlank{"—"}}, ADD ${rx.rightAdd.ifBlank{"—"}}", "Left eye (OS): SPH ${rx.leftSphere.ifBlank{"—"}}, CYL ${rx.leftCylinder.ifBlank{"—"}}, Axis ${rx.leftAxis.ifBlank{"—"}}, ADD ${rx.leftAdd.ifBlank{"—"}}", "PD: ${rx.pd.ifBlank{"—"}}", rx.notes.takeIf { it.isNotBlank() }?.let { "Notes: $it" }).filterNotNull().joinToString("\n") } ?: billPrescriptionSummary); if(editingInvoiceId==null) BillingRepository(db).createBill(draft) else { BillingRepository(db).updateBill(editingInvoiceId!!,draft); editingInvoiceId!! } }
-         }.onSuccess { id -> toast(if(editingInvoiceId==null) "Invoice created: #$id" else "Invoice updated"); section="Bills"; editingInvoiceId=null; billCustomer=""; billCustomerId=""; billPhone=""; billLines=emptyList(); billProductId=""; billDescription=""; billQty="1"; billRate=""; billDiscount="0"; billTax="0"; billPaid="0"; billPrescriptionId=""; billPrescriptionSummary=""; billGlassType=""; billDeliveryDate="" }
+          run { val draft = NewBill(customerId=existingCustomer?.id, customerName=existingCustomer?.name ?: billCustomer.trim(), phone=existingCustomer?.phone?.ifBlank { billPhone.trim() } ?: billPhone.trim(), lines=billLines, paidPaise=(paid*100).toLong(), method=billPaymentMethod, glassType=billGlassType.trim(), deliveryDate=billDeliveryDate.trim(), prescriptionSummary=selectedBillPrescription?.let { rx -> listOf("Right eye (OD): SPH ${rx.rightSphere.ifBlank{"—"}}, CYL ${rx.rightCylinder.ifBlank{"—"}}, Axis ${rx.rightAxis.ifBlank{"—"}}, ADD ${rx.rightAdd.ifBlank{"—"}}", "Left eye (OS): SPH ${rx.leftSphere.ifBlank{"—"}}, CYL ${rx.leftCylinder.ifBlank{"—"}}, Axis ${rx.leftAxis.ifBlank{"—"}}, ADD ${rx.leftAdd.ifBlank{"—"}}", "PD: ${rx.pd.ifBlank{"—"}}", rx.notes.takeIf { it.isNotBlank() }?.let { "Notes: $it" }).filterNotNull().joinToString("\n") } ?: billPrescriptionSummary); if(editingInvoiceId==null) BillingRepository(db).createBill(draft) else { BillingRepository(db).updateBill(editingInvoiceId!!,draft); editingInvoiceId!! } }
+         }.onSuccess { id -> toast(if(editingInvoiceId==null) "Invoice created: #$id" else "Invoice updated"); section="Bills"; editingInvoiceId=null; billCustomer=""; billCustomerId=""; billPhone=""; billLines=emptyList(); billProductId=""; billDescription=""; billQty="1"; billRate=""; billDiscount="0"; billTax="0"; billPaid="0"; billPaymentMethod="Cash"; billPrescriptionId=""; billPrescriptionSummary=""; billGlassType=""; billDeliveryDate="" }
           .onFailure { toast(it.message ?: "Could not create invoice") }
         } }, modifier=Modifier.fillMaxWidth()) { Text(if(editingInvoiceId==null) "Create bill and deduct stock" else "Save bill changes") }
        }
         "Payment" -> {
         OutlinedTextField(paymentInvoiceId, { paymentInvoiceId=it }, label={ Text("Invoice database ID") }, modifier=Modifier.fillMaxWidth())
         OutlinedTextField(paymentAmount, { paymentAmount=it }, label={ Text("Payment amount in ₹") }, modifier=Modifier.fillMaxWidth())
-        OutlinedTextField(paymentMethod, { paymentMethod=it }, label={ Text("Method (Cash / UPI / Card / Bank)") }, modifier=Modifier.fillMaxWidth())
+        Text("Payment type", style=MaterialTheme.typography.titleSmall)
+        Row(horizontalArrangement=Arrangement.spacedBy(6.dp), modifier=Modifier.fillMaxWidth()) {
+         listOf("Cash", "Online", "Other").forEach { method ->
+          if (paymentMethod == method) Button(onClick={ paymentMethod=method }, modifier=Modifier.weight(1f)) { Text(method) }
+          else OutlinedButton(onClick={ paymentMethod=method }, modifier=Modifier.weight(1f)) { Text(method) }
+         }
+        }
         Button(onClick={ lifecycleScope.launch {
          val id=paymentInvoiceId.toLongOrNull(); val amount=paymentAmount.toDoubleOrNull()
          if(id==null || amount==null || amount<=0) toast("Enter a valid invoice ID and payment amount")
@@ -729,6 +743,9 @@ class MainActivity : ComponentActivity() {
            Column(Modifier.padding(12.dp)) {
             Text("${invoice.number} · ${invoice.customerName}", style=MaterialTheme.typography.titleMedium)
             Text("Total ₹${"%.2f".format(invoice.totalPaise/100.0)} · Paid ₹${"%.2f".format(invoice.paidPaise/100.0)} · Due ₹${"%.2f".format(invoice.duePaise/100.0)}")
+            val paymentStatus = if (invoice.duePaise <= 0) "PAID / SUCCESS" else if (invoice.paidPaise > 0) "PARTIALLY PAID · PENDING DUE" else "PENDING · UNPAID"
+            Text("Payment status: $paymentStatus", color=if(invoice.duePaise<=0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error, style=MaterialTheme.typography.labelMedium)
+            if(invoice.duePaise>0) TextButton(onClick={ paymentInvoiceId=invoice.id.toString(); paymentAmount=""; section="Payment" }) { Text("Collect due payment") }
             Row(horizontalArrangement=Arrangement.spacedBy(6.dp)) {
              TextButton(onClick={ lifecycleScope.launch { runCatching { val items=db.dao().items(invoice.id); billCustomer=invoice.customerName; billCustomerId=invoice.customerId?.toString() ?: ""; billPhone=invoice.phone; billLines=items.map { BillLine(it.productId,it.description,it.qty,it.ratePaise,it.discountPaise,it.taxPaise) }; billPaid="%.2f".format(invoice.paidPaise/100.0); billPrescriptionId=""; billPrescriptionSummary=invoice.prescriptionSummary; billGlassType=invoice.glassType; billDeliveryDate=invoice.deliveryDate; editingInvoiceId=invoice.id; section="New Bill" }.onFailure { toast("Could not load bill for editing") } } }) { Text("Edit") }
              TextButton(onClick={ invoiceDeleteTarget=invoice }) { Text("Delete") }
