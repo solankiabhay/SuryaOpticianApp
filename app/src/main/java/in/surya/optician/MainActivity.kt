@@ -213,22 +213,22 @@ class MainActivity : ComponentActivity() {
        }
        "Reports" -> {
         Text("Shop reports", style=MaterialTheme.typography.titleLarge)
+        val dateFormat = remember { java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).apply { isLenient = false } }
+        val fromMillis = remember(reportFrom) { if (reportFrom.isBlank()) null else runCatching { dateFormat.parse(reportFrom)?.time }.getOrNull() }
+        val toMillisExclusive = remember(reportTo) { if (reportTo.isBlank()) null else runCatching { dateFormat.parse(reportTo)?.time?.plus(24L * 60 * 60 * 1000) }.getOrNull() }
+        val invalidDateRange = (reportFrom.isNotBlank() && fromMillis == null) || (reportTo.isNotBlank() && toMillisExclusive == null) || (fromMillis != null && toMillisExclusive != null && fromMillis >= toMillisExclusive)
+        val reportInvoices = if (invalidDateRange) emptyList() else allInvoices.filter { invoice -> (fromMillis == null || invoice.createdAt >= fromMillis) && (toMillisExclusive == null || invoice.createdAt < toMillisExclusive) }
         Text("Filter sales and collection totals by invoice date (YYYY-MM-DD). Leave blank to include all dates.", style=MaterialTheme.typography.bodyMedium)
         OutlinedTextField(reportFrom, { reportFrom = it.trim() }, label = { Text("From date (YYYY-MM-DD)") }, placeholder = { Text("2026-10-01") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
         OutlinedTextField(reportTo, { reportTo = it.trim() }, label = { Text("To date (YYYY-MM-DD)") }, placeholder = { Text("2026-10-31") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
         if (invalidDateRange) Text("Enter valid dates in YYYY-MM-DD format and ensure From is not after To.", color = MaterialTheme.colorScheme.error)
         TextButton(onClick = { reportFrom = ""; reportTo = "" }) { Text("Clear date filters") }
         Text("Invoice summary · ${reportInvoices.size} invoices in selected date range", style=MaterialTheme.typography.bodyMedium)
-        val dateFormat = remember { java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).apply { isLenient = false } }
-        val fromMillis = remember(reportFrom) { if (reportFrom.isBlank()) null else runCatching { dateFormat.parse(reportFrom)?.time }.getOrNull() }
-        val toMillisExclusive = remember(reportTo) { if (reportTo.isBlank()) null else runCatching { dateFormat.parse(reportTo)?.time?.plus(24L * 60 * 60 * 1000) }.getOrNull() }
-        val invalidDateRange = (reportFrom.isNotBlank() && fromMillis == null) || (reportTo.isNotBlank() && toMillisExclusive == null) || (fromMillis != null && toMillisExclusive != null && fromMillis >= toMillisExclusive)
-        val reportInvoices = if (invalidDateRange) emptyList() else allInvoices.filter { invoice -> (fromMillis == null || invoice.createdAt >= fromMillis) && (toMillisExclusive == null || invoice.createdAt < toMillisExclusive) }
         val totalSales = reportInvoices.sumOf { it.totalPaise }
         val totalPaid = reportInvoices.sumOf { it.paidPaise }
         val totalDue = reportInvoices.sumOf { it.duePaise }
         Row(horizontalArrangement=Arrangement.spacedBy(8.dp), modifier=Modifier.fillMaxWidth()) {
-         Card(Modifier.weight(1f)) { Column(Modifier.padding(12.dp)) { Text("Invoices"); Text("${allInvoices.size}", style=MaterialTheme.typography.headlineSmall) } }
+         Card(Modifier.weight(1f)) { Column(Modifier.padding(12.dp)) { Text("Invoices"); Text("${reportInvoices.size}", style=MaterialTheme.typography.headlineSmall) } }
          Card(Modifier.weight(1f)) { Column(Modifier.padding(12.dp)) { Text("Sales"); Text("₹${"%.2f".format(totalSales/100.0)}", style=MaterialTheme.typography.titleMedium) } }
         }
         Row(horizontalArrangement=Arrangement.spacedBy(8.dp), modifier=Modifier.fillMaxWidth()) {
