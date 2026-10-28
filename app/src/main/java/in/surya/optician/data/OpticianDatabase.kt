@@ -39,15 +39,24 @@ interface OpticianDao {
  @Query("SELECT COUNT(*) FROM invoices") fun invoiceCount(): Flow<Int>
  @Query("SELECT COALESCE(SUM(totalPaise-paidPaise),0) FROM invoices") fun outstanding(): Flow<Long>
  @Query("SELECT * FROM products WHERE stock<=lowStock ORDER BY stock") fun lowStock(): Flow<List<Product>>
+ @Query("SELECT COALESCE(SUM((totalPaise-taxPaise)-(costPaise*qty)),0) FROM invoice_items WHERE invoiceId IN (SELECT id FROM invoices WHERE createdAt>=:fromInclusive AND createdAt<:toExclusive)") fun estimatedProfit(fromInclusive: Long, toExclusive: Long): Flow<Long>
 }
 
-@Database(entities=[Customer::class,Product::class,Invoice::class,InvoiceItem::class,Payment::class,Prescription::class,ShopSettings::class],version=1,exportSchema=true)
+@Database(entities=[Customer::class,Product::class,Invoice::class,InvoiceItem::class,Payment::class,Prescription::class,ShopSettings::class],version=2,exportSchema=true)
 abstract class OpticianDatabase : RoomDatabase() {
  abstract fun dao(): OpticianDao
  companion object {
+  private val MIGRATION_1_2 = object : Migration(1, 2) {
+   override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+    db.execSQL("ALTER TABLE products ADD COLUMN costPaise INTEGER NOT NULL DEFAULT 0")
+    db.execSQL("ALTER TABLE invoice_items ADD COLUMN costPaise INTEGER NOT NULL DEFAULT 0")
+   }
+  }
   @Volatile private var instance: OpticianDatabase?=null
   fun get(context: Context): OpticianDatabase = instance ?: synchronized(this) {
-   instance ?: Room.databaseBuilder(context.applicationContext,OpticianDatabase::class.java,"surya-optician.db").build().also { instance=it }
+   instance ?: Room.databaseBuilder(context.applicationContext,OpticianDatabase::class.java,"surya-optician.db")
+    .addMigrations(MIGRATION_1_2)
+    .build().also { instance=it }
   }
  }
 }
