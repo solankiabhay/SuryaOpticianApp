@@ -1,4 +1,4 @@
-package in.surya.optician.data
+package `in`.surya.optician.data
 
 import android.content.Context
 import androidx.room.*
