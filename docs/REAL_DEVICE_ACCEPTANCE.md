@@ -13,9 +13,12 @@
 - [ ] Record partial payment and verify outstanding amount/history.
 - [ ] Confirm reminder contents before manually sending.
 - [ ] Export a database backup to device storage and confirm the file is created.
-- [ ] Restore that backup on a disposable/test installation and verify customers, products, invoices, payments and prescriptions remain intact.
+- [ ] Restore a current schema-v6 backup on a disposable/test installation and verify customers, products, invoices, payments and prescriptions remain intact.
+- [ ] Verify restore refuses corrupt, unsupported-version, or incomplete database files without replacing the current database.
+- [ ] If restore installation fails, verify the pre-restore recovery copy is available in app cache.
 - [ ] Confirm a corrupt/non-database file is rejected without replacing the current database.
 - [ ] Verify migration from a v1 database preserves existing records.
+- [ ] Test Owner, Manager and Staff accounts: section visibility, customer/product/prescription edit restrictions, bill edit/delete restrictions, reports/users visibility, and backup/restore/PIN controls.
 - [ ] Restart the app and verify persistence.
 - [ ] Verify no delivery/read claim is made merely because WhatsApp opened.
 
