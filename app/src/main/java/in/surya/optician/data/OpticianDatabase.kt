@@ -10,11 +10,18 @@ interface OpticianDao {
  @Query("SELECT * FROM customers WHERE id=:id") suspend fun customer(id: Long): Customer?
  @Insert suspend fun addCustomer(c: Customer): Long
  @Update suspend fun updateCustomer(c: Customer)
+ @Delete suspend fun deleteCustomer(c: Customer)
+ @Query("SELECT COUNT(*) FROM invoices WHERE customerId=:id") suspend fun customerInvoiceCount(id: Long): Int
+ @Query("SELECT COUNT(*) FROM prescriptions WHERE customerId=:id") suspend fun customerPrescriptionCount(id: Long)
  @Query("SELECT * FROM products ORDER BY name") fun products(): Flow<List<Product>>
  @Query("SELECT * FROM products WHERE id=:id") suspend fun product(id: Long): Product?
  @Insert suspend fun addProduct(p: Product): Long
  @Update suspend fun updateProduct(p: Product)
+ @Delete suspend fun deleteProduct(p: Product)
+ @Query("SELECT COUNT(*) FROM invoice_items WHERE productId=:id") suspend fun productInvoiceItemCount(id: Long): Int
  @Insert suspend fun addPrescription(p: Prescription): Long
+ @Update suspend fun updatePrescription(p: Prescription)
+ @Delete suspend fun deletePrescription(p: Prescription)
  @Query("SELECT * FROM prescriptions WHERE customerId=:customerId ORDER BY createdAt DESC") fun prescriptions(customerId: Long): Flow<List<Prescription>>
  @Insert suspend fun addInvoice(i: Invoice): Long
  @Insert suspend fun addItems(items: List<InvoiceItem>)
