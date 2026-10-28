@@ -52,10 +52,12 @@ class BillingRepository(private val db: OpticianDatabase) {
 
         val dao = db.dao()
         b.customerId?.let { id -> require(dao.customer(id) != null) { "Customer not found" } }
+        val productCosts = mutableMapOf<Long, Long>()
         b.lines.filter { it.productId != null }.groupBy { it.productId!! }.forEach { (id, lines) ->
             val product = dao.product(id) ?: error("Product not found")
             val requested = lines.sumOf { it.qty }
             require(product.stock >= requested) { "Insufficient stock: ${product.name}" }
+            productCosts[id] = product.costPaise
         }
 
         val stamp = SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(Date())
@@ -85,7 +87,8 @@ class BillingRepository(private val db: OpticianDatabase) {
                 ratePaise = line.ratePaise,
                 discountPaise = line.discountPaise,
                 taxPaise = line.taxPaise,
-                totalPaise = line.total
+                totalPaise = line.total,
+                costPaise = line.productId?.let { productCosts[it] } ?: 0L
             )
         })
         b.lines.filter { it.productId != null }.groupBy { it.productId!! }.forEach { (productId, lines) ->
