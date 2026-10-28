@@ -343,8 +343,16 @@ class MainActivity : ComponentActivity() {
       Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())) {
       when (section) {
        "Dashboard" -> {
-        Text("Good day, ${loggedInUser?.username}", style=MaterialTheme.typography.headlineSmall)
-        Text("Your shop at a glance", style=MaterialTheme.typography.bodyMedium)
+        Card(Modifier.fillMaxWidth(), colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.primaryContainer)) {
+         Column(Modifier.padding(18.dp)) {
+          Text("SURYA OPTICIAN", style=MaterialTheme.typography.labelLarge, color=MaterialTheme.colorScheme.onPrimaryContainer)
+          Spacer(Modifier.height(6.dp))
+          Text("Good day, ${loggedInUser?.username}", style=MaterialTheme.typography.headlineSmall, color=MaterialTheme.colorScheme.onPrimaryContainer)
+          Text("Your shop at a glance", style=MaterialTheme.typography.bodyMedium, color=MaterialTheme.colorScheme.onPrimaryContainer)
+          Spacer(Modifier.height(12.dp))
+          Button(onClick={section="New Bill"}, modifier=Modifier.fillMaxWidth()) { Text("+ Create a new bill") }
+         }
+        }
         Spacer(Modifier.height(12.dp))
         Row(horizontalArrangement=Arrangement.spacedBy(8.dp), modifier=Modifier.fillMaxWidth()) {
          Card(Modifier.weight(1f)) { Column(Modifier.padding(12.dp)) { Text("Invoices",style=MaterialTheme.typography.labelMedium); Text("${allInvoices.size}",style=MaterialTheme.typography.headlineSmall) } }
@@ -358,9 +366,11 @@ class MainActivity : ComponentActivity() {
         Spacer(Modifier.height(16.dp))
         Text("Quick actions", style=MaterialTheme.typography.titleMedium)
         Spacer(Modifier.height(6.dp))
-        Button(onClick={section="New Bill"}, modifier=Modifier.fillMaxWidth()) { Text("+ Create a new bill") }
-        OutlinedButton(onClick={section="Customers"}, modifier=Modifier.fillMaxWidth()) { Text("Manage customers") }
-        OutlinedButton(onClick={section="Products"}, modifier=Modifier.fillMaxWidth()) { Text("Manage inventory") }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+         OutlinedButton(onClick={section="Customers"}, modifier=Modifier.weight(1f)) { Text("Customers") }
+         OutlinedButton(onClick={section="Products"}, modifier=Modifier.weight(1f)) { Text("Inventory") }
+        }
+        OutlinedButton(onClick={section="Payment"}, modifier=Modifier.fillMaxWidth()) { Text("Collect a payment") }
         Spacer(Modifier.height(12.dp))
         Text("Recent bills", style=MaterialTheme.typography.titleMedium)
         allInvoices.take(5).forEach { invoice ->
@@ -446,8 +456,17 @@ class MainActivity : ComponentActivity() {
         } }
        }
        "New Bill" -> {
-        Text(if(editingInvoiceId==null) "Create a complete bill" else "Edit existing bill", style=MaterialTheme.typography.titleLarge)
-        Text("One invoice can include prescription lenses, frames, sunglasses, accessories and custom items. Prescription is optional.", style=MaterialTheme.typography.bodyMedium)
+        Text(if(editingInvoiceId==null) "Create a complete bill" else "Edit existing bill", style=MaterialTheme.typography.headlineSmall)
+        Text("Build an accurate invoice, attach a prescription if needed, and record the deposit.", style=MaterialTheme.typography.bodyMedium)
+        Spacer(Modifier.height(10.dp))
+        Card(Modifier.fillMaxWidth(), colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surfaceVariant)) {
+         Column(Modifier.padding(14.dp)) {
+          Text(if(billLines.isEmpty()) "BILL SUMMARY" else "${billLines.size} ${if(billLines.size==1) "item" else "items"} added", style=MaterialTheme.typography.labelLarge)
+          Spacer(Modifier.height(4.dp))
+          Text("₹${"%.2f".format(billLines.sumOf { it.total }/100.0)}", style=MaterialTheme.typography.headlineMedium, color=MaterialTheme.colorScheme.primary)
+          Text(if(billLines.isEmpty()) "Add a product or custom item to begin." else "Live total · taxes and item discounts included", style=MaterialTheme.typography.bodySmall)
+         }
+        }
         OutlinedTextField(billCustomerId, { billCustomerId=it; billPrescriptionId="" }, label={ Text("Existing customer ID (optional)") }, modifier=Modifier.fillMaxWidth())
         customers.forEach { customer -> TextButton(onClick={ billCustomerId=customer.id.toString(); billCustomer=customer.name; billPhone=customer.phone; billPrescriptionId="" }) { Text("Use #${customer.id} · ${customer.name} · ${customer.phone}") } }
         OutlinedTextField(billCustomer, { billCustomer=it }, label={ Text("Customer name *") }, modifier=Modifier.fillMaxWidth())
@@ -784,11 +803,24 @@ class MainActivity : ComponentActivity() {
         Button(onClick={ InvoiceCsv.share(this@MainActivity, invoices) }, modifier=Modifier.fillMaxWidth()) { Text("Export visible invoices as CSV") }
         Column {
          invoices.forEach { invoice ->
-          Card(Modifier.fillMaxWidth().padding(vertical=4.dp)) {
-           Column(Modifier.padding(12.dp)) {
-            Text("${invoice.number} · ${invoice.customerName}", style=MaterialTheme.typography.titleMedium)
-            Text("Total ₹${"%.2f".format(invoice.totalPaise/100.0)} · Paid ₹${"%.2f".format(invoice.paidPaise/100.0)} · Due ₹${"%.2f".format(invoice.duePaise/100.0)}")
-            val paymentStatus = if (invoice.duePaise <= 0) "PAID / SUCCESS" else if (invoice.paidPaise > 0) "PARTIALLY PAID · PENDING DUE" else "PENDING · UNPAID"
+          Card(Modifier.fillMaxWidth().padding(vertical=5.dp), colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface)) {
+           Column(Modifier.padding(14.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.SpaceBetween, verticalAlignment=androidx.compose.ui.Alignment.CenterVertically) {
+             Column(Modifier.weight(1f)) {
+              Text(invoice.number, style=MaterialTheme.typography.labelMedium, color=MaterialTheme.colorScheme.secondary)
+              Text(invoice.customerName, style=MaterialTheme.typography.titleMedium)
+             }
+             Surface(shape=androidx.compose.foundation.shape.RoundedCornerShape(50), color=if(invoice.duePaise<=0) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.errorContainer) {
+              Text(if(invoice.duePaise<=0) "PAID" else if(invoice.paidPaise>0) "PART PAID" else "UNPAID", modifier=Modifier.padding(horizontal=10.dp, vertical=6.dp), style=MaterialTheme.typography.labelSmall, color=if(invoice.duePaise<=0) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.error)
+             }
+            }
+            Spacer(Modifier.height(10.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+             Card(Modifier.weight(1f), colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surfaceVariant)) { Column(Modifier.padding(10.dp)) { Text("TOTAL", style=MaterialTheme.typography.labelSmall); Text("₹${"%.2f".format(invoice.totalPaise/100.0)}", style=MaterialTheme.typography.titleSmall) } }
+             Card(Modifier.weight(1f), colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surfaceVariant)) { Column(Modifier.padding(10.dp)) { Text("PAID", style=MaterialTheme.typography.labelSmall); Text("₹${"%.2f".format(invoice.paidPaise/100.0)}", style=MaterialTheme.typography.titleSmall) } }
+             Card(Modifier.weight(1f), colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surfaceVariant)) { Column(Modifier.padding(10.dp)) { Text("DUE", style=MaterialTheme.typography.labelSmall); Text("₹${"%.2f".format(invoice.duePaise/100.0)}", style=MaterialTheme.typography.titleSmall, color=if(invoice.duePaise>0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary) } }
+            }
+            val paymentStatus = if (invoice.duePaise <= 0) "PAID / RECORDED" else if (invoice.paidPaise > 0) "PARTIALLY PAID · BALANCE DUE" else "UNPAID · PAYMENT DUE"
             Text("Payment status: $paymentStatus", color=if(invoice.duePaise<=0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error, style=MaterialTheme.typography.labelMedium)
             if(invoice.duePaise>0) TextButton(onClick={ paymentInvoiceId=invoice.id.toString(); paymentAmount=""; section="Payment" }) { Text("Collect due payment") }
             Row(horizontalArrangement=Arrangement.spacedBy(6.dp)) {
