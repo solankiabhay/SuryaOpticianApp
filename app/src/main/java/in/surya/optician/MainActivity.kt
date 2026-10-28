@@ -205,26 +205,28 @@ class MainActivity : ComponentActivity() {
                         customers = customers,
                         products = products,
                         onDismiss = { dialog = "" },
-                        onSave = { customerId, customerName, phone, productId, description, qty, rate, discount, tax, paid ->
+                        onSave = { customerId, customerName, phone, drafts, paid ->
                             lifecycleScope.launch {
                                 runCatching {
                                     require(customerName.isNotBlank()) { "Customer name is required" }
-                                    require(description.isNotBlank()) { "Item description is required" }
-                                    require(qty > 0) { "Quantity must be greater than zero" }
-                                    val ratePaise = toPaise(rate)
-                                    val discountPaise = toPaise(discount)
-                                    val taxPaise = toPaise(tax)
+                                    require(drafts.isNotEmpty()) { "Add at least one item" }
+                                    val lines = drafts.map { draft ->
+                                        BillLine(
+                                            productId = draft.productId,
+                                            description = draft.description.trim(),
+                                            qty = draft.qty.toIntOrNull() ?: error("Enter a valid quantity"),
+                                            ratePaise = toPaise(draft.rate),
+                                            discountPaise = toPaise(draft.discount),
+                                            taxPaise = toPaise(draft.tax)
+                                        )
+                                    }
                                     val paidPaise = toPaise(paid)
-                                    require(ratePaise >= 0 && discountPaise >= 0 && taxPaise >= 0 && paidPaise >= 0) { "Amounts cannot be negative" }
+                                    require(paidPaise >= 0) { "Payment cannot be negative" }
                                     billing.createBill(NewBill(
                                         customerId = customerId,
                                         customerName = customerName.trim(),
                                         phone = phone.trim(),
-                                        lines = listOf(BillLine(
-                                            productId = productId, description = description.trim(),
-                                            qty = qty, ratePaise = ratePaise,
-                                            discountPaise = discountPaise, taxPaise = taxPaise
-                                        )),
+                                        lines = lines,
                                         paidPaise = paidPaise
                                     ))
                                     dialog = ""
@@ -376,31 +378,39 @@ private fun ProductDialog(onDismiss: () -> Unit, onSave: (String, String, String
     )
 }
 
+
+private data class BillDraftLine(
+    val productId: Long? = null,
+    val description: String = "",
+    val qty: String = "1",
+    val rate: String = "",
+    val discount: String = "0",
+    val tax: String = "0"
+)
+
 @Composable
 private fun BillDialog(
     customers: List<Customer>,
     products: List<Product>,
     onDismiss: () -> Unit,
-    onSave: (Long?, String, String, Long?, String, Int, String, String, String, String) -> Unit
+    onSave: (Long?, String, String, List<BillDraftLine>, String) -> Unit
 ) {
     var customer by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
     var selectedCustomerId by remember { mutableStateOf<Long?>(null) }
     var customerMenu by remember { mutableStateOf(false) }
-    var selectedProductId by remember { mutableStateOf<Long?>(null) }
-    var productMenu by remember { mutableStateOf(false) }
-    var description by remember { mutableStateOf("") }
-    var qty by remember { mutableStateOf("1") }
-    var rate by remember { mutableStateOf("") }
-    var discount by remember { mutableStateOf("0") }
-    var tax by remember { mutableStateOf("0") }
+    val lines = remember { androidx.compose.runtime.mutableStateListOf(BillDraftLine()) }
+    var expandedProductIndex by remember { mutableStateOf<Int?>(null) }
     var paid by remember { mutableStateOf("0") }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Create invoice") },
         text = {
-            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("Select saved records or enter a walk-in customer and free-text item.")
+            Column(
+                Modifier.fillMaxWidth().heightIn(max = 560.dp).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 Box {
                     OutlinedTextField(
                         value = customers.firstOrNull { it.id == selectedCustomerId }?.name ?: "",
@@ -419,45 +429,106 @@ private fun BillDialog(
                         }
                     }
                 }
-                OutlinedTextField(customer, { customer = it; selectedCustomerId = null }, label = { Text("Customer name *") }, singleLine = true)
-                OutlinedTextField(phone, { phone = it }, label = { Text("Phone") }, singleLine = true)
-                Box {
-                    OutlinedTextField(
-                        value = products.firstOrNull { it.id == selectedProductId }?.name ?: "Free-text item",
-                        onValueChange = {}, readOnly = true, label = { Text("Select stock product (optional)") },
-                        modifier = Modifier.fillMaxWidth(),
-                        trailingIcon = { TextButton(onClick = { productMenu = true }) { Text("Choose") } }
-                    )
-                    DropdownMenu(expanded = productMenu, onDismissRequest = { productMenu = false }) {
-                        DropdownMenuItem(text = { Text("Free-text item (no stock tracking)") }, onClick = {
-                            selectedProductId = null
-                            description = ""
-                            rate = ""
-                            productMenu = false
-                        })
-                        products.forEach { product ->
-                            DropdownMenuItem(text = { Text("\${product.name} · stock \${product.stock}") }, onClick = {
-                                selectedProductId = product.id
-                                description = product.name
-                                rate = String.format(Locale.US, "%.2f", product.pricePaise / 100.0)
-                                productMenu = false
-                            })
+                OutlinedTextField(
+                    customer, { customer = it; selectedCustomerId = null },
+                    label = { Text("Customer name *") }, modifier = Modifier.fillMaxWidth(), singleLine = true
+                )
+                OutlinedTextField(phone, { phone = it }, label = { Text("Phone") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+
+                lines.forEachIndexed { index, line ->
+                    Card(Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("Item ${index + 1}", style = MaterialTheme.typography.titleSmall)
+                                if (lines.size > 1) {
+                                    TextButton(onClick = { lines.removeAt(index) }) { Text("Remove") }
+                                }
+                            }
+                            Box {
+                                OutlinedTextField(
+                                    value = products.firstOrNull { it.id == line.productId }?.name ?: "Free-text item",
+                                    onValueChange = {}, readOnly = true,
+                                    label = { Text("Choose stock product (optional)") },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    trailingIcon = {
+                                        TextButton(onClick = { expandedProductIndex = index }) { Text("Choose") }
+                                    }
+                                )
+                                DropdownMenu(
+                                    expanded = expandedProductIndex == index,
+                                    onDismissRequest = { expandedProductIndex = null }
+                                ) {
+                                    DropdownMenuItem(text = { Text("Free-text item (no stock tracking)") }, onClick = {
+                                        lines[index] = line.copy(productId = null, description = "")
+                                        expandedProductIndex = null
+                                    })
+                                    products.forEach { product ->
+                                        DropdownMenuItem(
+                                            text = { Text("${product.name} · stock ${product.stock}") },
+                                            onClick = {
+                                                lines[index] = line.copy(
+                                                    productId = product.id,
+                                                    description = product.name,
+                                                    rate = String.format(Locale.US, "%.2f", product.pricePaise / 100.0)
+                                                )
+                                                expandedProductIndex = null
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                            OutlinedTextField(
+                                line.description,
+                                { lines[index] = line.copy(productId = null, description = it) },
+                                label = { Text("Item / frame / lens *") },
+                                modifier = Modifier.fillMaxWidth(), singleLine = true
+                            )
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                OutlinedTextField(
+                                    line.qty, { lines[index] = line.copy(qty = it) },
+                                    label = { Text("Qty") }, modifier = Modifier.weight(0.7f), singleLine = true
+                                )
+                                OutlinedTextField(
+                                    line.rate, { lines[index] = line.copy(rate = it) },
+                                    label = { Text("Rate ₹") }, modifier = Modifier.weight(1.3f), singleLine = true
+                                )
+                            }
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                OutlinedTextField(
+                                    line.discount, { lines[index] = line.copy(discount = it) },
+                                    label = { Text("Discount ₹") }, modifier = Modifier.weight(1f), singleLine = true
+                                )
+                                OutlinedTextField(
+                                    line.tax, { lines[index] = line.copy(tax = it) },
+                                    label = { Text("Tax ₹") }, modifier = Modifier.weight(1f), singleLine = true
+                                )
+                            }
                         }
                     }
                 }
-                OutlinedTextField(description, { description = it }, label = { Text("Item / frame / lens *") }, singleLine = true)
-                OutlinedTextField(qty, { qty = it }, label = { Text("Quantity") }, singleLine = true)
-                OutlinedTextField(rate, { rate = it }, label = { Text("Unit rate (₹)") }, singleLine = true)
-                OutlinedTextField(discount, { discount = it }, label = { Text("Line discount (₹)") }, singleLine = true)
-                OutlinedTextField(tax, { tax = it }, label = { Text("Tax amount (₹)") }, singleLine = true)
-                OutlinedTextField(paid, { paid = it }, label = { Text("Amount received (₹)") }, singleLine = true)
+                OutlinedButton(
+                    onClick = { lines.add(BillDraftLine()) },
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text("Add another item") }
+                OutlinedTextField(
+                    paid, { paid = it }, label = { Text("Amount received (₹)") },
+                    modifier = Modifier.fillMaxWidth(), singleLine = true
+                )
+                Text("Stock is deducted only for lines linked to saved products.")
             }
         },
         confirmButton = {
             TextButton(onClick = {
-                if (qty.toIntOrNull() == null || listOf(rate, discount, tax, paid).any { it.toBigDecimalOrNull() == null }) return@TextButton
-                onSave(selectedCustomerId, customer, phone, selectedProductId, description, qty.toInt(), rate, discount, tax, paid)
-            }) { Text("Create") }
+                if (customer.isBlank() || lines.any {
+                    it.description.isBlank() || it.qty.toIntOrNull() == null ||
+                        it.qty.toIntOrNull()!! <= 0 || it.rate.toBigDecimalOrNull() == null ||
+                        it.discount.toBigDecimalOrNull() == null || it.tax.toBigDecimalOrNull() == null
+                } || paid.toBigDecimalOrNull() == null) return@TextButton
+                onSave(selectedCustomerId, customer, phone, lines.toList(), paid)
+            }) { Text("Create invoice") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
     )
