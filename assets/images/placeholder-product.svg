@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="360" viewBox="0 0 480 360" role="img" aria-labelledby="title">
+<title id="title">Eyewear product placeholder</title>
+<rect width="480" height="360" rx="24" fill="#F0F6FC"/>
+<circle cx="240" cy="150" r="86" fill="#DCEAF7"/>
+<g fill="none" stroke="#17466F" stroke-width="12" stroke-linecap="round" stroke-linejoin="round">
+<path d="M100 132h90l13 58c3 15-8 27-23 27h-35c-15 0-26-12-23-27z"/>
+<path d="M290 132h90l13 58c3 15-8 27-23 27h-35c-15 0-26-12-23-27z"/>
+<path d="M203 145c19-16 55-16 74 0"/>
+<path d="M100 140 78 128M393 140l22-12"/>
+</g>
+<text x="240" y="294" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700" fill="#17466F">PRODUCT IMAGE</text>
+<text x="240" y="321" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#60778C">Replace with your own photo</text>
+</svg>
