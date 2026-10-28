@@ -241,6 +241,8 @@ class MainActivity : ComponentActivity() {
     var billDiscount by remember { mutableStateOf("0") }
     var billTax by remember { mutableStateOf("0") }
     var billPaid by remember { mutableStateOf("0") }
+    var billPrescriptionId by remember { mutableStateOf("") }
+    var showBillPreview by remember { mutableStateOf(false) }
     var paymentInvoiceId by remember { mutableStateOf("") }
     var paymentAmount by remember { mutableStateOf("") }
     var paymentMethod by remember { mutableStateOf("Cash") }
@@ -262,6 +264,9 @@ class MainActivity : ComponentActivity() {
      prescriptionCustomerId.toLongOrNull()?.let { db.dao().prescriptions(it) } ?: flowOf<List<Prescription>>(emptyList())
     }
     val savedPrescriptions by prescriptionsFlow.collectAsState(initial = emptyList())
+    val billPrescriptionsFlow = remember(billCustomerId) { billCustomerId.toLongOrNull()?.let { db.dao().prescriptions(it) } ?: flowOf<List<Prescription>>(emptyList()) }
+    val billPrescriptions by billPrescriptionsFlow.collectAsState(initial = emptyList())
+    val selectedBillPrescription = billPrescriptions.firstOrNull { it.id.toString() == billPrescriptionId }
     val paymentHistoryFlow = remember(paymentInvoiceId) { paymentInvoiceId.toLongOrNull()?.let { db.dao().payments(it) } ?: flowOf<List<Payment>>(emptyList()) }
     val paymentHistory by paymentHistoryFlow.collectAsState(initial = emptyList())
     val customers by db.dao().customers().collectAsState(initial = emptyList())
@@ -435,12 +440,26 @@ class MainActivity : ComponentActivity() {
         } }
        }
        "New Bill" -> {
-        Text("Create invoice", style=MaterialTheme.typography.titleLarge)
-        OutlinedTextField(billCustomerId, { billCustomerId=it }, label={ Text("Existing customer ID (optional)") }, modifier=Modifier.fillMaxWidth())
-        customers.forEach { customer -> TextButton(onClick={ billCustomerId=customer.id.toString(); billCustomer=customer.name; billPhone=customer.phone }) { Text("Use #${customer.id} · ${customer.name} · ${customer.phone}") } }
+        Text("Create a complete bill", style=MaterialTheme.typography.titleLarge)
+        Text("One invoice can include prescription lenses, frames, sunglasses, accessories and custom items. Prescription is optional.", style=MaterialTheme.typography.bodyMedium)
+        OutlinedTextField(billCustomerId, { billCustomerId=it; billPrescriptionId="" }, label={ Text("Existing customer ID (optional)") }, modifier=Modifier.fillMaxWidth())
+        customers.forEach { customer -> TextButton(onClick={ billCustomerId=customer.id.toString(); billCustomer=customer.name; billPhone=customer.phone; billPrescriptionId="" }) { Text("Use #${customer.id} · ${customer.name} · ${customer.phone}") } }
         OutlinedTextField(billCustomer, { billCustomer=it }, label={ Text("Customer name *") }, modifier=Modifier.fillMaxWidth())
         OutlinedTextField(billPhone, { billPhone=it }, label={ Text("Customer phone") }, modifier=Modifier.fillMaxWidth())
-        Text("Tap a product below to fill item details, then adjust quantity/discount/tax.", style=MaterialTheme.typography.bodySmall)
+        if (billCustomerId.toLongOrNull() != null) {
+         Text("Attach eye prescription (optional)", style=MaterialTheme.typography.titleMedium)
+         if (billPrescriptions.isEmpty()) Text("No saved prescription for this customer. You can still bill sunglasses or other products.", style=MaterialTheme.typography.bodySmall)
+         billPrescriptions.forEach { rx -> TextButton(onClick={ billPrescriptionId=rx.id.toString() }) { Text((if (billPrescriptionId == rx.id.toString()) "✓ " else "") + "Prescription · " + java.text.SimpleDateFormat("dd MMM yyyy", java.util.Locale.getDefault()).format(java.util.Date(rx.createdAt))) } }
+         selectedBillPrescription?.let { rx -> Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(12.dp)) {
+          Text("Prescription attached to this bill", style=MaterialTheme.typography.titleSmall)
+          Text("Right eye (OD): SPH ${rx.rightSphere.ifBlank{"—"}} · CYL ${rx.rightCylinder.ifBlank{"—"}} · Axis ${rx.rightAxis.ifBlank{"—"}} · ADD ${rx.rightAdd.ifBlank{"—"}}")
+          Text("Left eye (OS): SPH ${rx.leftSphere.ifBlank{"—"}} · CYL ${rx.leftCylinder.ifBlank{"—"}} · Axis ${rx.leftAxis.ifBlank{"—"}} · ADD ${rx.leftAdd.ifBlank{"—"}}")
+          Text("PD: ${rx.pd.ifBlank{"—"}}", style=MaterialTheme.typography.bodySmall)
+          if(rx.notes.isNotBlank()) Text("Notes: ${rx.notes}", style=MaterialTheme.typography.bodySmall)
+          TextButton(onClick={billPrescriptionId=""}) { Text("Remove prescription") }
+         } } }
+        }
+        Text("Tap a product below to fill item details, then adjust quantity/discount/tax. Sunglasses and non-prescription products work the same way.", style=MaterialTheme.typography.bodySmall)
         products.forEach { product -> TextButton(onClick={ billProductId=product.id.toString(); billDescription=product.name; billRate="%.2f".format(product.pricePaise/100.0) }) { Text("#${product.id} · ${product.name} · ₹${"%.2f".format(product.pricePaise/100.0)} · stock ${product.stock}") } }
         OutlinedTextField(billProductId, { billProductId=it }, label={ Text("Product ID (blank for custom item)") }, modifier=Modifier.fillMaxWidth())
         OutlinedTextField(billDescription, { billDescription=it }, label={ Text("Item description *") }, modifier=Modifier.fillMaxWidth())
@@ -457,9 +476,24 @@ class MainActivity : ComponentActivity() {
         }, modifier=Modifier.fillMaxWidth()) { Text("Add item to bill") }
         Text("Items in cart: ${billLines.size} · Cart total ₹${"%.2f".format(billLines.sumOf { it.total }/100.0)}", style=MaterialTheme.typography.titleSmall)
         billLines.forEachIndexed { index, line ->
-         Text("${index+1}. ${line.description} × ${line.qty} · ₹${"%.2f".format(line.total/100.0)}")
+         Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.SpaceBetween) {
+          Text("${index+1}. ${line.description} × ${line.qty} · ₹${"%.2f".format(line.total/100.0)}", modifier=Modifier.weight(1f))
+          TextButton(onClick={ billLines=billLines.filterIndexed { i, _ -> i != index } }) { Text("Remove") }
+         }
         }
+        val draftSubtotal = billLines.sumOf { it.subtotalPaise }
+        val draftDiscount = billLines.sumOf { it.discountPaise }
+        val draftTax = billLines.sumOf { it.taxPaise }
+        val draftTotal = billLines.sumOf { it.total }
+        Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(12.dp)) {
+         Text("Live bill preview", style=MaterialTheme.typography.titleMedium)
+         Text("Items subtotal: ₹${"%.2f".format(draftSubtotal/100.0)}")
+         Text("Discount: ₹${"%.2f".format(draftDiscount/100.0)} · Tax: ₹${"%.2f".format(draftTax/100.0)}")
+         Text("Grand total: ₹${"%.2f".format(draftTotal/100.0)}", style=MaterialTheme.typography.titleLarge)
+         Text("Balance after payment: ₹${"%.2f".format((draftTotal-(billPaid.toDoubleOrNull()?.times(100)?.toLong() ?: 0L)).coerceAtLeast(0)/100.0)}")
+        } }
         OutlinedTextField(billPaid, { billPaid=it }, label={ Text("Amount received in ₹") }, modifier=Modifier.fillMaxWidth())
+        OutlinedButton(onClick={ showBillPreview=true }, modifier=Modifier.fillMaxWidth(), enabled=billLines.isNotEmpty()) { Text("Preview bill before saving") }
         Button(onClick={ lifecycleScope.launch {
          val paid=billPaid.toDoubleOrNull()
          val cid=billCustomerId.toLongOrNull()
@@ -467,8 +501,8 @@ class MainActivity : ComponentActivity() {
          if((billCustomer.isBlank() && existingCustomer==null) || billLines.isEmpty() || paid==null || paid<0) toast("Enter/select a customer, add at least one item and check payment")
          else if(billCustomerId.isNotBlank() && existingCustomer==null) toast("Existing customer ID was not found")
          else runCatching {
-          BillingRepository(db).createBill(NewBill(customerId=existingCustomer?.id, customerName=existingCustomer?.name ?: billCustomer.trim(), phone=existingCustomer?.phone?.ifBlank { billPhone.trim() } ?: billPhone.trim(), lines=billLines, paidPaise=(paid*100).toLong()))
-         }.onSuccess { id -> toast("Invoice created: #$id"); section="Bills"; billCustomer=""; billCustomerId=""; billPhone=""; billLines=emptyList(); billProductId=""; billDescription=""; billQty="1"; billRate=""; billDiscount="0"; billTax="0"; billPaid="0" }
+          BillingRepository(db).createBill(NewBill(customerId=existingCustomer?.id, customerName=existingCustomer?.name ?: billCustomer.trim(), phone=existingCustomer?.phone?.ifBlank { billPhone.trim() } ?: billPhone.trim(), lines=billLines, paidPaise=(paid*100).toLong(), prescriptionSummary=selectedBillPrescription?.let { rx -> listOf("Right eye (OD): SPH ${rx.rightSphere.ifBlank{"—"}}, CYL ${rx.rightCylinder.ifBlank{"—"}}, Axis ${rx.rightAxis.ifBlank{"—"}}, ADD ${rx.rightAdd.ifBlank{"—"}}", "Left eye (OS): SPH ${rx.leftSphere.ifBlank{"—"}}, CYL ${rx.leftCylinder.ifBlank{"—"}}, Axis ${rx.leftAxis.ifBlank{"—"}}, ADD ${rx.leftAdd.ifBlank{"—"}}", "PD: ${rx.pd.ifBlank{"—"}}", rx.notes.takeIf { it.isNotBlank() }?.let { "Notes: $it" }).filterNotNull().joinToString("\n") } ?: ""))
+         }.onSuccess { id -> toast("Invoice created: #$id"); section="Bills"; billCustomer=""; billCustomerId=""; billPhone=""; billLines=emptyList(); billProductId=""; billDescription=""; billQty="1"; billRate=""; billDiscount="0"; billTax="0"; billPaid="0"; billPrescriptionId="" }
           .onFailure { toast(it.message ?: "Could not create invoice") }
         } }, modifier=Modifier.fillMaxWidth()) { Text("Create bill and deduct stock") }
        }
