@@ -55,7 +55,7 @@ object InvoicePdf {
             canvas = page.canvas
             y = 48f
             text(shop.name.ifBlank { "Surya Optician" }, left, y, paint(ink, 15f, true))
-            text("INVOICE  •  \${invoice.number}", left, y + 22f, paint(accent, 10f, true))
+            text("INVOICE  •  ${invoice.number}", left, y + 22f, paint(accent, 10f, true))
             rule(y + 34f)
             y += 56f
         }
@@ -67,7 +67,7 @@ object InvoicePdf {
             text(shop.name.ifBlank { "Surya Optician" }, left, 49f, paint(android.graphics.Color.WHITE, 23f, true))
             text("OPTICAL CARE • EYEWEAR • LENSES", left, 70f, paint(android.graphics.Color.rgb(195, 221, 222), 8.5f, true))
             var headerY = 94f
-            listOf(shop.address, if (shop.phone.isNotBlank()) "Phone: \${shop.phone}" else "", if (shop.gstin.isNotBlank()) "GSTIN: \${shop.gstin}" else "")
+            listOf(shop.address, if (shop.phone.isNotBlank()) "Phone: ${shop.phone}" else "", if (shop.gstin.isNotBlank()) "GSTIN: ${shop.gstin}" else "")
                 .filter { it.isNotBlank() }.forEach { text(it, left, headerY, paint(android.graphics.Color.WHITE, 9f)); headerY += 14f }
             text("TAX INVOICE", 390f, 45f, paint(android.graphics.Color.WHITE, 17f, true))
             text(invoice.number, 390f, 66f, paint(android.graphics.Color.rgb(195, 221, 222), 10f, true))
@@ -77,7 +77,7 @@ object InvoicePdf {
             y = 181f
             text("BILL TO", left, y, paint(accent, 9f, true))
             text(invoice.customerName.ifBlank { "Walk-in customer" }, left, y + 23f, paint(ink, 15f, true))
-            if (invoice.phone.isNotBlank()) text("Phone: \${invoice.phone}", left, y + 41f, secondary)
+            if (invoice.phone.isNotBlank()) text("Phone: ${invoice.phone}", left, y + 41f, secondary)
             text("Invoice status", 400f, y, secondary)
             val status = if (invoice.duePaise <= 0) "PAID" else if (invoice.paidPaise > 0) "PARTIALLY PAID" else "PAYMENT DUE"
             val statusPaint = paint(if (invoice.duePaise <= 0) accent else android.graphics.Color.rgb(166, 91, 22), 9f, true)
@@ -96,7 +96,7 @@ object InvoicePdf {
                 val rowHeight = 34f
                 if (index % 2 == 0) canvas.drawRect(left, y, right, y + rowHeight, Paint().apply { color = android.graphics.Color.rgb(247, 249, 250) })
                 text(item.description.ifBlank { "Optical product" }, left + 10f, y + 14f, paint(ink, 9.5f, true))
-                text("Item \${index + 1}", left + 10f, y + 27f, paint(muted, 7.5f))
+                text("Item ${index + 1}", left + 10f, y + 27f, paint(muted, 7.5f))
                 text(item.qty.toString(), 350f, y + 20f, regular)
                 text(money(item.ratePaise), 390f, y + 20f, regular)
                 text(money(item.totalPaise), 474f, y + 20f, bold)
@@ -113,7 +113,7 @@ object InvoicePdf {
             }
             rule(y - 4f)
             summary("Subtotal", money(invoice.subtotalPaise))
-            summary("Discount", "- \${money(invoice.discountPaise)}")
+            summary("Discount", "- ${money(invoice.discountPaise)}")
             summary("Tax", money(invoice.taxPaise))
             canvas.drawRoundRect(330f, y - 6f, right, y + 30f, 5f, 5f, Paint().apply { color = pale })
             summary("GRAND TOTAL", money(invoice.totalPaise), true, 36f)
@@ -123,7 +123,7 @@ object InvoicePdf {
             ensureSpace(70f)
             rule(y)
             y += 24f
-            text("Thank you for choosing \${shop.name.ifBlank { "Surya Optician" }}!", left, y, paint(accent, 11f, true))
+            text("Thank you for choosing ${shop.name.ifBlank { "Surya Optician" }}!", left, y, paint(accent, 11f, true))
             y += 17f
             text(shop.footer.ifBlank { "We appreciate your trust. Visit us again." }, left, y, secondary)
             y += 24f
