@@ -1,4 +1,4 @@
-package in.surya.optician.data
+package `in`.surya.optician.data
 
 import androidx.room.ColumnInfo
 import androidx.room.Entity
