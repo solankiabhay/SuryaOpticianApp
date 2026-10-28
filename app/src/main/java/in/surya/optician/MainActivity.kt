@@ -224,6 +224,7 @@ class MainActivity : ComponentActivity() {
     var newPin by remember { mutableStateOf("") }
     var confirmPin by remember { mutableStateOf("") }
     var section by remember { mutableStateOf("Dashboard") }
+    var showMoreMenu by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
     var customerSearch by remember { mutableStateOf("") }
     var productSearch by remember { mutableStateOf("") }
@@ -334,20 +335,61 @@ class MainActivity : ComponentActivity() {
       }
      }
     } else {
-    Scaffold(containerColor = MaterialTheme.colorScheme.background, topBar = {
-     TopAppBar(
-      title = { Column { Text("Surya Optician"); Text("Billing & shop management", style=MaterialTheme.typography.labelSmall) } },
-      actions = { TextButton(onClick={ loggedInUser=null;authName="";authPassword="";section="Dashboard" }) { Text("Sign out") } }
-     )
-    }) { padding ->
-     Column(Modifier.fillMaxSize().padding(padding).padding(12.dp)) {
-      Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
-       (listOf("Dashboard", "Bills", "New Bill", "Customers", "Products", "Payment", "Prescription", "Reports", "Settings") + if(isOwner()) listOf("Users") else emptyList()).filter { canAccess(it) }.forEach { tab ->
-        if(section==tab) Button(onClick={section=tab}, contentPadding=PaddingValues(horizontal=12.dp,vertical=8.dp)) { Text(tab) }
-        else TextButton(onClick = { section = tab }) { Text(tab) }
+    Scaffold(
+     containerColor = MaterialTheme.colorScheme.background,
+     topBar = {
+      TopAppBar(
+       title = {
+        Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+         Surface(shape=androidx.compose.foundation.shape.RoundedCornerShape(14.dp), color=MaterialTheme.colorScheme.primary, modifier=Modifier.size(42.dp)) {
+          Box(contentAlignment=androidx.compose.ui.Alignment.Center) { Text("👓", style=MaterialTheme.typography.titleLarge) }
+         }
+         Column {
+          Text("Surya Optician", style=MaterialTheme.typography.titleLarge)
+          Text("SHOP MANAGEMENT", style=MaterialTheme.typography.labelSmall, color=MaterialTheme.colorScheme.primary)
+         }
+        }
+       },
+       actions = { TextButton(onClick={ loggedInUser=null;authName="";authPassword="";section="Dashboard" }) { Text("Sign out") } }
+      )
+     },
+     bottomBar = {
+      NavigationBar(containerColor=MaterialTheme.colorScheme.surface, tonalElevation=8.dp) {
+       val primaryTabs = listOf("Dashboard", "Bills", "New Bill", "Customers")
+       val labels = listOf("Home", "Bills", "New bill", "Customers")
+       val glyphs = listOf("⌂", "▤", "+", "♙")
+       primaryTabs.forEachIndexed { index, tab ->
+        if (canAccess(tab)) NavigationBarItem(
+         selected=section==tab,
+         onClick={ section=tab; showMoreMenu=false },
+         icon={ Text(glyphs[index], style=MaterialTheme.typography.titleLarge) },
+         label={ Text(labels[index], style=MaterialTheme.typography.labelSmall) },
+         alwaysShowLabel=true
+        )
+       }
+       Box {
+        NavigationBarItem(
+         selected=section !in primaryTabs,
+         onClick={ showMoreMenu=true },
+         icon={ Text("☰", style=MaterialTheme.typography.titleLarge) },
+         label={ Text("More", style=MaterialTheme.typography.labelSmall) },
+         alwaysShowLabel=true
+        )
+        DropdownMenu(expanded=showMoreMenu, onDismissRequest={showMoreMenu=false}) {
+         (listOf("Products", "Payment", "Prescription", "Reports", "Settings") + if(isOwner()) listOf("Users") else emptyList())
+          .filter { canAccess(it) }.forEach { tab ->
+           DropdownMenuItem(
+            text={Text(tab)},
+            leadingIcon={Text(when(tab) { "Products" -> "▦"; "Payment" -> "₹"; "Prescription" -> "◎"; "Reports" -> "▥"; "Settings" -> "⚙"; else -> "♙" })},
+            onClick={section=tab;showMoreMenu=false}
+           )
+          }
+        }
        }
       }
-      Spacer(Modifier.height(8.dp))
+     }
+    ) { padding ->
+     Column(Modifier.fillMaxSize().padding(padding).padding(horizontal=16.dp, vertical=12.dp))
       Row(horizontalArrangement=Arrangement.spacedBy(8.dp), modifier=Modifier.fillMaxWidth()) {
        Card(Modifier.weight(1f), colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.primaryContainer)) { Column(Modifier.padding(12.dp)) {
         Text("Outstanding", style=MaterialTheme.typography.labelMedium)
@@ -362,14 +404,32 @@ class MainActivity : ComponentActivity() {
       Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())) {
       when (section) {
        "Dashboard" -> {
-        Card(Modifier.fillMaxWidth(), colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.primaryContainer)) {
-         Column(Modifier.padding(18.dp)) {
-          Text("SURYA OPTICIAN", style=MaterialTheme.typography.labelLarge, color=MaterialTheme.colorScheme.onPrimaryContainer)
-          Spacer(Modifier.height(6.dp))
-          Text("Good day, ${loggedInUser?.username}", style=MaterialTheme.typography.headlineSmall, color=MaterialTheme.colorScheme.onPrimaryContainer)
-          Text("Your shop at a glance", style=MaterialTheme.typography.bodyMedium, color=MaterialTheme.colorScheme.onPrimaryContainer)
-          Spacer(Modifier.height(12.dp))
-          Button(onClick={section="New Bill"}, modifier=Modifier.fillMaxWidth()) { Text("+ Create a new bill") }
+        Card(
+         Modifier.fillMaxWidth(),
+         shape=androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
+         colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.primary)
+        ) {
+         Column(Modifier.padding(22.dp)) {
+          Row(verticalAlignment=androidx.compose.ui.Alignment.CenterVertically, horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+           Surface(shape=androidx.compose.foundation.shape.RoundedCornerShape(18.dp), color=androidx.compose.ui.graphics.Color(0x33FFFFFF), modifier=Modifier.size(58.dp)) {
+            Box(contentAlignment=androidx.compose.ui.Alignment.Center) { Text("👓", style=MaterialTheme.typography.headlineMedium) }
+           }
+           Column(Modifier.weight(1f)) {
+            Text("SURYA OPTICIAN", style=MaterialTheme.typography.labelLarge, color=androidx.compose.ui.graphics.Color.White)
+            Text("Your shop, in focus.", style=MaterialTheme.typography.titleMedium, color=androidx.compose.ui.graphics.Color.White)
+           }
+          }
+          Spacer(Modifier.height(18.dp))
+          Text("Namaste, ${loggedInUser?.username} 👋", style=MaterialTheme.typography.headlineSmall, color=androidx.compose.ui.graphics.Color.White)
+          Spacer(Modifier.height(4.dp))
+          Text("Everything you need to run your optical store.", style=MaterialTheme.typography.bodyMedium, color=androidx.compose.ui.graphics.Color(0xFFE2ECF8))
+          Spacer(Modifier.height(18.dp))
+          Button(
+           onClick={section="New Bill"},
+           modifier=Modifier.fillMaxWidth().height(54.dp),
+           shape=androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+           colors=ButtonDefaults.buttonColors(containerColor=androidx.compose.ui.graphics.Color.White, contentColor=MaterialTheme.colorScheme.primary)
+          ) { Text("＋   Create new bill", style=MaterialTheme.typography.titleMedium) }
          }
         }
         Spacer(Modifier.height(12.dp))
