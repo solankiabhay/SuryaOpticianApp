@@ -9,6 +9,7 @@ interface OpticianDao {
  @Query("SELECT * FROM customers ORDER BY name") fun customers(): Flow<List<Customer>>
  @Query("SELECT * FROM customers WHERE id=:id") suspend fun customer(id: Long): Customer?
  @Insert suspend fun addCustomer(c: Customer): Long
+ @Update suspend fun updateCustomer(c: Customer)
  @Query("SELECT * FROM products ORDER BY name") fun products(): Flow<List<Product>>
  @Query("SELECT * FROM products WHERE id=:id") suspend fun product(id: Long): Product?
  @Insert suspend fun addProduct(p: Product): Long
