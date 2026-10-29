@@ -321,7 +321,7 @@ class MainActivity : ComponentActivity() {
      if (destination != null && source != null) {
       runCatching {
        contentResolver.openOutputStream(destination)?.use { output -> source.inputStream().use { input -> input.copyTo(output) } } ?: error("Could not open the selected download location")
-      }.onSuccess { toast("Invoice PDF downloaded") }.onFailure { toast(it.message ?: "Invoice download failed") }
+      }.onSuccess { Toast.makeText(this@MainActivity, "Invoice PDF downloaded", Toast.LENGTH_LONG).show() }.onFailure { Toast.makeText(this@MainActivity, it.message ?: "Invoice download failed", Toast.LENGTH_LONG).show() }
      }
     }
 
