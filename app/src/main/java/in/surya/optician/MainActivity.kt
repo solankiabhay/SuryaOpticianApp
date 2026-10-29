@@ -566,7 +566,6 @@ class MainActivity : ComponentActivity() {
     ) { padding ->
      Column(Modifier.fillMaxSize().padding(padding).padding(horizontal=16.dp, vertical=12.dp))
      {
-      Row(horizontalArrangement=Arrangement.spacedBy(8.dp), modifier=Modifier.fillMaxWidth()) {
       Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())) {
       when (section) {
        "Dashboard" -> {
