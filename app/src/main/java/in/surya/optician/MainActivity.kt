@@ -213,7 +213,7 @@ class MainActivity : ComponentActivity() {
        contentResolver.openInputStream(uri)?.use { input -> FileOutputStream(temp).use { output -> input.copyTo(output) } } ?: error("Cannot read selected backup")
        SQLiteDatabase.openDatabase(temp.absolutePath, null, SQLiteDatabase.OPEN_READONLY).use { sqlite ->
         sqlite.rawQuery("PRAGMA integrity_check", null).use { cursor -> check(cursor.moveToFirst() && cursor.getString(0) == "ok") { "Backup database integrity check failed" } }
-        check(sqlite.version in 1..6) { "Unsupported database backup version" }
+        check(sqlite.version in 1..7) { "Unsupported database backup version" }
         sqlite.rawQuery("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN ('customers','products','invoices','invoice_items','payments','prescriptions','shop_settings')", null).use { cursor ->
          check(cursor.moveToFirst() && cursor.getInt(0) == 7) { "Selected file is not a complete Surya Optician database backup" }
         }
