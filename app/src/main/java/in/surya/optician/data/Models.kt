@@ -11,7 +11,8 @@ data class Customer(
     val name: String,
     val phone: String = "",
     val address: String = "",
-    val age: Int? = null
+    val age: Int? = null,
+    @ColumnInfo(defaultValue = "''") val email: String = ""
 )
 
 @Entity(tableName = "products")
