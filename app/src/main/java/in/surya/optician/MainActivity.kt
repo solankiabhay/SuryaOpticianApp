@@ -253,6 +253,7 @@ class MainActivity : ComponentActivity() {
     var section by remember { mutableStateOf("Dashboard") }
     var showMoreMenu by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
+     var reportQuery by remember { mutableStateOf("") }
     var billHistoryPage by remember { mutableIntStateOf(0) }
     var billStatusFilter by remember { mutableStateOf("All") }
     var selectedBillId by remember { mutableStateOf<Long?>(null) }
