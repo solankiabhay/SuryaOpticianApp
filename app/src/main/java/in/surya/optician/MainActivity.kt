@@ -32,7 +32,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.dp\nimport androidx.compose.ui.unit.sp\nimport androidx.compose.ui.draw.background\nimport androidx.compose.foundation.Canvas
 import androidx.core.content.FileProvider
 import androidx.lifecycle.lifecycleScope
 import `in`.surya.optician.data.*
@@ -45,6 +45,25 @@ import kotlinx.coroutines.flow.first
 import java.net.URLEncoder
 import java.text.ParsePosition
 import java.util.Calendar
+
+
+@Composable
+private fun OpticianLogo(
+ modifier: Modifier = Modifier,
+ color: androidx.compose.ui.graphics.Color = androidx.compose.ui.graphics.Color(0xFF174C70)
+) {
+ Canvas(modifier=modifier) {
+  val stroke=androidx.compose.ui.graphics.drawscope.Stroke(width=size.minDimension*0.075f)
+  val lensRadius=size.minDimension*0.22f
+  val left=androidx.compose.ui.geometry.Offset(size.width*0.30f,size.height*0.49f)
+  val right=androidx.compose.ui.geometry.Offset(size.width*0.70f,size.height*0.49f)
+  drawCircle(color=color,radius=lensRadius,center=left,style=stroke)
+  drawCircle(color=color,radius=lensRadius,center=right,style=stroke)
+  drawLine(color=color,start=androidx.compose.ui.geometry.Offset(size.width*0.43f,size.height*0.46f),end=androidx.compose.ui.geometry.Offset(size.width*0.57f,size.height*0.46f),strokeWidth=size.minDimension*0.075f)
+  drawLine(color=color,start=androidx.compose.ui.geometry.Offset(size.width*0.08f,size.height*0.40f),end=androidx.compose.ui.geometry.Offset(size.width*0.19f,size.height*0.43f),strokeWidth=size.minDimension*0.06f)
+  drawLine(color=color,start=androidx.compose.ui.geometry.Offset(size.width*0.81f,size.height*0.43f),end=androidx.compose.ui.geometry.Offset(size.width*0.92f,size.height*0.40f),strokeWidth=size.minDimension*0.06f)
+ }
+}
 
 private fun parseReportDate(value: String): Long? {
  if (!value.matches(Regex("\\d{4}-\\d{2}-\\d{2}"))) return null
@@ -313,39 +332,122 @@ class MainActivity : ComponentActivity() {
     fun denyPermission(action: String) { toast("Permission denied: your role cannot $action.") }
     if (loggedInUser == null) {
      val needsOwnerSetup = accountStore.loadUsers().isEmpty()
-     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
-      Column(Modifier.fillMaxSize().padding(24.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.Center) {
-       Surface(shape=androidx.compose.foundation.shape.RoundedCornerShape(22.dp), color=MaterialTheme.colorScheme.primary, modifier=Modifier.size(76.dp)) {
-        Box(contentAlignment=androidx.compose.ui.Alignment.Center) { Text("👓", style=MaterialTheme.typography.displaySmall) }
+     Box(
+      modifier=Modifier.fillMaxSize().background(
+       androidx.compose.ui.graphics.Brush.verticalGradient(
+        colors=listOf(androidx.compose.ui.graphics.Color(0xFF102C46),androidx.compose.ui.graphics.Color(0xFF174C70),androidx.compose.ui.graphics.Color(0xFFF2F6FA)),
+        startY=0f,
+        endY=1200f
+       )
+      )
+     ) {
+      Column(
+       modifier=Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal=22.dp, vertical=28.dp),
+       horizontalAlignment=Alignment.CenterHorizontally,
+       verticalArrangement=Arrangement.Center
+      ) {
+       Spacer(Modifier.height(14.dp))
+       Surface(
+        modifier=Modifier.size(88.dp),
+        shape=androidx.compose.foundation.shape.RoundedCornerShape(26.dp),
+        color=androidx.compose.ui.graphics.Color(0xFFF8FBFF),
+        shadowElevation=10.dp
+       ) {
+        Box(contentAlignment=Alignment.Center) {
+         OpticianLogo(
+          modifier=Modifier.size(60.dp),
+          color=androidx.compose.ui.graphics.Color(0xFF174C70)
+         )
+        }
+       }
+       Spacer(Modifier.height(16.dp))
+       Text("SURYA", style=MaterialTheme.typography.headlineMedium, color=androidx.compose.ui.graphics.Color.White, fontWeight=androidx.compose.ui.text.font.FontWeight.Bold, letterSpacing=3.sp)
+       Text("OPTICIAN  •  SHOP MANAGEMENT", style=MaterialTheme.typography.labelMedium, color=androidx.compose.ui.graphics.Color(0xFFD3E5F5), letterSpacing=1.2.sp)
+       Spacer(Modifier.height(28.dp))
+       Card(
+        modifier=Modifier.fillMaxWidth().widthIn(max=440.dp),
+        shape=androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
+        colors=CardDefaults.cardColors(containerColor=androidx.compose.ui.graphics.Color.White),
+        elevation=CardDefaults.cardElevation(defaultElevation=12.dp)
+       ) {
+        Column(
+         modifier=Modifier.fillMaxWidth().padding(24.dp),
+         verticalArrangement=Arrangement.spacedBy(12.dp)
+        ) {
+         Text(if(needsOwnerSetup) "Set up your shop" else "Welcome back", style=MaterialTheme.typography.headlineSmall, color=androidx.compose.ui.graphics.Color(0xFF152D43), fontWeight=androidx.compose.ui.text.font.FontWeight.Bold)
+         Text(
+          if(needsOwnerSetup) "Create your owner account to keep your shop records protected." else "Sign in to continue to your billing workspace.",
+          style=MaterialTheme.typography.bodyMedium,
+          color=androidx.compose.ui.graphics.Color(0xFF647587)
+         )
+         Spacer(Modifier.height(4.dp))
+         OutlinedTextField(
+          value=authName,
+          onValueChange={authName=it;authError=""},
+          label={Text(if(needsOwnerSetup) "Owner username" else "Username")},
+          leadingIcon={Text("👤")},
+          singleLine=true,
+          shape=androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
+          modifier=Modifier.fillMaxWidth()
+         )
+         OutlinedTextField(
+          value=authPassword,
+          onValueChange={authPassword=it;authError=""},
+          label={Text("Password")},
+          leadingIcon={Text("🔒")},
+          visualTransformation=androidx.compose.ui.text.input.PasswordVisualTransformation(),
+          singleLine=true,
+          shape=androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
+          modifier=Modifier.fillMaxWidth()
+         )
+         if(needsOwnerSetup) OutlinedTextField(
+          value=authConfirmPassword,
+          onValueChange={authConfirmPassword=it;authError=""},
+          label={Text("Confirm password")},
+          leadingIcon={Text("✓")},
+          visualTransformation=androidx.compose.ui.text.input.PasswordVisualTransformation(),
+          singleLine=true,
+          shape=androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
+          modifier=Modifier.fillMaxWidth()
+         )
+         if(authError.isNotBlank()) {
+          Surface(
+           color=androidx.compose.ui.graphics.Color(0xFFFFEEEE),
+           shape=androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+           modifier=Modifier.fillMaxWidth()
+          ) { Text(authError, modifier=Modifier.padding(12.dp), color=MaterialTheme.colorScheme.error, style=MaterialTheme.typography.bodySmall) }
+         }
+         Spacer(Modifier.height(2.dp))
+         Button(
+          onClick={
+           val username=authName.trim()
+           if(username.length<3) authError="Username must be at least 3 characters."
+           else if(authPassword.length<8) authError="Password must be at least 8 characters."
+           else if(needsOwnerSetup && authPassword!=authConfirmPassword) authError="Passwords do not match."
+           else if(needsOwnerSetup) runCatching { accountStore.create(username,authPassword,"Owner") }
+            .onSuccess { accountVersion++; loggedInUser=accountStore.authenticate(username,authPassword); authPassword="";authConfirmPassword="";section="Dashboard" }
+            .onFailure { authError=it.message ?: "Could not create owner account." }
+           else {
+            val user=accountStore.authenticate(username,authPassword)
+            if(user==null) authError="Incorrect username or password."
+            else { loggedInUser=user;authPassword="";authError="";section="Dashboard" }
+           }
+          },
+          modifier=Modifier.fillMaxWidth().height(54.dp),
+          shape=androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
+          colors=ButtonDefaults.buttonColors(containerColor=androidx.compose.ui.graphics.Color(0xFF174C70))
+         ) {
+          Text(if(needsOwnerSetup) "Create owner account" else "Sign in securely", style=MaterialTheme.typography.titleMedium)
+         }
+         Text(
+          "Your account stays on this device. Keep regular backups and never share your password.",
+          style=MaterialTheme.typography.bodySmall,
+          color=androidx.compose.ui.graphics.Color(0xFF738294)
+         )
+        }
        }
        Spacer(Modifier.height(18.dp))
-       Text("SURYA OPTICIAN", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-       Spacer(Modifier.height(8.dp))
-       Text(if (needsOwnerSetup) "Let’s set up your shop" else "Welcome back", style = MaterialTheme.typography.headlineMedium)
-       Spacer(Modifier.height(8.dp))
-       Text(if (needsOwnerSetup) "Create the owner account to protect billing, customers and shop records." else "Sign in with your staff account to continue.", style = MaterialTheme.typography.bodyLarge)
-       Spacer(Modifier.height(20.dp))
-       OutlinedTextField(authName, { authName=it; authError="" }, label={Text(if(needsOwnerSetup) "Owner username" else "Username")}, singleLine=true, modifier=Modifier.fillMaxWidth())
-       OutlinedTextField(authPassword, { authPassword=it; authError="" }, label={Text("Password")}, singleLine=true, modifier=Modifier.fillMaxWidth())
-       if (needsOwnerSetup) OutlinedTextField(authConfirmPassword, { authConfirmPassword=it; authError="" }, label={Text("Confirm password")}, singleLine=true, modifier=Modifier.fillMaxWidth())
-       if (authError.isNotBlank()) { Spacer(Modifier.height(8.dp)); Text(authError, color=MaterialTheme.colorScheme.error) }
-       Spacer(Modifier.height(16.dp))
-       Button(onClick={
-        val username=authName.trim()
-        if(username.length<3) authError="Username must be at least 3 characters."
-        else if(authPassword.length<8) authError="Password must be at least 8 characters."
-        else if(needsOwnerSetup && authPassword!=authConfirmPassword) authError="Passwords do not match."
-        else if(needsOwnerSetup) runCatching { accountStore.create(username,authPassword,"Owner") }
-         .onSuccess { accountVersion++; loggedInUser=accountStore.authenticate(username,authPassword); authPassword="";authConfirmPassword="";section="Dashboard" }
-         .onFailure { authError=it.message ?: "Could not create owner account." }
-        else {
-         val user=accountStore.authenticate(username,authPassword)
-         if(user==null) authError="Incorrect username or password."
-         else { loggedInUser=user;authPassword="";authError="";section="Dashboard" }
-        }
-       }, modifier=Modifier.fillMaxWidth()) { Text(if(needsOwnerSetup) "Create owner account" else "Sign in") }
-       Spacer(Modifier.height(12.dp))
-       Text("Accounts are stored on this device. Keep a backup and do not share your password.", style=MaterialTheme.typography.bodySmall)
+       Text("CLEAR VISION. SIMPLE BILLING.", style=MaterialTheme.typography.labelSmall, color=androidx.compose.ui.graphics.Color(0xFFD3E5F5), letterSpacing=1.1.sp)
       }
      }
     } else {
