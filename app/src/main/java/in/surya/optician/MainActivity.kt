@@ -388,7 +388,7 @@ class MainActivity : ComponentActivity() {
           value=authName,
           onValueChange={authName=it;authError=""},
           label={Text(if(needsOwnerSetup) "Owner username" else "Username")},
-          leadingIcon={Text("👤")},
+          leadingIcon={Text("ID", style=MaterialTheme.typography.labelMedium, color=MaterialTheme.colorScheme.primary)},
           singleLine=true,
           shape=androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
           modifier=Modifier.fillMaxWidth()
@@ -397,7 +397,7 @@ class MainActivity : ComponentActivity() {
           value=authPassword,
           onValueChange={authPassword=it;authError=""},
           label={Text("Password")},
-          leadingIcon={Text("🔒")},
+          leadingIcon={Text("••", style=MaterialTheme.typography.labelMedium, color=MaterialTheme.colorScheme.primary)},
           visualTransformation=androidx.compose.ui.text.input.PasswordVisualTransformation(),
           singleLine=true,
           shape=androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
@@ -572,7 +572,7 @@ class MainActivity : ComponentActivity() {
           Row(verticalAlignment=androidx.compose.ui.Alignment.CenterVertically, horizontalArrangement=Arrangement.spacedBy(12.dp)) {
            Surface(shape=androidx.compose.foundation.shape.RoundedCornerShape(18.dp), color=androidx.compose.ui.graphics.Color.White, modifier=Modifier.size(58.dp)) {
             Box(contentAlignment=androidx.compose.ui.Alignment.Center) {
-             Text("👓", style=MaterialTheme.typography.headlineMedium)
+             OpticianLogo(modifier=Modifier.size(42.dp), color=androidx.compose.ui.graphics.Color(0xFF174C70))
             }
            }
            Column(Modifier.weight(1f)) {
@@ -967,7 +967,7 @@ class MainActivity : ComponentActivity() {
          Card(Modifier.fillMaxWidth(), colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.primaryContainer)) {
           Row(Modifier.fillMaxWidth().padding(18.dp), horizontalArrangement=Arrangement.spacedBy(12.dp), verticalAlignment=Alignment.CenterVertically) {
            Surface(shape=androidx.compose.foundation.shape.RoundedCornerShape(16.dp), color=MaterialTheme.colorScheme.primary, modifier=Modifier.size(54.dp)) {
-            Box(contentAlignment=Alignment.Center) { Text("👓", style=MaterialTheme.typography.headlineSmall) }
+            Box(contentAlignment=Alignment.Center) { OpticianLogo(modifier=Modifier.size(38.dp), color=androidx.compose.ui.graphics.Color.White) }
            }
            Column(Modifier.weight(1f), verticalArrangement=Arrangement.spacedBy(4.dp)) {
             Text(if(editingPrescriptionId==null) "Eye prescription" else "Edit prescription", style=MaterialTheme.typography.titleLarge, color=MaterialTheme.colorScheme.onPrimaryContainer)
