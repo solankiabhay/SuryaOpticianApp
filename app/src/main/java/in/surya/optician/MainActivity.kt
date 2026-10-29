@@ -32,7 +32,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.unit.dp\nimport androidx.compose.ui.unit.sp\nimport androidx.compose.ui.draw.background\nimport androidx.compose.foundation.Canvas
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.draw.background
+import androidx.compose.foundation.Canvas
 import androidx.core.content.FileProvider
 import androidx.lifecycle.lifecycleScope
 import `in`.surya.optician.data.*
