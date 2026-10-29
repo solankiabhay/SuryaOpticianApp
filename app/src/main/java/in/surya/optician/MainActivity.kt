@@ -254,6 +254,7 @@ class MainActivity : ComponentActivity() {
     var billHistoryPage by remember { mutableIntStateOf(0) }
     var billStatusFilter by remember { mutableStateOf("All") }
     var selectedBillId by remember { mutableStateOf<Long?>(null) }
+    var legacyDownloadFile by remember { mutableStateOf<File?>(null) }
     var customerSearch by remember { mutableStateOf("") }
     var productSearch by remember { mutableStateOf("") }
     var editingPrescriptionId by remember { mutableStateOf<Long?>(null) }
@@ -314,6 +315,16 @@ class MainActivity : ComponentActivity() {
     var prescriptionNotes by remember { mutableStateOf("") }
     var reminderInvoice by remember { mutableStateOf<Invoice?>(null) }
     val invoices by db.dao().searchInvoices(query).collectAsState(initial = emptyList())
+    val legacyPdfDownloadLauncher = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.CreateDocument("application/pdf")) { destination ->
+     val source = legacyDownloadFile
+     legacyDownloadFile = null
+     if (destination != null && source != null) {
+      runCatching {
+       contentResolver.openOutputStream(destination)?.use { output -> source.inputStream().use { input -> input.copyTo(output) } } ?: error("Could not open the selected download location")
+      }.onSuccess { toast("Invoice PDF downloaded") }.onFailure { toast(it.message ?: "Invoice download failed") }
+     }
+    }
+
     LaunchedEffect(query, billStatusFilter) { billHistoryPage = 0; selectedBillId = null }
     val billHistoryPageSize = 10
     val filteredBillHistory = invoices.filter { invoice -> when (billStatusFilter) { "Paid" -> invoice.duePaise <= 0; "Due" -> invoice.duePaise > 0; else -> true } }
@@ -1343,6 +1354,29 @@ class MainActivity : ComponentActivity() {
              TextButton(onClick={lifecycleScope.launch{runCatching{val file=InvoicePdf.generate(this@MainActivity,invoice,db.dao().items(invoice.id),db.dao().settings()?:ShopSettings(),invoice.customerId?.let { db.dao().customer(it) });val uri=FileProvider.getUriForFile(this@MainActivity,"${packageName}.fileprovider",file);startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(uri,"application/pdf").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION))}.onFailure{toast("PDF preview failed. Install a PDF viewer.")}}}){Text("▧  Preview PDF")}
              TextButton(onClick={lifecycleScope.launch{runCatching{val file=InvoicePdf.generate(this@MainActivity,invoice,db.dao().items(invoice.id),db.dao().settings()?:ShopSettings(),invoice.customerId?.let { db.dao().customer(it) });printPdf(file,"Invoice ${invoice.number}")}.onFailure{toast("Could not start system print")}}}){Text("⎙  Print")}
              Button(onClick={lifecycleScope.launch{runCatching{val file=InvoicePdf.generate(this@MainActivity,invoice,db.dao().items(invoice.id),db.dao().settings()?:ShopSettings(),invoice.customerId?.let { db.dao().customer(it) });InvoiceSharing.share(this@MainActivity,file,invoice.phone,true)}.onFailure{toast("Invoice share failed")}}}){Text("↗  Share PDF")}
+             OutlinedButton(onClick={lifecycleScope.launch {
+              runCatching {
+               val file=InvoicePdf.generate(this@MainActivity,invoice,db.dao().items(invoice.id),db.dao().settings()?:ShopSettings(),invoice.customerId?.let { db.dao().customer(it) })
+               if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                val values=android.content.ContentValues().apply {
+                 put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, "Invoice-${invoice.number}.pdf")
+                 put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "application/pdf")
+                 put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, "${android.os.Environment.DIRECTORY_DOWNLOADS}/Surya Optician")
+                }
+                val destination=contentResolver.insert(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, values) ?: error("Could not create a file in Downloads")
+                try {
+                 contentResolver.openOutputStream(destination)?.use { output -> file.inputStream().use { input -> input.copyTo(output) } } ?: error("Could not write the invoice PDF")
+                } catch (error: Exception) {
+                 contentResolver.delete(destination, null, null)
+                 throw error
+                }
+                toast("PDF saved in Downloads/Surya Optician")
+               } else {
+                legacyDownloadFile=file
+                legacyPdfDownloadLauncher.launch("Invoice-${invoice.number}.pdf")
+               }
+              }.onFailure{toast(it.message ?: "Invoice download failed")}
+             }}) { Text("↓  Download PDF") }
               }
              } else {
              TextButton(onClick={selectedBillId=invoice.id}) { Text("Hold or double-tap for actions  ⋯") }
