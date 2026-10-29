@@ -25,6 +25,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -250,6 +252,9 @@ class MainActivity : ComponentActivity() {
     var showMoreMenu by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
     var billHistoryPage by remember { mutableIntStateOf(0) }
+    var billStatusFilter by remember { mutableStateOf("All") }
+    var selectedBillId by remember { mutableStateOf<Long?>(null) }
+    var legacyDownloadFile by remember { mutableStateOf<File?>(null) }
     var customerSearch by remember { mutableStateOf("") }
     var productSearch by remember { mutableStateOf("") }
     var editingPrescriptionId by remember { mutableStateOf<Long?>(null) }
@@ -289,6 +294,7 @@ class MainActivity : ComponentActivity() {
     var billPaymentMethod by remember { mutableStateOf("Cash") }
     var billPrescriptionId by remember { mutableStateOf("") }
     var billPrescriptionSummary by remember { mutableStateOf("") }
+    var billPrescriptionExpanded by remember { mutableStateOf(false) }
     var billGlassType by remember { mutableStateOf("") }
     var billDeliveryDate by remember { mutableStateOf("") }
     var showBillPreview by remember { mutableStateOf(false) }
@@ -310,10 +316,21 @@ class MainActivity : ComponentActivity() {
     var prescriptionNotes by remember { mutableStateOf("") }
     var reminderInvoice by remember { mutableStateOf<Invoice?>(null) }
     val invoices by db.dao().searchInvoices(query).collectAsState(initial = emptyList())
-    LaunchedEffect(query) { billHistoryPage = 0 }
+    val legacyPdfDownloadLauncher = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.CreateDocument("application/pdf")) { destination ->
+     val source = legacyDownloadFile
+     legacyDownloadFile = null
+     if (destination != null && source != null) {
+      runCatching {
+       contentResolver.openOutputStream(destination)?.use { output -> source.inputStream().use { input -> input.copyTo(output) } } ?: error("Could not open the selected download location")
+      }.onSuccess { Toast.makeText(this@MainActivity, "Invoice PDF downloaded", Toast.LENGTH_LONG).show() }.onFailure { Toast.makeText(this@MainActivity, it.message ?: "Invoice download failed", Toast.LENGTH_LONG).show() }
+     }
+    }
+
+    LaunchedEffect(query, billStatusFilter) { billHistoryPage = 0; selectedBillId = null }
     val billHistoryPageSize = 10
-    val billHistoryPageCount = maxOf(1, (invoices.size + billHistoryPageSize - 1) / billHistoryPageSize)
-    val visibleBillHistory = invoices.drop(billHistoryPage * billHistoryPageSize).take(billHistoryPageSize)
+    val filteredBillHistory = invoices.filter { invoice -> when (billStatusFilter) { "Paid" -> invoice.duePaise <= 0; "Due" -> invoice.duePaise > 0; else -> true } }
+    val billHistoryPageCount = maxOf(1, (filteredBillHistory.size + billHistoryPageSize - 1) / billHistoryPageSize)
+    val visibleBillHistory = filteredBillHistory.drop(billHistoryPage * billHistoryPageSize).take(billHistoryPageSize)
     val allInvoices by db.dao().invoices().collectAsState(initial = emptyList())
     val prescriptionsFlow = remember(prescriptionCustomerId) {
      prescriptionCustomerId.toLongOrNull()?.let { db.dao().prescriptions(it) } ?: flowOf<List<Prescription>>(emptyList())
@@ -341,7 +358,7 @@ class MainActivity : ComponentActivity() {
      Box(
       modifier=Modifier.fillMaxSize().background(
        androidx.compose.ui.graphics.Brush.verticalGradient(
-        colors=listOf(androidx.compose.ui.graphics.Color(0xFF102C46),androidx.compose.ui.graphics.Color(0xFF174C70),androidx.compose.ui.graphics.Color(0xFFF2F6FA)),
+        colors=listOf(androidx.compose.ui.graphics.Color(0xFF102D4A),androidx.compose.ui.graphics.Color(0xFF174C70),androidx.compose.ui.graphics.Color(0xFFF4F7FB)),
         startY=0f,
         endY=1200f
        )
@@ -356,7 +373,7 @@ class MainActivity : ComponentActivity() {
        Surface(
         modifier=Modifier.size(88.dp),
         shape=androidx.compose.foundation.shape.RoundedCornerShape(26.dp),
-        color=androidx.compose.ui.graphics.Color(0xFFF8FBFF),
+        color=androidx.compose.ui.graphics.Color(0xFFF4F7FB),
         shadowElevation=10.dp
        ) {
         Box(contentAlignment=Alignment.Center) {
@@ -368,7 +385,7 @@ class MainActivity : ComponentActivity() {
        }
        Spacer(Modifier.height(16.dp))
        Text("SURYA", style=MaterialTheme.typography.headlineMedium, color=androidx.compose.ui.graphics.Color.White, fontWeight=androidx.compose.ui.text.font.FontWeight.Bold, letterSpacing=3.sp)
-       Text("OPTICIAN  •  SHOP MANAGEMENT", style=MaterialTheme.typography.labelMedium, color=androidx.compose.ui.graphics.Color(0xFFD3E5F5), letterSpacing=1.2.sp)
+       Text("OPTICIAN  •  SHOP MANAGEMENT", style=MaterialTheme.typography.labelMedium, color=androidx.compose.ui.graphics.Color(0xFFDCEBFA), letterSpacing=1.2.sp)
        Spacer(Modifier.height(28.dp))
        Card(
         modifier=Modifier.fillMaxWidth().widthIn(max=440.dp),
@@ -380,7 +397,7 @@ class MainActivity : ComponentActivity() {
          modifier=Modifier.fillMaxWidth().padding(24.dp),
          verticalArrangement=Arrangement.spacedBy(12.dp)
         ) {
-         Text(if(needsOwnerSetup) "Set up your shop" else "Welcome back", style=MaterialTheme.typography.headlineSmall, color=androidx.compose.ui.graphics.Color(0xFF152D43), fontWeight=androidx.compose.ui.text.font.FontWeight.Bold)
+         Text(if(needsOwnerSetup) "Set up your shop" else "Welcome back", style=MaterialTheme.typography.headlineSmall, color=androidx.compose.ui.graphics.Color(0xFF102D4A), fontWeight=androidx.compose.ui.text.font.FontWeight.Bold)
          Text(
           if(needsOwnerSetup) "Create your owner account to keep your shop records protected." else "Sign in to continue to your billing workspace.",
           style=MaterialTheme.typography.bodyMedium,
@@ -453,7 +470,7 @@ class MainActivity : ComponentActivity() {
         }
        }
        Spacer(Modifier.height(18.dp))
-       Text("CLEAR VISION. SIMPLE BILLING.", style=MaterialTheme.typography.labelSmall, color=androidx.compose.ui.graphics.Color(0xFFD3E5F5), letterSpacing=1.1.sp)
+       Text("CLEAR VISION. SIMPLE BILLING.", style=MaterialTheme.typography.labelSmall, color=androidx.compose.ui.graphics.Color(0xFFDCEBFA), letterSpacing=1.1.sp)
       }
      }
     } else {
@@ -550,17 +567,6 @@ class MainActivity : ComponentActivity() {
     ) { padding ->
      Column(Modifier.fillMaxSize().padding(padding).padding(horizontal=16.dp, vertical=12.dp))
      {
-      Row(horizontalArrangement=Arrangement.spacedBy(8.dp), modifier=Modifier.fillMaxWidth()) {
-       Card(Modifier.weight(1f), colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.primaryContainer)) { Column(Modifier.padding(12.dp)) {
-        Text("Outstanding", style=MaterialTheme.typography.labelMedium)
-        Text("₹${"%.2f".format(due/100.0)}", style=MaterialTheme.typography.titleLarge)
-       } }
-       Card(Modifier.weight(1f), colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.secondaryContainer)) { Column(Modifier.padding(12.dp)) {
-        Text("Low stock items", style=MaterialTheme.typography.labelMedium)
-        Text("${lowStock.size}", style=MaterialTheme.typography.titleLarge)
-       } }
-      }
-      Spacer(Modifier.height(8.dp))
       Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())) {
       when (section) {
        "Dashboard" -> {
@@ -569,7 +575,7 @@ class MainActivity : ComponentActivity() {
         Card(
          Modifier.fillMaxWidth(),
          shape=androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
-         colors=CardDefaults.cardColors(containerColor=androidx.compose.ui.graphics.Color(0xFF102F52))
+         colors=CardDefaults.cardColors(containerColor=androidx.compose.ui.graphics.Color(0xFF123A63))
         ) {
          Column(Modifier.padding(22.dp), verticalArrangement=Arrangement.spacedBy(12.dp)) {
           Row(verticalAlignment=androidx.compose.ui.Alignment.CenterVertically, horizontalArrangement=Arrangement.spacedBy(12.dp)) {
@@ -710,13 +716,13 @@ class MainActivity : ComponentActivity() {
           Text(customer.name, style=MaterialTheme.typography.titleMedium)
           Text(listOfNotNull(customer.phone.takeIf { it.isNotBlank() }, customer.age?.let { "Age $it years" }, customer.address.takeIf { it.isNotBlank() }, customer.email.takeIf { it.isNotBlank() }).joinToString("  ·  ").ifBlank { "No additional details" }, style=MaterialTheme.typography.bodyMedium)
           Row {
-           if(canManageRecords()) TextButton(onClick={ selectedCustomerId=customer.id; customerName=customer.name; customerPhone=customer.phone; customerAddress=customer.address; customerAge=customer.age?.toString() ?: ""; customerEmail=customer.email }) { Text("Edit") }
+           if(canManageRecords()) TextButton(onClick={ selectedCustomerId=customer.id; customerName=customer.name; customerPhone=customer.phone; customerAddress=customer.address; customerAge=customer.age?.toString() ?: ""; customerEmail=customer.email }) { Text("✎  Edit") }
            if(canDeleteRecords()) TextButton(onClick={ if(!canDeleteRecords()) denyPermission("delete customers") else lifecycleScope.launch {
             val hasInvoices=db.dao().customerInvoiceCount(customer.id)>0
             val hasPrescriptions=db.dao().customerPrescriptionCount(customer.id)>0
             if(hasInvoices || hasPrescriptions) toast("Cannot delete: customer has invoice or prescription history")
             else runCatching { db.dao().deleteCustomer(customer) }.onSuccess { toast("Customer deleted") }.onFailure { toast("Could not delete customer") }
-           } }) { Text("Delete") }
+           } }) { Text("⌫  Delete") }
           }
          } }
         } }
@@ -744,11 +750,11 @@ class MainActivity : ComponentActivity() {
          Card(Modifier.fillMaxWidth().padding(vertical=3.dp)) { Column(Modifier.padding(8.dp)) {
           Text("#${product.id} · ${product.name} · Sell ₹${"%.2f".format(product.pricePaise/100.0)} · Cost ₹${"%.2f".format(product.costPaise/100.0)} · ${product.category.ifBlank { "Uncategorised" }} · stock ${product.stock}")
           Row {
-           if(canManageRecords()) TextButton(onClick={ selectedProductId=product.id; productName=product.name; productSku=product.sku; productPrice="%.2f".format(product.pricePaise/100.0); productCost="%.2f".format(product.costPaise/100.0); productCategory=product.category; productStock=product.stock.toString(); productLowStock=product.lowStock.toString() }) { Text("Edit") }
+           if(canManageRecords()) TextButton(onClick={ selectedProductId=product.id; productName=product.name; productSku=product.sku; productPrice="%.2f".format(product.pricePaise/100.0); productCost="%.2f".format(product.costPaise/100.0); productCategory=product.category; productStock=product.stock.toString(); productLowStock=product.lowStock.toString() }) { Text("✎  Edit") }
            if(canDeleteRecords()) TextButton(onClick={ if(!canDeleteRecords()) denyPermission("delete products") else lifecycleScope.launch {
             if(db.dao().productInvoiceItemCount(product.id)>0) toast("Cannot delete: product appears on invoice history")
             else runCatching { db.dao().deleteProduct(product) }.onSuccess { toast("Product deleted") }.onFailure { toast("Could not delete product") }
-           } }) { Text("Delete") }
+           } }) { Text("⌫  Delete") }
           }
          } }
         } }
@@ -814,26 +820,63 @@ class MainActivity : ComponentActivity() {
          OutlinedTextField(billCustomerEmail, { billCustomerEmail=it }, label={ Text("Email (optional)") }, modifier=Modifier.fillMaxWidth(), singleLine=true)
         } }
         Text("2 · ORDER DETAILS", style=MaterialTheme.typography.labelLarge, color=MaterialTheme.colorScheme.primary)
-        Text("Glass / lens type", style=MaterialTheme.typography.titleMedium)
-        OutlinedTextField(billGlassType, { billGlassType=it }, label={ Text("Glass type (e.g. Single Vision, Progressive, Sunglasses)") }, modifier=Modifier.fillMaxWidth())
-        Row(horizontalArrangement=Arrangement.spacedBy(4.dp)) {
-         listOf("Single Vision","Bifocal","Progressive","Photochromic","Blue Cut","Sunglasses","Frame Only","Contact Lens").forEach { type ->
-          TextButton(onClick={billGlassType=type}) { Text(type, style=MaterialTheme.typography.labelSmall) }
+        Column(verticalArrangement=Arrangement.spacedBy(8.dp), modifier=Modifier.fillMaxWidth()) {
+         Text("Glass / lens type", style=MaterialTheme.typography.titleSmall)
+         val glassTypes = listOf("Single Vision","Bifocal","Progressive","Photochromic","Blue Cut","Sunglasses","Frame Only","Contact Lens")
+         var glassTypeExpanded by remember { mutableStateOf(false) }
+         Box(Modifier.fillMaxWidth()) {
+          OutlinedButton(onClick={ glassTypeExpanded=true }, modifier=Modifier.fillMaxWidth(), shape=androidx.compose.foundation.shape.RoundedCornerShape(12.dp)) {
+           Text(billGlassType.ifBlank { "Select lens type" }, modifier=Modifier.weight(1f))
+           Text("⌄", style=MaterialTheme.typography.titleMedium)
+          }
+          DropdownMenu(expanded=glassTypeExpanded, onDismissRequest={ glassTypeExpanded=false }, modifier=Modifier.fillMaxWidth(0.88f)) {
+           glassTypes.forEach { type ->
+            DropdownMenuItem(text={ Text(type) }, onClick={ billGlassType=type; glassTypeExpanded=false })
+           }
+           DropdownMenuItem(text={ Text("Other / Custom…") }, onClick={ billGlassType="Custom type"; glassTypeExpanded=false })
+          }
+         }
+         if (billGlassType=="Custom type" || (billGlassType.isNotBlank() && glassTypes.none { it.equals(billGlassType, true) })) {
+          OutlinedTextField(value=if(billGlassType=="Custom type") "" else billGlassType, onValueChange={ billGlassType=it }, label={ Text("Custom lens type") }, placeholder={ Text("Enter lens type") }, modifier=Modifier.fillMaxWidth(), singleLine=true)
          }
         }
         DateInputField(value=billDeliveryDate, onValueChange={ billDeliveryDate=it }, label="Expected delivery date", displayFormat="dd/MM/yyyy", placeholder="e.g. 05/11/2026", supportingText="Optional for walk-in sales; fill for orders awaiting lens fitting.", modifier=Modifier.fillMaxWidth())
-        if (billCustomerId.toLongOrNull() != null) {
-         Text("Attach eye prescription (optional)", style=MaterialTheme.typography.titleMedium)
-         if (billPrescriptions.isEmpty()) Text("No saved prescription for this customer. You can still bill sunglasses or other products.", style=MaterialTheme.typography.bodySmall)
-         billPrescriptions.forEach { rx -> TextButton(onClick={ billPrescriptionId=rx.id.toString() }) { Text((if (billPrescriptionId == rx.id.toString()) "✓ " else "") + "Prescription · " + java.text.SimpleDateFormat("dd MMM yyyy", java.util.Locale.getDefault()).format(java.util.Date(rx.createdAt))) } }
-         selectedBillPrescription?.let { rx -> Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(12.dp)) {
-          Text("Prescription attached to this bill", style=MaterialTheme.typography.titleSmall)
-          Text("Right eye (OD): SPH ${rx.rightSphere.ifBlank{"—"}} · CYL ${rx.rightCylinder.ifBlank{"—"}} · Axis ${rx.rightAxis.ifBlank{"—"}} · ADD ${rx.rightAdd.ifBlank{"—"}}")
-          Text("Left eye (OS): SPH ${rx.leftSphere.ifBlank{"—"}} · CYL ${rx.leftCylinder.ifBlank{"—"}} · Axis ${rx.leftAxis.ifBlank{"—"}} · ADD ${rx.leftAdd.ifBlank{"—"}}")
-          Text("PD: ${rx.pd.ifBlank{"—"}}", style=MaterialTheme.typography.bodySmall)
-          if(rx.notes.isNotBlank()) Text("Notes: ${rx.notes}", style=MaterialTheme.typography.bodySmall)
-          TextButton(onClick={billPrescriptionId=""}) { Text("Remove prescription") }
-         } } }
+        Card(Modifier.fillMaxWidth(), colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surfaceVariant)) {
+         Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement=Arrangement.spacedBy(6.dp)) {
+          Row(verticalAlignment=Alignment.CenterVertically, horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+           Column(Modifier.weight(1f)) {
+            Text("Prescription", style=MaterialTheme.typography.titleSmall)
+            Text("Optional · attach an existing eye prescription", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSurfaceVariant)
+           }
+           OutlinedButton(onClick={
+            val cid=billCustomerId.toLongOrNull()
+            if(cid==null) toast("Select or save a customer first, then add prescription")
+            else { prescriptionCustomerId=cid.toString(); editingPrescriptionId=null; section="Prescription" }
+           }) { Text("＋ Add") }
+          }
+          if (billCustomerId.toLongOrNull()!=null) {
+           if (billPrescriptions.isNotEmpty()) {
+            Box(Modifier.fillMaxWidth()) {
+             OutlinedButton(onClick={ billPrescriptionExpanded=true }, modifier=Modifier.fillMaxWidth(), shape=androidx.compose.foundation.shape.RoundedCornerShape(12.dp)) {
+              Text(selectedBillPrescription?.let { "Prescription · " + java.text.SimpleDateFormat("dd MMM yyyy", java.util.Locale.getDefault()).format(java.util.Date(it.createdAt)) } ?: "Choose one saved prescription", modifier=Modifier.weight(1f))
+              Text("⌄")
+             }
+             DropdownMenu(expanded=billPrescriptionExpanded, onDismissRequest={ billPrescriptionExpanded=false }, modifier=Modifier.fillMaxWidth(0.88f)) {
+              billPrescriptions.forEach { rx ->
+               DropdownMenuItem(text={ Text("Prescription · " + java.text.SimpleDateFormat("dd MMM yyyy", java.util.Locale.getDefault()).format(java.util.Date(rx.createdAt))) }, onClick={ billPrescriptionId=rx.id.toString(); billPrescriptionExpanded=false })
+              }
+             }
+            }
+           } else Text("No saved prescription yet. Tap ＋ Add to create one.", style=MaterialTheme.typography.bodySmall)
+           selectedBillPrescription?.let { rx -> Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(10.dp), verticalArrangement=Arrangement.spacedBy(4.dp)) {
+            Text("Attached prescription", style=MaterialTheme.typography.titleSmall)
+            Text("OD: SPH ${rx.rightSphere.ifBlank{"—"}} · CYL ${rx.rightCylinder.ifBlank{"—"}} · Axis ${rx.rightAxis.ifBlank{"—"}} · ADD ${rx.rightAdd.ifBlank{"—"}}", style=MaterialTheme.typography.bodySmall)
+            Text("OS: SPH ${rx.leftSphere.ifBlank{"—"}} · CYL ${rx.leftCylinder.ifBlank{"—"}} · Axis ${rx.leftAxis.ifBlank{"—"}} · ADD ${rx.leftAdd.ifBlank{"—"}}", style=MaterialTheme.typography.bodySmall)
+            Text("PD: ${rx.pd.ifBlank{"—"}}", style=MaterialTheme.typography.bodySmall)
+            TextButton(onClick={billPrescriptionId=""}) { Text("Remove prescription") }
+           } } }
+          } else Text("Select a customer above to attach or create a prescription.", style=MaterialTheme.typography.bodySmall)
+         }
         }
         Text("3 · ADD ITEMS", style=MaterialTheme.typography.labelLarge, color=MaterialTheme.colorScheme.primary)
         OutlinedTextField(billItemSearch, { billItemSearch=it }, label={ Text("Search frame / lens / product") }, modifier=Modifier.fillMaxWidth(), singleLine=true)
@@ -853,7 +896,7 @@ class MainActivity : ComponentActivity() {
          else runCatching { BillLine(pid,billDescription.trim(),qty,(rate*100).toLong(),(discount*100).toLong(),(tax*100).toLong()) }
           .onSuccess { line -> billLines=billLines+line; billProductId=""; billDescription=""; billQty="1"; billRate=""; billDiscount="0"; billTax="0"; toast("Item added to bill") }
           .onFailure { toast(it.message ?: "Invalid item") }
-        }, modifier=Modifier.fillMaxWidth()) { Text("Add item to bill") }
+        }, modifier=Modifier.fillMaxWidth(), shape=androidx.compose.foundation.shape.RoundedCornerShape(12.dp)) { Text("＋  Add more item") }
         Text("4 · BILL ITEMS (${billLines.size})", style=MaterialTheme.typography.labelLarge, color=MaterialTheme.colorScheme.primary)
         Text("Items in cart · ₹${"%.2f".format(billLines.sumOf { it.total }/100.0)}", style=MaterialTheme.typography.titleSmall)
         billLines.forEachIndexed { index, line ->
@@ -862,17 +905,7 @@ class MainActivity : ComponentActivity() {
           TextButton(onClick={ billLines=billLines.filterIndexed { i, _ -> i != index } }) { Text("Remove") }
          }
         }
-        val draftSubtotal = billLines.sumOf { it.subtotalPaise }
-        val draftDiscount = billLines.sumOf { it.discountPaise }
-        val draftTax = billLines.sumOf { it.taxPaise }
-        val draftTotal = billLines.sumOf { it.total }
-        Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(12.dp)) {
-         Text("Live bill preview", style=MaterialTheme.typography.titleMedium)
-         Text("Items subtotal: ₹${"%.2f".format(draftSubtotal/100.0)}")
-         Text("Discount: ₹${"%.2f".format(draftDiscount/100.0)} · Tax: ₹${"%.2f".format(draftTax/100.0)}")
-         Text("Grand total: ₹${"%.2f".format(draftTotal/100.0)}", style=MaterialTheme.typography.titleLarge)
-         Text("Balance after payment: ₹${"%.2f".format((draftTotal-(billPaid.toDoubleOrNull()?.times(100)?.toLong() ?: 0L)).coerceAtLeast(0)/100.0)}")
-        } }
+
         Text("5 · PAYMENT", style=MaterialTheme.typography.labelLarge, color=MaterialTheme.colorScheme.primary)
         OutlinedTextField(billPaid, { billPaid=it }, label={ Text("Amount received ₹") }, modifier=Modifier.fillMaxWidth(), singleLine=true)
         Text("Payment type", style=MaterialTheme.typography.titleSmall)
@@ -1253,22 +1286,59 @@ class MainActivity : ComponentActivity() {
         }
        }
        else -> {
-        Text("Bill history", style=MaterialTheme.typography.headlineSmall)
-        Text("Search, review, print, share or collect payment for an existing bill.", style=MaterialTheme.typography.bodyMedium, color=MaterialTheme.colorScheme.onSurfaceVariant)
-        Spacer(Modifier.height(4.dp))
         Card(
          modifier=Modifier.fillMaxWidth(),
-         colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.primaryContainer),
+         colors=CardDefaults.cardColors(containerColor=androidx.compose.ui.graphics.Color(0xFF123A63)),
+         shape=androidx.compose.foundation.shape.RoundedCornerShape(22.dp)
+        ) {
+         Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment=Alignment.CenterVertically, horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+          Surface(shape=androidx.compose.foundation.shape.RoundedCornerShape(16.dp), color=androidx.compose.ui.graphics.Color.White, modifier=Modifier.size(56.dp)) {
+           Box(contentAlignment=Alignment.Center) { OpticianLogo(modifier=Modifier.size(42.dp), color=androidx.compose.ui.graphics.Color(0xFF174C70)) }
+          }
+          Column(Modifier.weight(1f), verticalArrangement=Arrangement.spacedBy(3.dp)) {
+           Text("BILL HISTORY", style=MaterialTheme.typography.labelMedium, color=androidx.compose.ui.graphics.Color(0xFFB9D8E8))
+           Text("All your bills, in one place", style=MaterialTheme.typography.titleLarge, color=androidx.compose.ui.graphics.Color.White)
+           Text("Search · Track payments · Share invoices", style=MaterialTheme.typography.bodySmall, color=androidx.compose.ui.graphics.Color(0xFFD9E7F6))
+          }
+         }
+        }
+        Spacer(Modifier.height(10.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+         val paidCount = filteredBillHistory.count { it.duePaise <= 0 }
+         val dueCount = filteredBillHistory.count { it.duePaise > 0 }
+         Card(Modifier.weight(1f), colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface), shape=androidx.compose.foundation.shape.RoundedCornerShape(16.dp)) {
+          Column(Modifier.padding(12.dp), verticalArrangement=Arrangement.spacedBy(3.dp)) {
+           Text("TOTAL BILLS", style=MaterialTheme.typography.labelSmall, color=MaterialTheme.colorScheme.onSurfaceVariant)
+           Text("${filteredBillHistory.size}", style=MaterialTheme.typography.titleLarge, color=MaterialTheme.colorScheme.primary)
+          }
+         }
+         Card(Modifier.weight(1f), colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface), shape=androidx.compose.foundation.shape.RoundedCornerShape(16.dp)) {
+          Column(Modifier.padding(12.dp), verticalArrangement=Arrangement.spacedBy(3.dp)) {
+           Text("PAID", style=MaterialTheme.typography.labelSmall, color=MaterialTheme.colorScheme.onSurfaceVariant)
+           Text("${paidCount}", style=MaterialTheme.typography.titleLarge, color=androidx.compose.ui.graphics.Color(0xFF16804A))
+          }
+         }
+         Card(Modifier.weight(1f), colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface), shape=androidx.compose.foundation.shape.RoundedCornerShape(16.dp)) {
+          Column(Modifier.padding(12.dp), verticalArrangement=Arrangement.spacedBy(3.dp)) {
+           Text("PAYMENT DUE", style=MaterialTheme.typography.labelSmall, color=MaterialTheme.colorScheme.onSurfaceVariant)
+           Text("${dueCount}", style=MaterialTheme.typography.titleLarge, color=MaterialTheme.colorScheme.error)
+          }
+         }
+        }
+        Spacer(Modifier.height(10.dp))
+        Card(
+         modifier=Modifier.fillMaxWidth(),
+         colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface),
          shape=androidx.compose.foundation.shape.RoundedCornerShape(20.dp)
         ) {
          Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement=Arrangement.spacedBy(8.dp)) {
           Row(verticalAlignment=Alignment.CenterVertically, horizontalArrangement=Arrangement.spacedBy(10.dp)) {
-           Surface(shape=androidx.compose.foundation.shape.RoundedCornerShape(12.dp), color=MaterialTheme.colorScheme.primary, modifier=Modifier.size(42.dp)) {
-            Box(contentAlignment=Alignment.Center) { Text("⌕", color=MaterialTheme.colorScheme.onPrimary, style=MaterialTheme.typography.headlineSmall) }
+           Surface(shape=androidx.compose.foundation.shape.RoundedCornerShape(12.dp), color=MaterialTheme.colorScheme.primaryContainer, modifier=Modifier.size(42.dp)) {
+            Box(contentAlignment=Alignment.Center) { Text("⌕", color=MaterialTheme.colorScheme.primary, style=MaterialTheme.typography.headlineSmall) }
            }
            Column(Modifier.weight(1f), verticalArrangement=Arrangement.spacedBy(2.dp)) {
-            Text("Find a bill", style=MaterialTheme.typography.titleMedium, color=MaterialTheme.colorScheme.onPrimaryContainer)
-            Text("Search by customer name, bill number or phone", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onPrimaryContainer)
+            Text("Find an invoice", style=MaterialTheme.typography.titleMedium)
+            Text("Customer name, bill number or phone", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSurfaceVariant)
            }
           }
           OutlinedTextField(
@@ -1297,10 +1367,11 @@ class MainActivity : ComponentActivity() {
           }
          }
         }
-        Button(onClick={ InvoiceCsv.share(this@MainActivity, invoices) }, modifier=Modifier.fillMaxWidth()) { Text("Export matching invoices as CSV") }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.spacedBy(8.dp)) { listOf("All", "Paid", "Due").forEach { filter -> FilterChip(selected=billStatusFilter==filter, onClick={ billStatusFilter=filter }, label={ Text(if(filter=="Due") "Payment due" else filter) }) } }
+         Button(onClick={ InvoiceCsv.share(this@MainActivity, filteredBillHistory) }, modifier=Modifier.fillMaxWidth()) { Text("Export matching invoices as CSV") }
         Card(Modifier.fillMaxWidth(), colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface)) {
          Row(Modifier.fillMaxWidth().padding(horizontal=8.dp, vertical=4.dp), verticalAlignment=Alignment.CenterVertically, horizontalArrangement=Arrangement.SpaceBetween) {
-          Text(if(invoices.isEmpty()) "No bills" else "Showing ${billHistoryPage * billHistoryPageSize + 1}–${minOf((billHistoryPage + 1) * billHistoryPageSize, invoices.size)} of ${invoices.size}", style=MaterialTheme.typography.labelMedium)
+          Text(if(filteredBillHistory.isEmpty()) "No bills" else "Showing ${billHistoryPage * billHistoryPageSize + 1}–${minOf((billHistoryPage + 1) * billHistoryPageSize, filteredBillHistory.size)} of ${filteredBillHistory.size}", style=MaterialTheme.typography.labelMedium)
           Row(verticalAlignment=Alignment.CenterVertically) {
            TextButton(onClick={ billHistoryPage = (billHistoryPage - 1).coerceAtLeast(0) }, enabled=billHistoryPage > 0) { Text("Previous") }
            Text("${billHistoryPage + 1}/${billHistoryPageCount}", style=MaterialTheme.typography.labelMedium)
@@ -1310,7 +1381,7 @@ class MainActivity : ComponentActivity() {
         }
         Column {
          visibleBillHistory.forEach { invoice ->
-          Card(Modifier.fillMaxWidth().padding(vertical=5.dp), colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface)) {
+          Card(Modifier.fillMaxWidth().padding(vertical=5.dp).pointerInput(invoice.id) { detectTapGestures(onLongPress={ selectedBillId=invoice.id }, onDoubleTap={ selectedBillId=invoice.id }, onTap={ selectedBillId=if(selectedBillId==invoice.id) null else invoice.id }) }, colors=CardDefaults.cardColors(containerColor=if(selectedBillId==invoice.id) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface)) {
            Column(Modifier.padding(14.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.SpaceBetween, verticalAlignment=androidx.compose.ui.Alignment.CenterVertically) {
              Column(Modifier.weight(1f)) {
@@ -1330,14 +1401,42 @@ class MainActivity : ComponentActivity() {
             val paymentStatus = if (invoice.duePaise <= 0) "PAID / RECORDED" else if (invoice.paidPaise > 0) "PARTIALLY PAID · BALANCE DUE" else "UNPAID · PAYMENT DUE"
             Text("Payment status: $paymentStatus", color=if(invoice.duePaise<=0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error, style=MaterialTheme.typography.labelMedium)
             if(invoice.duePaise>0) TextButton(onClick={ paymentInvoiceId=invoice.id.toString(); paymentAmount=""; section="Payment" }) { Text("Collect due payment") }
-            Row(horizontalArrangement=Arrangement.spacedBy(6.dp)) {
+            OutlinedButton(onClick={lifecycleScope.launch{runCatching{val file=InvoicePdf.generate(this@MainActivity,invoice,db.dao().items(invoice.id),db.dao().settings()?:ShopSettings(),invoice.customerId?.let { db.dao().customer(it) });InvoiceSharing.share(this@MainActivity,file,invoice.phone,true)}.onFailure{toast("WhatsApp share failed: ${it.message ?: "unknown error"}")}}}, modifier=Modifier.fillMaxWidth(), shape=androidx.compose.foundation.shape.RoundedCornerShape(12.dp)) { Text("↗  Share bill on WhatsApp") }
+            if(selectedBillId==invoice.id) {
+             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement=Arrangement.spacedBy(6.dp)) {
              if(canManageRecords()) TextButton(onClick={ lifecycleScope.launch { runCatching { val items=db.dao().items(invoice.id); billCustomer=invoice.customerName; billCustomerId=invoice.customerId?.toString() ?: ""; billPhone=invoice.phone; val linkedCustomer=invoice.customerId?.let { db.dao().customer(it) }; billCustomerAddress=linkedCustomer?.address.orEmpty(); billCustomerAge=linkedCustomer?.age?.toString() ?: ""; billCustomerSearch=linkedCustomer?.name.orEmpty(); billLines=items.map { BillLine(it.productId,it.description,it.qty,it.ratePaise,it.discountPaise,it.taxPaise) }; billPaid="%.2f".format(invoice.paidPaise/100.0); billPrescriptionId=""; billPrescriptionSummary=invoice.prescriptionSummary; billGlassType=invoice.glassType; billDeliveryDate=invoice.deliveryDate; editingInvoiceId=invoice.id; section="New Bill" }.onFailure { toast("Could not load bill for editing") } } }) { Text("Edit") }
              if(canDeleteRecords()) TextButton(onClick={ invoiceDeleteTarget=invoice }) { Text("Delete") }
-             TextButton(onClick={lifecycleScope.launch{runCatching{val file=InvoicePdf.generate(this@MainActivity,invoice,db.dao().items(invoice.id),db.dao().settings()?:ShopSettings(),invoice.customerId?.let { db.dao().customer(it) });val uri=FileProvider.getUriForFile(this@MainActivity,"${packageName}.fileprovider",file);startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(uri,"application/pdf").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION))}.onFailure{toast("PDF preview failed. Install a PDF viewer.")}}}){Text("Preview PDF")}
-             TextButton(onClick={lifecycleScope.launch{runCatching{val file=InvoicePdf.generate(this@MainActivity,invoice,db.dao().items(invoice.id),db.dao().settings()?:ShopSettings(),invoice.customerId?.let { db.dao().customer(it) });printPdf(file,"Invoice ${invoice.number}")}.onFailure{toast("Could not start system print")}}}){Text("Print")}
-             Button(onClick={lifecycleScope.launch{runCatching{val file=InvoicePdf.generate(this@MainActivity,invoice,db.dao().items(invoice.id),db.dao().settings()?:ShopSettings(),invoice.customerId?.let { db.dao().customer(it) });InvoiceSharing.share(this@MainActivity,file,invoice.phone,true)}.onFailure{toast("Invoice share failed")}}}){Text("WhatsApp PDF")}
+             TextButton(onClick={lifecycleScope.launch{runCatching{val file=InvoicePdf.generate(this@MainActivity,invoice,db.dao().items(invoice.id),db.dao().settings()?:ShopSettings(),invoice.customerId?.let { db.dao().customer(it) });val uri=FileProvider.getUriForFile(this@MainActivity,"${packageName}.fileprovider",file);startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(uri,"application/pdf").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION))}.onFailure{toast("PDF preview failed. Install a PDF viewer.")}}}){Text("▧  Preview PDF")}
+             TextButton(onClick={lifecycleScope.launch{runCatching{val file=InvoicePdf.generate(this@MainActivity,invoice,db.dao().items(invoice.id),db.dao().settings()?:ShopSettings(),invoice.customerId?.let { db.dao().customer(it) });printPdf(file,"Invoice ${invoice.number}")}.onFailure{toast("Could not start system print")}}}){Text("⎙  Print")}
+             OutlinedButton(onClick={lifecycleScope.launch{runCatching{val file=InvoicePdf.generate(this@MainActivity,invoice,db.dao().items(invoice.id),db.dao().settings()?:ShopSettings(),invoice.customerId?.let { db.dao().customer(it) });InvoiceSharing.share(this@MainActivity,file,invoice.phone,false)}.onFailure{toast("Invoice share failed")}}}){Text("Share PDF")}
+             OutlinedButton(onClick={lifecycleScope.launch {
+              runCatching {
+               val file=InvoicePdf.generate(this@MainActivity,invoice,db.dao().items(invoice.id),db.dao().settings()?:ShopSettings(),invoice.customerId?.let { db.dao().customer(it) })
+               if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                val values=android.content.ContentValues().apply {
+                 put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, "Invoice-${invoice.number}.pdf")
+                 put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "application/pdf")
+                 put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, "${android.os.Environment.DIRECTORY_DOWNLOADS}/Surya Optician")
+                }
+                val destination=contentResolver.insert(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, values) ?: error("Could not create a file in Downloads")
+                try {
+                 contentResolver.openOutputStream(destination)?.use { output -> file.inputStream().use { input -> input.copyTo(output) } } ?: error("Could not write the invoice PDF")
+                } catch (error: Exception) {
+                 contentResolver.delete(destination, null, null)
+                 throw error
+                }
+                toast("PDF saved in Downloads/Surya Optician")
+               } else {
+                legacyDownloadFile=file
+                legacyPdfDownloadLauncher.launch("Invoice-${invoice.number}.pdf")
+               }
+              }.onFailure{toast(it.message ?: "Invoice download failed")}
+             }}) { Text("↓  Download PDF") }
+              }
+             } else {
+             TextButton(onClick={selectedBillId=invoice.id}) { Text("Hold or double-tap for actions  ⋯") }
             }
-            if(invoice.duePaise>0) TextButton(onClick={reminderInvoice=invoice}){Text("Payment reminder")}
+            if(selectedBillId==invoice.id && invoice.duePaise>0) TextButton(onClick={reminderInvoice=invoice}){Text("Payment reminder")}
            }
           }
          }
@@ -1364,46 +1463,78 @@ class MainActivity : ComponentActivity() {
     }
     if (showBillPreview) {
      val previewTotal = billLines.sumOf { it.total }
-     AlertDialog(
-      onDismissRequest = { showBillPreview = false },
-      title = { Text("Bill preview") },
-      text = {
-       Column(Modifier.heightIn(max=460.dp).verticalScroll(rememberScrollState())) {
-        Text("SURYA OPTICIAN", style=MaterialTheme.typography.titleMedium)
-        Text("Customer: " + billCustomer.ifBlank { customers.firstOrNull { it.id.toString()==billCustomerId }?.name ?: "Not selected" })
-        Text("Phone: " + billPhone.ifBlank { customers.firstOrNull { it.id.toString()==billCustomerId }?.phone ?: "—" })
-        if (billCustomerAddress.isNotBlank()) Text("Address: $billCustomerAddress")
-        if (billCustomerAge.isNotBlank()) Text("Age: $billCustomerAge")
-        if (billGlassType.isNotBlank()) Text("Glass type: $billGlassType")
-        if (billDeliveryDate.isNotBlank()) Text("Expected delivery: $billDeliveryDate")
-        Spacer(Modifier.height(8.dp))
-        billLines.forEachIndexed { index, line ->
-         Column(Modifier.fillMaxWidth().padding(vertical=4.dp)) {
-          Text("${index+1}. ${line.description}", style=MaterialTheme.typography.bodyMedium)
-          Text("Qty: ${line.qty}  ·  Rate: ₹${"%.2f".format(line.ratePaise/100.0)}", style=MaterialTheme.typography.bodySmall)
-          Text("Discount: ₹${"%.2f".format(line.discountPaise/100.0)}  ·  Tax: ₹${"%.2f".format(line.taxPaise/100.0)}", style=MaterialTheme.typography.bodySmall)
-          Text("Amount: ₹${"%.2f".format(line.total/100.0)}", style=MaterialTheme.typography.bodyMedium)
+     androidx.compose.ui.window.Dialog(onDismissRequest = { showBillPreview = false }) {
+      Card(
+       modifier = Modifier.fillMaxWidth().heightIn(max = 720.dp),
+       shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
+       colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+      ) {
+       Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
+        Column(
+         Modifier.fillMaxWidth().background(androidx.compose.ui.graphics.Color(0xFF123A63)).padding(18.dp),
+         verticalArrangement = Arrangement.spacedBy(5.dp)
+        ) {
+         Text("SURYA OPTICIAN", style = MaterialTheme.typography.titleLarge, color = androidx.compose.ui.graphics.Color.White)
+         Text("TAX INVOICE PREVIEW", style = MaterialTheme.typography.labelLarge, color = androidx.compose.ui.graphics.Color(0xFFB9D8E8))
+         Text("Invoice: ${if (editingInvoiceId == null) "DRAFT" else "#${editingInvoiceId}"}  ·  ${java.text.SimpleDateFormat("dd MMM yyyy", java.util.Locale.getDefault()).format(java.util.Date())}", style = MaterialTheme.typography.bodySmall, color = androidx.compose.ui.graphics.Color.White)
+        }
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+         Text("BILL TO", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+         Text(billCustomer.ifBlank { customers.firstOrNull { it.id.toString() == billCustomerId }?.name ?: "Walk-in customer" }, style = MaterialTheme.typography.titleMedium)
+         Text("Phone: " + billPhone.ifBlank { customers.firstOrNull { it.id.toString() == billCustomerId }?.phone ?: "—" }, style = MaterialTheme.typography.bodySmall)
+         if (billCustomerAddress.isNotBlank()) Text("Address: $billCustomerAddress", style = MaterialTheme.typography.bodySmall)
+         if (billCustomerAge.isNotBlank()) Text("Age: $billCustomerAge", style = MaterialTheme.typography.bodySmall)
+         if (billGlassType.isNotBlank()) Text("Glass type: $billGlassType", style = MaterialTheme.typography.bodySmall)
+         if (billDeliveryDate.isNotBlank()) Text("Expected delivery: $billDeliveryDate", style = MaterialTheme.typography.bodySmall)
+         Divider(Modifier.padding(vertical = 4.dp))
+         Text("ITEMS", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+          Text("Description / Qty", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+          Text("Amount", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+         }
+         billLines.forEachIndexed { index, line ->
+          Row(Modifier.fillMaxWidth().padding(vertical = 5.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+           Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text("${index + 1}. ${line.description}", style = MaterialTheme.typography.bodyMedium)
+            Text("Qty ${line.qty} × ${"%.2f".format(line.ratePaise / 100.0)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+           }
+           Text("₹${"%.2f".format(line.total / 100.0)}", style = MaterialTheme.typography.titleSmall)
+          }
+          Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.45f))
+         }
+         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Subtotal"); Text("₹${"%.2f".format(billLines.sumOf { it.subtotalPaise } / 100.0)}") }
+         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Discount"); Text("− ₹${"%.2f".format(billLines.sumOf { it.discountPaise } / 100.0)}") }
+         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Tax"); Text("₹${"%.2f".format(billLines.sumOf { it.taxPaise } / 100.0)}") }
+         Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)) {
+          Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+           Text("GRAND TOTAL", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
+           Text("₹${"%.2f".format(previewTotal / 100.0)}", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onPrimaryContainer)
+          }
+         }
+         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Amount paid"); Text("₹${"%.2f".format(((billPaid.toDoubleOrNull() ?: 0.0) * 100).toLong() / 100.0)}") }
+         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+          Text("BALANCE DUE", style = MaterialTheme.typography.titleSmall)
+          Text("₹${"%.2f".format((previewTotal - ((billPaid.toDoubleOrNull() ?: 0.0) * 100).toLong()).coerceAtLeast(0) / 100.0)}", style = MaterialTheme.typography.titleMedium, color = if (previewTotal > ((billPaid.toDoubleOrNull() ?: 0.0) * 100).toLong()) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
+         }
+         if (billPrescriptionSummary.isNotBlank() || selectedBillPrescription != null) {
+          Divider(Modifier.padding(vertical = 4.dp))
+          Text("PRESCRIPTION DETAILS", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+          if (billPrescriptionSummary.isNotBlank()) Text(billPrescriptionSummary, style = MaterialTheme.typography.bodySmall)
+          selectedBillPrescription?.let { rx ->
+           Text("OD: SPH ${rx.rightSphere.ifBlank { "—" }} · CYL ${rx.rightCylinder.ifBlank { "—" }} · Axis ${rx.rightAxis.ifBlank { "—" }} · ADD ${rx.rightAdd.ifBlank { "—" }}", style = MaterialTheme.typography.bodySmall)
+           Text("OS: SPH ${rx.leftSphere.ifBlank { "—" }} · CYL ${rx.leftCylinder.ifBlank { "—" }} · Axis ${rx.leftAxis.ifBlank { "—" }} · ADD ${rx.leftAdd.ifBlank { "—" }}", style = MaterialTheme.typography.bodySmall)
+           Text("PD: ${rx.pd.ifBlank { "—" }}", style = MaterialTheme.typography.bodySmall)
+          }
+         }
+         Text("Thank you for choosing Surya Optician!", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+          OutlinedButton(onClick = { showBillPreview = false }, modifier = Modifier.weight(1f)) { Text("Back to edit") }
+          Button(onClick = { showBillPreview = false }, modifier = Modifier.weight(1f)) { Text("Close preview") }
          }
         }
-        Divider(Modifier.padding(vertical=8.dp))
-        Text("Subtotal: ₹${"%.2f".format(billLines.sumOf { it.subtotalPaise }/100.0)}")
-        Text("Discount: ₹${"%.2f".format(billLines.sumOf { it.discountPaise }/100.0)}")
-        Text("Tax: ₹${"%.2f".format(billLines.sumOf { it.taxPaise }/100.0)}")
-        Text("GRAND TOTAL: ₹${"%.2f".format(previewTotal/100.0)}", style=MaterialTheme.typography.titleMedium)
-        Text("Paid: ₹${"%.2f".format(((billPaid.toDoubleOrNull() ?: 0.0)*100).toLong()/100.0)}")
-        Text("Balance: ₹${"%.2f".format((previewTotal-((billPaid.toDoubleOrNull() ?: 0.0)*100).toLong()).coerceAtLeast(0)/100.0)}")
-        selectedBillPrescription?.let { rx ->
-         Spacer(Modifier.height(8.dp))
-         Text("EYE PRESCRIPTION", style=MaterialTheme.typography.titleSmall)
-         Text("OD: SPH ${rx.rightSphere.ifBlank{"—"}} · CYL ${rx.rightCylinder.ifBlank{"—"}} · Axis ${rx.rightAxis.ifBlank{"—"}} · ADD ${rx.rightAdd.ifBlank{"—"}}")
-         Text("OS: SPH ${rx.leftSphere.ifBlank{"—"}} · CYL ${rx.leftCylinder.ifBlank{"—"}} · Axis ${rx.leftAxis.ifBlank{"—"}} · ADD ${rx.leftAdd.ifBlank{"—"}}")
-         Text("PD: ${rx.pd.ifBlank{"—"}}")
-        }
        }
-      },
-      confirmButton = { TextButton(onClick={ showBillPreview=false }) { Text("Back to edit") } },
-      dismissButton = { TextButton(onClick={ showBillPreview=false }) { Text("Close preview") } }
-     )
+      }
+     }
     }
     if (loggedInUser != null && !unlocked) {
      AlertDialog(
