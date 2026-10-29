@@ -461,7 +461,7 @@ class MainActivity : ComponentActivity() {
        title = {
         Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
          Surface(shape=androidx.compose.foundation.shape.RoundedCornerShape(14.dp), color=MaterialTheme.colorScheme.primary, modifier=Modifier.size(42.dp)) {
-          Box(contentAlignment=androidx.compose.ui.Alignment.Center) { Text("👓", style=MaterialTheme.typography.titleLarge) }
+          Box(contentAlignment=androidx.compose.ui.Alignment.Center) { OpticianLogo(modifier=Modifier.size(30.dp), color=androidx.compose.ui.graphics.Color.White) }
          }
          Column {
           Text("Surya Optician", style=MaterialTheme.typography.titleLarge)
