@@ -39,6 +39,11 @@ import androidx.compose.foundation.Canvas
 import androidx.core.content.FileProvider
 import androidx.lifecycle.lifecycleScope
 import `in`.surya.optician.data.*
+import `in`.surya.optician.ui.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.Logout
+import androidx.compose.material.icons.rounded.Menu
+import androidx.compose.material.icons.rounded.Visibility
 import `in`.surya.optician.invoice.InvoicePdf
 import `in`.surya.optician.invoice.InvoiceCsv
 import `in`.surya.optician.invoice.InvoiceSharing
@@ -165,28 +170,7 @@ class MainActivity : ComponentActivity() {
   val db = OpticianDatabase.get(this)
   lifecycleScope.launch { if (db.dao().settings() == null) db.dao().saveSettings(ShopSettings()) }
   setContent {
-   MaterialTheme(
-    colorScheme = lightColorScheme(
-     primary = androidx.compose.ui.graphics.Color(0xFF123A63),
-     onPrimary = androidx.compose.ui.graphics.Color.White,
-     primaryContainer = androidx.compose.ui.graphics.Color(0xFFDCEBFA),
-     onPrimaryContainer = androidx.compose.ui.graphics.Color(0xFF102D4A),
-     secondary = androidx.compose.ui.graphics.Color(0xFF2677A8),
-     secondaryContainer = androidx.compose.ui.graphics.Color(0xFFE2F2FC),
-     onSecondaryContainer = androidx.compose.ui.graphics.Color(0xFF163D55),
-     background = androidx.compose.ui.graphics.Color(0xFFF4F7FB),
-     surface = androidx.compose.ui.graphics.Color(0xFFFFFFFF),
-     surfaceVariant = androidx.compose.ui.graphics.Color(0xFFEDF2F7),
-     outline = androidx.compose.ui.graphics.Color(0xFFD5DEE8)
-    ),
-    shapes = Shapes(
-     extraSmall = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
-     small = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
-     medium = androidx.compose.foundation.shape.RoundedCornerShape(18.dp),
-     large = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
-     extraLarge = androidx.compose.foundation.shape.RoundedCornerShape(28.dp)
-    )
-   ) {
+   SuryaTheme {
     val accountStore = remember { UserAccounts(this@MainActivity) }
     var accountVersion by remember { mutableIntStateOf(0) }
     var loggedInUser by remember { mutableStateOf<LocalUser?>(null) }
@@ -458,6 +442,7 @@ class MainActivity : ComponentActivity() {
      containerColor = MaterialTheme.colorScheme.background,
      topBar = {
       TopAppBar(
+       colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface),
        title = {
         Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
          Surface(shape=androidx.compose.foundation.shape.RoundedCornerShape(14.dp), color=MaterialTheme.colorScheme.primary, modifier=Modifier.size(42.dp)) {
@@ -473,10 +458,10 @@ class MainActivity : ComponentActivity() {
         if (section == "New Bill") {
          IconButton(onClick={
           if (billLines.isNotEmpty()) showBillPreview=true
-          else toast("Preview dekhne se pehle bill mein item add karein.")
-         }) { Text("👁", style=MaterialTheme.typography.titleLarge) }
+          else toast("Add at least one item to preview the bill.")
+         }) { Icon(Icons.Rounded.Visibility, contentDescription="Preview bill") }
         }
-        TextButton(onClick={ loggedInUser=null;authName="";authPassword="";section="Dashboard" }) { Text("Sign out") }
+        IconButton(onClick={ loggedInUser=null;authName="";authPassword="";section="Dashboard" }) { Icon(Icons.AutoMirrored.Rounded.Logout, contentDescription="Sign out") }
        }
       )
      },
@@ -489,12 +474,11 @@ class MainActivity : ComponentActivity() {
       ) {
        val primaryTabs = listOf("Dashboard", "Bills", "New Bill", "Customers")
        val labels = listOf("Home", "Bills", "Create", "Clients")
-       val glyphs = listOf("⌂", "▤", "+", "♙")
        primaryTabs.forEachIndexed { index, tab ->
         NavigationBarItem(
          selected=section==tab,
          onClick={ section=tab; showMoreMenu=false },
-         icon={ Text(glyphs[index], style=MaterialTheme.typography.titleMedium) },
+         icon={ Icon(sectionIcon(tab), contentDescription=labels[index]) },
          label={ Text(labels[index], style=MaterialTheme.typography.labelSmall, maxLines=1) },
          alwaysShowLabel=true
         )
@@ -502,7 +486,7 @@ class MainActivity : ComponentActivity() {
        NavigationBarItem(
         selected=showMoreMenu || section !in primaryTabs,
         onClick={ showMoreMenu=true },
-        icon={ Text("☰", style=MaterialTheme.typography.titleMedium) },
+        icon={ Icon(Icons.Rounded.Menu, contentDescription="Menu") },
         label={ Text("Menu", style=MaterialTheme.typography.labelSmall, maxLines=1) },
         alwaysShowLabel=true
        )
@@ -532,7 +516,7 @@ class MainActivity : ComponentActivity() {
              horizontalArrangement=Arrangement.spacedBy(14.dp),
              verticalAlignment=Alignment.CenterVertically
             ) {
-             Text(when(tab) { "Dashboard" -> "⌂"; "Bills" -> "▤"; "New Bill" -> "+"; "Customers" -> "♙"; "Products" -> "▦"; "Payment" -> "₹"; "Prescription" -> "◎"; "Reports" -> "▥"; "Settings" -> "⚙"; else -> "♙" }, style=MaterialTheme.typography.titleMedium, color=MaterialTheme.colorScheme.primary)
+             Icon(sectionIcon(tab), contentDescription=null, tint=MaterialTheme.colorScheme.primary)
              Text(if(tab=="Bills") "Bill History" else if(tab=="New Bill") "Create New Bill" else tab, style=MaterialTheme.typography.titleMedium)
              Spacer(Modifier.weight(1f))
              if(section==tab) Text("Current", style=MaterialTheme.typography.labelSmall, color=MaterialTheme.colorScheme.primary)
@@ -547,17 +531,6 @@ class MainActivity : ComponentActivity() {
     ) { padding ->
      Column(Modifier.fillMaxSize().padding(padding).padding(horizontal=16.dp, vertical=12.dp))
      {
-      Row(horizontalArrangement=Arrangement.spacedBy(8.dp), modifier=Modifier.fillMaxWidth()) {
-       Card(Modifier.weight(1f), colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.primaryContainer)) { Column(Modifier.padding(12.dp)) {
-        Text("Outstanding", style=MaterialTheme.typography.labelMedium)
-        Text("₹${"%.2f".format(due/100.0)}", style=MaterialTheme.typography.titleLarge)
-       } }
-       Card(Modifier.weight(1f), colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.secondaryContainer)) { Column(Modifier.padding(12.dp)) {
-        Text("Low stock items", style=MaterialTheme.typography.labelMedium)
-        Text("${lowStock.size}", style=MaterialTheme.typography.titleLarge)
-       } }
-      }
-      Spacer(Modifier.height(8.dp))
       Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())) {
       when (section) {
        "Dashboard" -> {
