@@ -260,6 +260,7 @@ class MainActivity : ComponentActivity() {
     var customerSearch by remember { mutableStateOf("") }
     var productSearch by remember { mutableStateOf("") }
     var editingPrescriptionId by remember { mutableStateOf<Long?>(null) }
+    var returnToBillAfterPrescription by remember { mutableStateOf(false) }
     var reportFrom by remember { mutableStateOf("") }
     var reportTo by remember { mutableStateOf("") }
     var selectedCustomerId by remember { mutableStateOf<Long?>(null) }
@@ -819,7 +820,7 @@ class MainActivity : ComponentActivity() {
          if(billCustomerSearchMessage.isNotBlank()) Text(billCustomerSearchMessage, style=MaterialTheme.typography.bodySmall, color=if(billCustomerId.isNotBlank()) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant)
          OutlinedTextField(billCustomerAddress, { billCustomerAddress=it }, label={ Text("Address (optional)") }, placeholder={ Text("House no., area, city") }, modifier=Modifier.fillMaxWidth())
          OutlinedTextField(billCustomerAge, { billCustomerAge=it.filter(Char::isDigit).take(3) }, label={ Text("Age (optional)") }, modifier=Modifier.fillMaxWidth(), singleLine=true, keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number))
-         OutlinedTextField(billCustomerEmail, { billCustomerEmail=it }, label={ Text("Email (optional)") }, modifier=Modifier.fillMaxWidth(), singleLine=true)
+         OutlinedTextField(billCustomerEmail, { billCustomerEmail=it }, label={ Text("Email (optional)") }, modifier=Modifier.fillMaxWidth(), singleLine=true, keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Email))
         } }
         Text("2 · ORDER DETAILS", style=MaterialTheme.typography.labelLarge, color=MaterialTheme.colorScheme.primary)
         Column(verticalArrangement=Arrangement.spacedBy(8.dp), modifier=Modifier.fillMaxWidth()) {
@@ -852,7 +853,7 @@ class MainActivity : ComponentActivity() {
            }
            OutlinedButton(onClick={
             val cid=billCustomerId.toLongOrNull()
-            if(cid!=null) { prescriptionCustomerId=cid.toString(); editingPrescriptionId=null; section="Prescription" }
+            if(cid!=null) { prescriptionCustomerId=cid.toString(); editingPrescriptionId=null; returnToBillAfterPrescription=true; section="Prescription" }
             else if(billCustomer.isBlank()) toast("Enter the customer's name first")
             else lifecycleScope.launch {
              runCatching {
@@ -869,6 +870,7 @@ class MainActivity : ComponentActivity() {
               billCustomerId=savedId.toString()
               prescriptionCustomerId=savedId.toString()
               editingPrescriptionId=null
+              returnToBillAfterPrescription=true
               toast("Customer saved. Add the prescription now.")
               section="Prescription"
              }.onFailure { toast(it.message ?: "Could not save customer before prescription") }
@@ -1112,12 +1114,12 @@ class MainActivity : ComponentActivity() {
             }
            }
            Row(horizontalArrangement=Arrangement.spacedBy(8.dp), modifier=Modifier.fillMaxWidth()) {
-            OutlinedTextField(rightSphere, { rightSphere=it }, label={ Text("SPH") }, placeholder={ Text("-2.00") }, supportingText={ Text("Sphere") }, modifier=Modifier.weight(1f), singleLine=true)
-            OutlinedTextField(rightCylinder, { rightCylinder=it }, label={ Text("CYL") }, placeholder={ Text("-0.75") }, supportingText={ Text("Cylinder") }, modifier=Modifier.weight(1f), singleLine=true)
+            OutlinedTextField(rightSphere, { rightSphere=it }, label={ Text("SPH") }, placeholder={ Text("-2.00") }, supportingText={ Text("Sphere") }, modifier=Modifier.weight(1f), singleLine=true, keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Decimal))
+            OutlinedTextField(rightCylinder, { rightCylinder=it }, label={ Text("CYL") }, placeholder={ Text("-0.75") }, supportingText={ Text("Cylinder") }, modifier=Modifier.weight(1f), singleLine=true, keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Decimal))
            }
            Row(horizontalArrangement=Arrangement.spacedBy(8.dp), modifier=Modifier.fillMaxWidth()) {
-            OutlinedTextField(rightAxis, { rightAxis=it }, label={ Text("AXIS") }, placeholder={ Text("90") }, supportingText={ Text("0–180°") }, modifier=Modifier.weight(1f), singleLine=true)
-            OutlinedTextField(rightAdd, { rightAdd=it }, label={ Text("ADD") }, placeholder={ Text("+1.50") }, supportingText={ Text("Addition") }, modifier=Modifier.weight(1f), singleLine=true)
+            OutlinedTextField(rightAxis, { rightAxis=it.filter(Char::isDigit).take(3) }, label={ Text("AXIS") }, placeholder={ Text("90") }, supportingText={ Text("0–180°") }, modifier=Modifier.weight(1f), singleLine=true, keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number))
+            OutlinedTextField(rightAdd, { rightAdd=it }, label={ Text("ADD") }, placeholder={ Text("+1.50") }, supportingText={ Text("Addition") }, modifier=Modifier.weight(1f), singleLine=true, keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Decimal))
            }
           }
          }
@@ -1131,12 +1133,12 @@ class MainActivity : ComponentActivity() {
             }
            }
            Row(horizontalArrangement=Arrangement.spacedBy(8.dp), modifier=Modifier.fillMaxWidth()) {
-            OutlinedTextField(leftSphere, { leftSphere=it }, label={ Text("SPH") }, placeholder={ Text("-1.50") }, supportingText={ Text("Sphere") }, modifier=Modifier.weight(1f), singleLine=true)
-            OutlinedTextField(leftCylinder, { leftCylinder=it }, label={ Text("CYL") }, placeholder={ Text("-0.50") }, supportingText={ Text("Cylinder") }, modifier=Modifier.weight(1f), singleLine=true)
+            OutlinedTextField(leftSphere, { leftSphere=it }, label={ Text("SPH") }, placeholder={ Text("-1.50") }, supportingText={ Text("Sphere") }, modifier=Modifier.weight(1f), singleLine=true, keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Decimal))
+            OutlinedTextField(leftCylinder, { leftCylinder=it }, label={ Text("CYL") }, placeholder={ Text("-0.50") }, supportingText={ Text("Cylinder") }, modifier=Modifier.weight(1f), singleLine=true, keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Decimal))
            }
            Row(horizontalArrangement=Arrangement.spacedBy(8.dp), modifier=Modifier.fillMaxWidth()) {
-            OutlinedTextField(leftAxis, { leftAxis=it }, label={ Text("AXIS") }, placeholder={ Text("180") }, supportingText={ Text("0–180°") }, modifier=Modifier.weight(1f), singleLine=true)
-            OutlinedTextField(leftAdd, { leftAdd=it }, label={ Text("ADD") }, placeholder={ Text("+1.50") }, supportingText={ Text("Addition") }, modifier=Modifier.weight(1f), singleLine=true)
+            OutlinedTextField(leftAxis, { leftAxis=it.filter(Char::isDigit).take(3) }, label={ Text("AXIS") }, placeholder={ Text("180") }, supportingText={ Text("0–180°") }, modifier=Modifier.weight(1f), singleLine=true, keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number))
+            OutlinedTextField(leftAdd, { leftAdd=it }, label={ Text("ADD") }, placeholder={ Text("+1.50") }, supportingText={ Text("Addition") }, modifier=Modifier.weight(1f), singleLine=true, keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Decimal))
            }
           }
          }
@@ -1155,10 +1157,15 @@ class MainActivity : ComponentActivity() {
           else if((rightAxis.isNotBlank() && (rightAxisValue==null || rightAxisValue !in 0..180)) || (leftAxis.isNotBlank() && (leftAxisValue==null || leftAxisValue !in 0..180))) toast("Axis must be a number from 0 to 180")
           else {
            val rx = Prescription(id=editingPrescriptionId ?: 0L, customerId=cid,rightSphere=rightSphere.trim(),rightCylinder=rightCylinder.trim(),rightAxis=rightAxis.trim(),rightAdd=rightAdd.trim(),leftSphere=leftSphere.trim(),leftCylinder=leftCylinder.trim(),leftAxis=leftAxis.trim(),leftAdd=leftAdd.trim(),pd=pd.trim(),notes=prescriptionNotes.trim())
-           if(editingPrescriptionId == null) db.dao().addPrescription(rx) else db.dao().updatePrescription(rx)
+           val savedPrescriptionId = if(editingPrescriptionId == null) db.dao().addPrescription(rx) else { db.dao().updatePrescription(rx); editingPrescriptionId!! }
            editingPrescriptionId=null
            rightSphere="";rightCylinder="";rightAxis="";rightAdd="";leftSphere="";leftCylinder="";leftAxis="";leftAdd="";pd="";prescriptionNotes=""
-           toast("Prescription saved")
+           if(returnToBillAfterPrescription) {
+            billPrescriptionId=savedPrescriptionId.toString()
+            returnToBillAfterPrescription=false
+            section="New Bill"
+            toast("Prescription saved and attached to this bill")
+           } else toast("Prescription saved")
           }
          } }, modifier=Modifier.fillMaxWidth().height(52.dp), shape=androidx.compose.foundation.shape.RoundedCornerShape(14.dp)) { Text(if(editingPrescriptionId == null) "Save prescription" else "Update prescription", style=MaterialTheme.typography.titleMedium) }
          if(editingPrescriptionId != null) OutlinedButton(onClick={ editingPrescriptionId=null; rightSphere="";rightCylinder="";rightAxis="";rightAdd="";leftSphere="";leftCylinder="";leftAxis="";leftAdd="";pd="";prescriptionNotes="" }, modifier=Modifier.fillMaxWidth().height(48.dp)) { Text("Cancel editing") }
