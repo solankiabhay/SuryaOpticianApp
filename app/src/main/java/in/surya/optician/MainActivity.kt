@@ -379,7 +379,7 @@ class MainActivity : ComponentActivity() {
           value=authName,
           onValueChange={authName=it;authError=""},
           label={Text(if(needsOwnerSetup) "Owner username" else "Username")},
-          leadingIcon={Text("ID", style=MaterialTheme.typography.labelMedium, color=MaterialTheme.colorScheme.primary)},
+          leadingIcon={Icon(Icons.Rounded.Person, contentDescription=null, tint=MaterialTheme.colorScheme.primary)},
           singleLine=true,
           shape=androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
           modifier=Modifier.fillMaxWidth()
@@ -388,7 +388,7 @@ class MainActivity : ComponentActivity() {
           value=authPassword,
           onValueChange={authPassword=it;authError=""},
           label={Text("Password")},
-          leadingIcon={Text("••", style=MaterialTheme.typography.labelMedium, color=MaterialTheme.colorScheme.primary)},
+          leadingIcon={Icon(Icons.Rounded.Lock, contentDescription=null, tint=MaterialTheme.colorScheme.primary)},
           visualTransformation=androidx.compose.ui.text.input.PasswordVisualTransformation(),
           singleLine=true,
           shape=androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
@@ -398,7 +398,7 @@ class MainActivity : ComponentActivity() {
           value=authConfirmPassword,
           onValueChange={authConfirmPassword=it;authError=""},
           label={Text("Confirm password")},
-          leadingIcon={Text("✓")},
+          leadingIcon={Icon(Icons.Rounded.Lock, contentDescription=null, tint=MaterialTheme.colorScheme.primary)},
           visualTransformation=androidx.compose.ui.text.input.PasswordVisualTransformation(),
           singleLine=true,
           shape=androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
@@ -541,7 +541,7 @@ class MainActivity : ComponentActivity() {
       Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(mainScroll)) {
       when (section) {
        "Dashboard" -> {
-        Text("Good ${java.text.SimpleDateFormat("EEEE, dd MMMM", java.util.Locale.getDefault()).format(java.util.Date())}", style=MaterialTheme.typography.labelLarge, color=MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("${java.text.SimpleDateFormat("EEEE, dd MMMM", java.util.Locale.getDefault()).format(java.util.Date())}", style=MaterialTheme.typography.labelLarge, color=MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(8.dp))
         Card(
          Modifier.fillMaxWidth(),
@@ -568,21 +568,21 @@ class MainActivity : ComponentActivity() {
            modifier=Modifier.fillMaxWidth().height(54.dp),
            shape=androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
            colors=ButtonDefaults.buttonColors(containerColor=androidx.compose.ui.graphics.Color.White, contentColor=androidx.compose.ui.graphics.Color(0xFF123A63))
-          ) { Text("＋   Create New Bill", style=MaterialTheme.typography.titleMedium) }
+          ) { Icon(Icons.Rounded.Add, contentDescription=null); Spacer(Modifier.width(8.dp)); Text("Create New Bill", style=MaterialTheme.typography.titleMedium) }
          }
         }
         Spacer(Modifier.height(16.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.spacedBy(10.dp)) {
          Card(Modifier.weight(1f), shape=androidx.compose.foundation.shape.RoundedCornerShape(20.dp)) {
           Column(Modifier.padding(14.dp), verticalArrangement=Arrangement.spacedBy(7.dp)) {
-           Surface(shape=androidx.compose.foundation.shape.CircleShape, color=androidx.compose.ui.graphics.Color(0xFFE2F2FC), modifier=Modifier.size(38.dp)) { Box(contentAlignment=androidx.compose.ui.Alignment.Center) { Text("₹", color=androidx.compose.ui.graphics.Color(0xFF2677A8), style=MaterialTheme.typography.titleLarge) } }
+           Surface(shape=androidx.compose.foundation.shape.CircleShape, color=androidx.compose.ui.graphics.Color(0xFFE2F2FC), modifier=Modifier.size(38.dp)) { Box(contentAlignment=androidx.compose.ui.Alignment.Center) { Icon(Icons.Rounded.Payments, contentDescription=null, tint=androidx.compose.ui.graphics.Color(0xFF2677A8)) } }
            Text("Outstanding", style=MaterialTheme.typography.labelMedium, color=MaterialTheme.colorScheme.onSurfaceVariant)
            Text("₹${"%.0f".format(due/100.0)}", style=MaterialTheme.typography.titleLarge, color=MaterialTheme.colorScheme.primary)
           }
          }
          Card(Modifier.weight(1f), shape=androidx.compose.foundation.shape.RoundedCornerShape(20.dp)) {
           Column(Modifier.padding(14.dp), verticalArrangement=Arrangement.spacedBy(7.dp)) {
-           Surface(shape=androidx.compose.foundation.shape.CircleShape, color=androidx.compose.ui.graphics.Color(0xFFFFE8D6), modifier=Modifier.size(38.dp)) { Box(contentAlignment=androidx.compose.ui.Alignment.Center) { Text("▦", color=androidx.compose.ui.graphics.Color(0xFF9A4D00), style=MaterialTheme.typography.titleLarge) } }
+           Surface(shape=androidx.compose.foundation.shape.CircleShape, color=androidx.compose.ui.graphics.Color(0xFFFFE8D6), modifier=Modifier.size(38.dp)) { Box(contentAlignment=androidx.compose.ui.Alignment.Center) { Icon(Icons.Rounded.Inventory2, contentDescription=null, tint=androidx.compose.ui.graphics.Color(0xFF9A4D00)) } }
            Text("Low stock alerts", style=MaterialTheme.typography.labelMedium, color=MaterialTheme.colorScheme.onSurfaceVariant)
            Text("${lowStock.size}", style=MaterialTheme.typography.titleLarge, color=if(lowStock.isEmpty()) MaterialTheme.colorScheme.primary else androidx.compose.ui.graphics.Color(0xFFB45309))
           }
@@ -593,7 +593,7 @@ class MainActivity : ComponentActivity() {
          listOf(Triple("Bills", allInvoices.size, "▤"), Triple("Customers", customers.size, "♙"), Triple("Products", products.size, "◈")).forEach { metric ->
           Card(Modifier.weight(1f).clickable { section=when(metric.first) { "Bills" -> "Bills"; "Customers" -> "Customers"; else -> "Products" } }, shape=androidx.compose.foundation.shape.RoundedCornerShape(18.dp)) {
            Column(Modifier.padding(12.dp), verticalArrangement=Arrangement.spacedBy(5.dp)) {
-            Text(metric.third, style=MaterialTheme.typography.titleLarge, color=MaterialTheme.colorScheme.secondary)
+            Icon(sectionIcon(metric.first), contentDescription=null, tint=MaterialTheme.colorScheme.secondary)
             Text(metric.first, style=MaterialTheme.typography.labelMedium, color=MaterialTheme.colorScheme.onSurfaceVariant)
             Text("${metric.second}", style=MaterialTheme.typography.headlineSmall)
            }
@@ -608,12 +608,12 @@ class MainActivity : ComponentActivity() {
         Spacer(Modifier.height(8.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.spacedBy(10.dp)) {
          Card(Modifier.weight(1f).clickable { section="Customers" }, shape=androidx.compose.foundation.shape.RoundedCornerShape(18.dp)) { Column(Modifier.padding(14.dp), verticalArrangement=Arrangement.spacedBy(8.dp)) {
-          Text("♙", style=MaterialTheme.typography.headlineMedium, color=MaterialTheme.colorScheme.primary)
+          Icon(Icons.Rounded.PersonAdd, contentDescription=null, tint=MaterialTheme.colorScheme.primary, modifier=Modifier.size(30.dp))
           Text("Add customer", style=MaterialTheme.typography.titleSmall)
           Text("Save customer details", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSurfaceVariant)
          } }
          Card(Modifier.weight(1f).clickable { section="Products" }, shape=androidx.compose.foundation.shape.RoundedCornerShape(18.dp)) { Column(Modifier.padding(14.dp), verticalArrangement=Arrangement.spacedBy(8.dp)) {
-          Text("◈", style=MaterialTheme.typography.headlineMedium, color=MaterialTheme.colorScheme.primary)
+          Icon(Icons.Rounded.Inventory2, contentDescription=null, tint=MaterialTheme.colorScheme.primary, modifier=Modifier.size(30.dp))
           Text("Manage products", style=MaterialTheme.typography.titleSmall)
           Text("Frames, lenses & stock", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSurfaceVariant)
          } }
@@ -621,9 +621,9 @@ class MainActivity : ComponentActivity() {
         Spacer(Modifier.height(10.dp))
         Card(Modifier.fillMaxWidth().clickable { section="Payment" }, shape=androidx.compose.foundation.shape.RoundedCornerShape(18.dp), colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.secondaryContainer)) {
          Row(Modifier.padding(16.dp), verticalAlignment=androidx.compose.ui.Alignment.CenterVertically, horizontalArrangement=Arrangement.spacedBy(12.dp)) {
-          Surface(shape=androidx.compose.foundation.shape.RoundedCornerShape(12.dp), color=androidx.compose.ui.graphics.Color.White, modifier=Modifier.size(44.dp)) { Box(contentAlignment=androidx.compose.ui.Alignment.Center) { Text("₹", style=MaterialTheme.typography.titleLarge, color=MaterialTheme.colorScheme.primary) } }
+          Surface(shape=androidx.compose.foundation.shape.RoundedCornerShape(12.dp), color=androidx.compose.ui.graphics.Color.White, modifier=Modifier.size(44.dp)) { Box(contentAlignment=androidx.compose.ui.Alignment.Center) { Icon(Icons.Rounded.Payments, contentDescription=null, tint=MaterialTheme.colorScheme.primary) } }
           Column(Modifier.weight(1f)) { Text("Collect a payment", style=MaterialTheme.typography.titleMedium); Text("Record payment and update dues", style=MaterialTheme.typography.bodySmall) }
-          Text("›", style=MaterialTheme.typography.headlineMedium, color=MaterialTheme.colorScheme.primary)
+          Icon(Icons.Rounded.ChevronRight, contentDescription=null, tint=MaterialTheme.colorScheme.primary)
          }
         }
         Spacer(Modifier.height(18.dp))
@@ -634,7 +634,7 @@ class MainActivity : ComponentActivity() {
         if(allInvoices.isEmpty()) {
          Card(Modifier.fillMaxWidth(), shape=androidx.compose.foundation.shape.RoundedCornerShape(18.dp)) {
           Column(Modifier.fillMaxWidth().padding(22.dp), horizontalAlignment=androidx.compose.ui.Alignment.CenterHorizontally, verticalArrangement=Arrangement.spacedBy(8.dp)) {
-           Text("▤", style=MaterialTheme.typography.displaySmall, color=MaterialTheme.colorScheme.secondary)
+           Icon(Icons.Rounded.Receipt, contentDescription=null, tint=MaterialTheme.colorScheme.secondary, modifier=Modifier.size(40.dp))
            Text("Your bills will appear here", style=MaterialTheme.typography.titleMedium)
            Text("Create your first bill to start tracking sales and payments.", style=MaterialTheme.typography.bodyMedium, color=MaterialTheme.colorScheme.onSurfaceVariant)
            OutlinedButton(onClick={section="New Bill"}) { Text("Create first bill") }
@@ -644,7 +644,7 @@ class MainActivity : ComponentActivity() {
         allInvoices.take(5).forEach { invoice ->
          Card(Modifier.fillMaxWidth().padding(vertical=4.dp).clickable { section="Bills" }, shape=androidx.compose.foundation.shape.RoundedCornerShape(18.dp)) {
           Row(Modifier.fillMaxWidth().padding(14.dp), horizontalArrangement=Arrangement.spacedBy(12.dp), verticalAlignment=androidx.compose.ui.Alignment.CenterVertically) {
-           Surface(shape=androidx.compose.foundation.shape.RoundedCornerShape(12.dp), color=MaterialTheme.colorScheme.primaryContainer, modifier=Modifier.size(44.dp)) { Box(contentAlignment=androidx.compose.ui.Alignment.Center) { Text("▤", style=MaterialTheme.typography.titleLarge, color=MaterialTheme.colorScheme.primary) } }
+           Surface(shape=androidx.compose.foundation.shape.RoundedCornerShape(12.dp), color=MaterialTheme.colorScheme.primaryContainer, modifier=Modifier.size(44.dp)) { Box(contentAlignment=androidx.compose.ui.Alignment.Center) { Icon(Icons.Rounded.Receipt, contentDescription=null, tint=MaterialTheme.colorScheme.primary) } }
            Column(Modifier.weight(1f), verticalArrangement=Arrangement.spacedBy(3.dp)) {
             Text(invoice.number, style=MaterialTheme.typography.titleSmall)
             Text(invoice.customerName, style=MaterialTheme.typography.bodyMedium)
@@ -986,7 +986,7 @@ class MainActivity : ComponentActivity() {
            if(id==null || amount==null || amount<=0) toast("Enter a valid invoice ID and payment amount")
            else runCatching { BillingRepository(db).recordPayment(id,(amount*100).toLong(),paymentMethod.trim().ifBlank{"Cash"}) }
             .onSuccess { toast("Payment recorded successfully"); paymentAmount="" }.onFailure { toast(it.message ?: "Payment failed") }
-          } }, enabled=paymentInvoiceId.toLongOrNull()!=null && (paymentAmount.toDoubleOrNull() ?: 0.0)>0, modifier=Modifier.fillMaxWidth()) { Text("✓  Record payment") }
+          } }, enabled=paymentInvoiceId.toLongOrNull()!=null && (paymentAmount.toDoubleOrNull() ?: 0.0)>0, modifier=Modifier.fillMaxWidth()) { Icon(Icons.Rounded.Check, contentDescription=null); Spacer(Modifier.width(8.dp)); Text("Record payment") }
          }
         }
         Spacer(Modifier.height(16.dp))
@@ -995,7 +995,7 @@ class MainActivity : ComponentActivity() {
          Card(Modifier.fillMaxWidth().padding(vertical=4.dp).clickable { paymentInvoiceId=inv.id.toString(); paymentAmount="" }) {
           Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement=Arrangement.spacedBy(10.dp), verticalAlignment=androidx.compose.ui.Alignment.CenterVertically) {
            Surface(shape=androidx.compose.foundation.shape.RoundedCornerShape(12.dp), color=if(inv.duePaise<=0) androidx.compose.ui.graphics.Color(0xFFE0F4E8) else androidx.compose.ui.graphics.Color(0xFFFFE8D6), modifier=Modifier.size(44.dp)) {
-            Box(contentAlignment=androidx.compose.ui.Alignment.Center) { Text(if(inv.duePaise<=0) "✓" else "₹", style=MaterialTheme.typography.titleMedium, color=if(inv.duePaise<=0) androidx.compose.ui.graphics.Color(0xFF176B3A) else androidx.compose.ui.graphics.Color(0xFF9A4D00)) }
+            Box(contentAlignment=androidx.compose.ui.Alignment.Center) { Icon(if(inv.duePaise<=0) Icons.Rounded.Check else Icons.Rounded.Payments, contentDescription=null, tint=if(inv.duePaise<=0) androidx.compose.ui.graphics.Color(0xFF176B3A) else androidx.compose.ui.graphics.Color(0xFF9A4D00)) }
            }
            Column(Modifier.weight(1f)) {
             Text("${inv.number} · ${inv.customerName}", style=MaterialTheme.typography.titleSmall)
@@ -1014,7 +1014,7 @@ class MainActivity : ComponentActivity() {
         paymentHistory.forEach { payment ->
          Card(Modifier.fillMaxWidth().padding(vertical=3.dp)) {
           Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement=Arrangement.spacedBy(10.dp), verticalAlignment=androidx.compose.ui.Alignment.CenterVertically) {
-           Surface(shape=androidx.compose.foundation.shape.CircleShape, color=MaterialTheme.colorScheme.secondaryContainer, modifier=Modifier.size(40.dp)) { Box(contentAlignment=androidx.compose.ui.Alignment.Center) { Text("✓", style=MaterialTheme.typography.titleMedium, color=MaterialTheme.colorScheme.primary) } }
+           Surface(shape=androidx.compose.foundation.shape.CircleShape, color=MaterialTheme.colorScheme.secondaryContainer, modifier=Modifier.size(40.dp)) { Box(contentAlignment=androidx.compose.ui.Alignment.Center) { Icon(Icons.Rounded.Check, contentDescription=null, tint=MaterialTheme.colorScheme.primary) } }
            Column(Modifier.weight(1f)) {
             Text(payment.method, style=MaterialTheme.typography.titleSmall)
             Text(java.text.SimpleDateFormat("dd MMM yyyy, hh:mm a", java.util.Locale.getDefault()).format(java.util.Date(payment.paidAt)), style=MaterialTheme.typography.bodySmall)
@@ -1160,7 +1160,7 @@ class MainActivity : ComponentActivity() {
         }
        }
        "Reports" -> {
-        Text("Shop reports", style=MaterialTheme.typography.titleLarge)
+        ScreenHeader("Reports", "Sales, collections, profit and inventory")
         val fromMillis = remember(reportFrom) { if (reportFrom.isBlank()) null else parseReportDate(reportFrom) }
         val toMillisExclusive = remember(reportTo) {
          if (reportTo.isBlank()) null else parseReportDate(reportTo)?.let { start ->
@@ -1181,76 +1181,117 @@ class MainActivity : ComponentActivity() {
         val profitFrom = fromMillis ?: Long.MIN_VALUE
         val profitTo = toMillisExclusive ?: Long.MAX_VALUE
         val estimatedProfit by remember(profitFrom, profitTo) { db.dao().estimatedProfit(profitFrom, profitTo) }.collectAsState(initial = 0L)
-        Row(horizontalArrangement=Arrangement.spacedBy(8.dp), modifier=Modifier.fillMaxWidth()) {
-         Card(Modifier.weight(1f)) { Column(Modifier.padding(12.dp)) { Text("Invoices"); Text("${reportInvoices.size}", style=MaterialTheme.typography.headlineSmall) } }
-         Card(Modifier.weight(1f)) { Column(Modifier.padding(12.dp)) { Text("Sales"); Text("₹${"%.2f".format(totalSales/100.0)}", style=MaterialTheme.typography.titleMedium) } }
+        Spacer(Modifier.height(8.dp))
+        Row(horizontalArrangement=Arrangement.spacedBy(10.dp), modifier=Modifier.fillMaxWidth()) {
+         StatTile("Invoices", "${reportInvoices.size}", Icons.Rounded.Receipt, MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primaryContainer, Modifier.weight(1f))
+         StatTile("Sales", formatRupees(totalSales), Icons.Rounded.Assessment, MaterialTheme.colorScheme.secondary, MaterialTheme.colorScheme.secondaryContainer, Modifier.weight(1f))
         }
-        Row(horizontalArrangement=Arrangement.spacedBy(8.dp), modifier=Modifier.fillMaxWidth()) {
-         Card(Modifier.weight(1f)) { Column(Modifier.padding(12.dp)) { Text("Collected"); Text("₹${"%.2f".format(totalPaid/100.0)}", style=MaterialTheme.typography.titleMedium) } }
-         Card(Modifier.weight(1f)) { Column(Modifier.padding(12.dp)) { Text("Outstanding"); Text("₹${"%.2f".format(totalDue/100.0)}", style=MaterialTheme.typography.titleMedium) } }
+        Spacer(Modifier.height(10.dp))
+        Row(horizontalArrangement=Arrangement.spacedBy(10.dp), modifier=Modifier.fillMaxWidth()) {
+         StatTile("Collected", formatRupees(totalPaid), Icons.Rounded.Payments, Brand.Success, Brand.SuccessBg, Modifier.weight(1f))
+         StatTile("Outstanding", formatRupees(totalDue), Icons.Rounded.AccountBalanceWallet, Brand.Warning, Brand.WarningBg, Modifier.weight(1f))
         }
-        Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(12.dp)) { Text("Estimated gross profit (excluding tax)"); Text("₹${"%.2f".format(estimatedProfit/100.0)}", style=MaterialTheme.typography.titleLarge); Text("Uses purchase cost saved at invoice time. Older invoices migrated from v1 have zero recorded cost and cannot show historical profit accurately.", style=MaterialTheme.typography.bodySmall) } }
-        Text("Current inventory", style=MaterialTheme.typography.titleMedium)
+        Spacer(Modifier.height(10.dp))
+        SectionCard(title="Estimated gross profit", icon=Icons.Rounded.Savings, subtitle="Excluding tax") {
+         Text(formatRupees(estimatedProfit), style=MaterialTheme.typography.headlineSmall, color=MaterialTheme.colorScheme.primary)
+         Text("Uses the purchase cost saved at invoice time. Invoices migrated from v1 have no recorded cost, so their profit is not reliable.", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Spacer(Modifier.height(16.dp))
+        Text("Current inventory", style=MaterialTheme.typography.titleLarge)
         val stockUnits = products.sumOf { it.stock.toLong() }
         val inventoryCost = products.sumOf { it.stock.toLong() * it.costPaise }
         val inventoryRetail = products.sumOf { it.stock.toLong() * it.pricePaise }
-        Row(horizontalArrangement=Arrangement.spacedBy(8.dp), modifier=Modifier.fillMaxWidth()) {
-         Card(Modifier.weight(1f)) { Column(Modifier.padding(10.dp)) { Text("Stock units"); Text("$stockUnits", style=MaterialTheme.typography.titleMedium) } }
-         Card(Modifier.weight(1f)) { Column(Modifier.padding(10.dp)) { Text("Cost value"); Text("₹${"%.2f".format(inventoryCost/100.0)}", style=MaterialTheme.typography.titleMedium) } }
+        Spacer(Modifier.height(8.dp))
+        Row(horizontalArrangement=Arrangement.spacedBy(10.dp), modifier=Modifier.fillMaxWidth()) {
+         StatTile("Stock units", "$stockUnits", Icons.Rounded.Inventory2, MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primaryContainer, Modifier.weight(1f))
+         StatTile("Cost value", formatRupees(inventoryCost), Icons.Rounded.Payments, MaterialTheme.colorScheme.secondary, MaterialTheme.colorScheme.secondaryContainer, Modifier.weight(1f))
         }
-        Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(10.dp)) { Text("Retail value at current prices"); Text("₹${"%.2f".format(inventoryRetail/100.0)}", style=MaterialTheme.typography.titleMedium) } }
-        Text("Stock by category", style=MaterialTheme.typography.titleSmall)
+        Spacer(Modifier.height(10.dp))
+        StatTile("Retail value at current prices", formatRupees(inventoryRetail), Icons.Rounded.Savings, Brand.Success, Brand.SuccessBg, Modifier.fillMaxWidth())
+        Spacer(Modifier.height(16.dp))
+        Text("Stock by category", style=MaterialTheme.typography.titleMedium)
         products.groupBy { it.category.trim().ifBlank { "Uncategorised" } }.toSortedMap().forEach { (category, entries) ->
          val units = entries.sumOf { it.stock.toLong() }
          val costValue = entries.sumOf { it.stock.toLong() * it.costPaise }
-         Text("$category · ${entries.size} products · $units units · cost ₹${"%.2f".format(costValue/100.0)}", style=MaterialTheme.typography.bodySmall)
+         RecordCard(modifier=Modifier.padding(vertical=3.dp)) {
+          Row(verticalAlignment=Alignment.CenterVertically) {
+           Column(Modifier.weight(1f)) {
+            Text(category, style=MaterialTheme.typography.titleSmall)
+            Text("${entries.size} products · $units units", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSurfaceVariant)
+           }
+           Text(formatRupees(costValue), style=MaterialTheme.typography.titleSmall)
+          }
+         }
         }
+        Spacer(Modifier.height(12.dp))
+        Text("Stock levels", style=MaterialTheme.typography.titleMedium)
         products.sortedBy { it.stock }.forEach { product ->
-         Text("${if(product.stock<=product.lowStock) "⚠ " else ""}${product.name} · stock ${product.stock} · cost ₹${"%.2f".format(product.costPaise/100.0)} · sell ₹${"%.2f".format(product.pricePaise/100.0)}", style=MaterialTheme.typography.bodySmall)
+         RecordCard(modifier=Modifier.padding(vertical=3.dp)) {
+          Row(verticalAlignment=Alignment.CenterVertically, horizontalArrangement=Arrangement.spacedBy(10.dp)) {
+           Column(Modifier.weight(1f)) {
+            Text(product.name, style=MaterialTheme.typography.titleSmall)
+            Text("Cost ${formatRupees(product.costPaise)} · Sell ${formatRupees(product.pricePaise)}", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSurfaceVariant)
+           }
+           if(product.stock<=product.lowStock) StatusPill("LOW · ${product.stock}", Brand.WarningBg, Brand.Warning) else StatusPill("${product.stock} in stock", Brand.SuccessBg, Brand.Success)
+          }
+         }
         }
-        Button(onClick={ if (invalidDateRange) toast("Correct the date range before exporting") else InvoiceCsv.share(this@MainActivity, reportInvoices) }, enabled = !invalidDateRange, modifier=Modifier.fillMaxWidth()) { Text("Export date-filtered invoices to CSV") }
-        Text("Customer invoice report", style=MaterialTheme.typography.titleMedium)
-        OutlinedTextField(query, { query=it }, label={Text("Filter by invoice number, customer or phone")}, modifier=Modifier.fillMaxWidth())
+        Spacer(Modifier.height(16.dp))
+        PrimaryAction(text="Export date-filtered invoices to CSV", onClick={ if (invalidDateRange) toast("Correct the date range before exporting") else InvoiceCsv.share(this@MainActivity, reportInvoices) }, icon=Icons.Rounded.FileDownload, enabled=!invalidDateRange)
+        Spacer(Modifier.height(16.dp))
+        Text("Customer invoice report", style=MaterialTheme.typography.titleLarge)
+        Spacer(Modifier.height(8.dp))
+        AppField(value=query, onValueChange={ query=it }, label="Filter by invoice number, customer or phone", icon=Icons.Rounded.Search)
         val visibleReportInvoices = reportInvoices.filter { invoice -> query.isBlank() || invoice.number.contains(query, true) || invoice.customerName.contains(query, true) || invoice.phone.contains(query, true) }
         Text("${visibleReportInvoices.size} invoices match the date and search filters.", style = MaterialTheme.typography.bodySmall)
         visibleReportInvoices.forEach { invoice ->
-         Card(Modifier.fillMaxWidth().padding(vertical=3.dp)) {
-          Column(Modifier.padding(10.dp)) {
-           Text("${invoice.customerName} · ${invoice.number}", style=MaterialTheme.typography.titleSmall)
-           Text("Date: "+java.text.SimpleDateFormat("dd MMM yyyy", java.util.Locale.getDefault()).format(java.util.Date(invoice.createdAt)))
-           Text("Sales ₹${"%.2f".format(invoice.totalPaise/100.0)} · Paid ₹${"%.2f".format(invoice.paidPaise/100.0)} · Due ₹${"%.2f".format(invoice.duePaise/100.0)}")
+         RecordCard(modifier=Modifier.padding(vertical=3.dp)) {
+          Row(verticalAlignment=Alignment.CenterVertically) {
+           Column(Modifier.weight(1f)) {
+            Text(invoice.customerName, style=MaterialTheme.typography.titleSmall)
+            Text(invoice.number + "  ·  " + java.text.SimpleDateFormat("dd MMM yyyy", java.util.Locale.getDefault()).format(java.util.Date(invoice.createdAt)), style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSurfaceVariant)
+           }
+           PaymentBadge(invoice.duePaise, invoice.paidPaise)
           }
+          AmountRow("Sales", formatRupees(invoice.totalPaise))
+          AmountRow("Paid", formatRupees(invoice.paidPaise))
+          if(invoice.duePaise>0) AmountRow("Due", formatRupees(invoice.duePaise), valueColor=Brand.Warning)
          }
         }
         Text("Profit is an estimate: invoice tax is excluded and recorded item cost is deducted. It is not net profit and excludes rent, wages and other operating expenses. Dates use the device local time zone.", style=MaterialTheme.typography.bodySmall)
        }
        "Users" -> {
-        Text("User management", style=MaterialTheme.typography.headlineSmall)
-        Text("Create separate local accounts for shop staff. Only the owner can manage accounts.", style=MaterialTheme.typography.bodyMedium)
+        ScreenHeader("Users", "Local accounts for shop staff. Only the owner can manage accounts.")
         Spacer(Modifier.height(12.dp))
-        OutlinedTextField(newStaffName,{newStaffName=it},label={Text("Staff username")},singleLine=true,modifier=Modifier.fillMaxWidth())
-        OutlinedTextField(newStaffPassword,{newStaffPassword=it},label={Text("Temporary password (8+ characters)")},singleLine=true,modifier=Modifier.fillMaxWidth())
-        Row(horizontalArrangement=Arrangement.spacedBy(8.dp), modifier=Modifier.fillMaxWidth()) {
-         FilterChip(selected=newStaffRole=="Staff",onClick={newStaffRole="Staff"},label={Text("Staff")})
-         FilterChip(selected=newStaffRole=="Manager",onClick={newStaffRole="Manager"},label={Text("Manager")})
-        }
-        Button(onClick={
+        SectionCard(title="Create staff account", icon=Icons.Rounded.PersonAdd) {
+         AppField(value=newStaffName, onValueChange={ newStaffName=it }, label="Staff username", icon=Icons.Rounded.Person)
+         AppField(value=newStaffPassword, onValueChange={ newStaffPassword=it }, label="Temporary password (8+ characters)", icon=Icons.Rounded.Lock)
+         Text("Role", style=MaterialTheme.typography.labelLarge)
+         ChoiceChips(options=listOf("Staff","Manager"), selected=newStaffRole, onSelect={ newStaffRole=it })
+         PrimaryAction(text="Create staff account", onClick={
          if(!isOwner()) denyPermission("manage user accounts") else runCatching {
           accountStore.create(newStaffName.trim(),newStaffPassword,newStaffRole)
           accountVersion++
           newStaffName="";newStaffPassword=""
          }.onSuccess { toast("User account created") }.onFailure { toast(it.message ?: "Could not create user") }
-        },modifier=Modifier.fillMaxWidth(),enabled=newStaffName.trim().length>=3&&newStaffPassword.length>=8) { Text("Create staff account") }
-        Spacer(Modifier.height(12.dp))
-        Text("Accounts on this device",style=MaterialTheme.typography.titleMedium)
+        }, icon=Icons.Rounded.Check, enabled=newStaffName.trim().length>=3&&newStaffPassword.length>=8)
+        }
+        Spacer(Modifier.height(20.dp))
+        Text("Accounts on this device", style=MaterialTheme.typography.titleLarge)
+        Spacer(Modifier.height(8.dp))
         accountVersion
         accountStore.loadUsers().forEach { user ->
-         Card(Modifier.fillMaxWidth().padding(vertical=3.dp)) { Row(Modifier.fillMaxWidth().padding(12.dp),horizontalArrangement=Arrangement.SpaceBetween) {
-          Column(Modifier.weight(1f)) { Text(user.username,style=MaterialTheme.typography.titleSmall); Text(user.role,style=MaterialTheme.typography.bodySmall) }
-          if(isOwner() && user.role!="Owner" && user.username!=loggedInUser?.username) TextButton(onClick={ if(isOwner()) { accountStore.remove(user.username);accountVersion++;toast("Account removed") } else denyPermission("manage user accounts") }) { Text("Remove") }
-         } }
+         RecordCard(modifier=Modifier.padding(vertical=4.dp)) {
+          Row(verticalAlignment=Alignment.CenterVertically, horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+           AvatarBadge(user.username)
+           Column(Modifier.weight(1f)) { Text(user.username, style=MaterialTheme.typography.titleMedium) }
+           StatusPill(user.role.uppercase(), MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.primary)
+           if(isOwner() && user.role!="Owner" && user.username!=loggedInUser?.username) IconButton(onClick={ if(isOwner()) { accountStore.remove(user.username);accountVersion++;toast("Account removed") } else denyPermission("manage user accounts") }) { Icon(Icons.Rounded.Delete, contentDescription="Remove account", tint=MaterialTheme.colorScheme.error) }
+          }
+         }
         }
-        Text("This is device-local account management, not cloud identity or multi-device synchronization.",style=MaterialTheme.typography.bodySmall)
+        Text("This is device-local account management, not cloud identity or multi-device synchronization.", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.height(24.dp))
        }
        "Settings" -> {
         var shopName by remember { mutableStateOf("Surya Optician") }
@@ -1259,19 +1300,23 @@ class MainActivity : ComponentActivity() {
         var shopGstin by remember { mutableStateOf("") }
         var shopFooter by remember { mutableStateOf("Thank you for your purchase!") }
         LaunchedEffect(Unit) { db.dao().settings()?.let { shopName=it.name;shopAddress=it.address;shopPhone=it.phone;shopGstin=it.gstin;shopFooter=it.footer } }
-        OutlinedTextField(shopName,{shopName=it},label={Text("Shop name")},modifier=Modifier.fillMaxWidth())
-        OutlinedTextField(shopAddress,{shopAddress=it},label={Text("Shop address")},modifier=Modifier.fillMaxWidth())
-        OutlinedTextField(shopPhone,{shopPhone=it},label={Text("Shop phone")},modifier=Modifier.fillMaxWidth())
-        OutlinedTextField(shopGstin,{shopGstin=it},label={Text("GSTIN")},modifier=Modifier.fillMaxWidth())
-        OutlinedTextField(shopFooter,{shopFooter=it},label={Text("Invoice footer")},modifier=Modifier.fillMaxWidth())
-        Button(onClick={lifecycleScope.launch{db.dao().saveSettings(ShopSettings(name=shopName,address=shopAddress,phone=shopPhone,gstin=shopGstin,footer=shopFooter));toast("Shop settings saved")}},modifier=Modifier.fillMaxWidth()){Text("Save settings")}
-        Divider()
+        ScreenHeader("Settings", "Shop profile, security and data")
+        Spacer(Modifier.height(12.dp))
+        SectionCard(title="Shop profile", icon=Icons.Rounded.Store, subtitle="Shown on every invoice") {
+         AppField(value=shopName, onValueChange={ shopName=it }, label="Shop name")
+         AppField(value=shopAddress, onValueChange={ shopAddress=it }, label="Shop address", singleLine=false, minLines=2)
+         AppField(value=shopPhone, onValueChange={ shopPhone=it }, label="Shop phone", keyboardType=KeyboardType.Phone)
+         AppField(value=shopGstin, onValueChange={ shopGstin=it }, label="GSTIN")
+         AppField(value=shopFooter, onValueChange={ shopFooter=it }, label="Invoice footer")
+         PrimaryAction(text="Save settings", onClick={ lifecycleScope.launch { db.dao().saveSettings(ShopSettings(name=shopName,address=shopAddress,phone=shopPhone,gstin=shopGstin,footer=shopFooter)); toast("Shop settings saved") } }, icon=Icons.Rounded.Check)
+        }
         if(isOwner()) {
-        Text("Optional app PIN lock", style=MaterialTheme.typography.titleMedium)
-        Text("Set a 4–8 digit local PIN to require unlocking when the app opens. If you forget it, clear app data to remove it; there is no online recovery.", style=MaterialTheme.typography.bodySmall)
-        OutlinedTextField(newPin, { newPin=it.filter(Char::isDigit).take(8) }, label={Text("New PIN (4–8 digits)")}, modifier=Modifier.fillMaxWidth(), singleLine=true)
-        OutlinedTextField(confirmPin, { confirmPin=it.filter(Char::isDigit).take(8) }, label={Text("Confirm PIN")}, modifier=Modifier.fillMaxWidth(), singleLine=true)
-        Button(onClick={
+         Spacer(Modifier.height(12.dp))
+         SectionCard(title="App PIN lock", icon=Icons.Rounded.Lock, subtitle="Optional 4–8 digit PIN required when the app opens") {
+          Text("If you forget the PIN, clear app data to remove it; there is no online recovery.", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSurfaceVariant)
+          AppField(value=newPin, onValueChange={ newPin=it.filter(Char::isDigit).take(8) }, label="New PIN (4–8 digits)", keyboardType=KeyboardType.NumberPassword)
+          AppField(value=confirmPin, onValueChange={ confirmPin=it.filter(Char::isDigit).take(8) }, label="Confirm PIN", keyboardType=KeyboardType.NumberPassword)
+          PrimaryAction(text="Save / change app PIN", onClick={
          if(newPin.length !in 4..8 || newPin != confirmPin) toast("PIN must be 4–8 digits and both entries must match")
          else runCatching {
           val salt=ByteArray(16).also { SecureRandom().nextBytes(it) }
@@ -1280,18 +1325,20 @@ class MainActivity : ComponentActivity() {
           securityPrefs.edit().putString("pin_salt",encodedSalt).putString("pin_hash",encodedHash).apply()
           newPin="";confirmPin=""
          }.onSuccess { toast("App PIN saved. It will be required next time the app opens.") }.onFailure { toast("Could not save PIN") }
-        }, modifier=Modifier.fillMaxWidth()) { Text("Save / change app PIN") }
-        OutlinedButton(onClick={ securityPrefs.edit().remove("pin_hash").remove("pin_salt").apply(); newPin="";confirmPin="";toast("App PIN disabled") }, modifier=Modifier.fillMaxWidth()) { Text("Disable app PIN") }
-        Divider()
-        Text("Database backup and restore", style=MaterialTheme.typography.titleMedium)
-        Text("Export a full local database backup and keep it private. Restore replaces the current local database; only restore a backup made by this app.", style=MaterialTheme.typography.bodySmall)
-        if(isOwner()) Button(onClick={ backupLauncher.launch("surya-optician-backup.db") }, modifier=Modifier.fillMaxWidth()) { Text("Export database backup") }
-        if(isOwner()) OutlinedButton(onClick={ restoreLauncher.launch(arrayOf("application/vnd.sqlite3", "application/octet-stream", "application/x-sqlite3", "*/*")) }, modifier=Modifier.fillMaxWidth()) { Text("Restore database backup") }
+        }, icon=Icons.Rounded.Lock)
+          SecondaryAction(text="Disable app PIN", onClick={ securityPrefs.edit().remove("pin_hash").remove("pin_salt").apply(); newPin=""; confirmPin=""; toast("App PIN disabled") })
+         }
+         Spacer(Modifier.height(12.dp))
+         SectionCard(title="Backup & restore", icon=Icons.Rounded.Backup, subtitle="Keep a private copy of all shop data") {
+          Text("Export a full local database backup and keep it private. Restore replaces the current local database; only restore a backup made by this app.", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSurfaceVariant)
+          PrimaryAction(text="Export database backup", onClick={ backupLauncher.launch("surya-optician-backup.db") }, icon=Icons.Rounded.FileDownload)
+          SecondaryAction(text="Restore database backup", onClick={ restoreLauncher.launch(arrayOf("application/vnd.sqlite3", "application/octet-stream", "application/x-sqlite3", "*/*")) }, icon=Icons.Rounded.Restore)
+         }
         }
+        Spacer(Modifier.height(24.dp))
        }
        else -> {
-        Text("Bill history", style=MaterialTheme.typography.headlineSmall)
-        Text("Search, review, print, share or collect payment for an existing bill.", style=MaterialTheme.typography.bodyMedium, color=MaterialTheme.colorScheme.onSurfaceVariant)
+        ScreenHeader("Bill history", "Search, review, print, share or collect payment for a bill")
         Spacer(Modifier.height(4.dp))
         Card(
          modifier=Modifier.fillMaxWidth(),
@@ -1301,7 +1348,7 @@ class MainActivity : ComponentActivity() {
          Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement=Arrangement.spacedBy(8.dp)) {
           Row(verticalAlignment=Alignment.CenterVertically, horizontalArrangement=Arrangement.spacedBy(10.dp)) {
            Surface(shape=androidx.compose.foundation.shape.RoundedCornerShape(12.dp), color=MaterialTheme.colorScheme.primary, modifier=Modifier.size(42.dp)) {
-            Box(contentAlignment=Alignment.Center) { Text("⌕", color=MaterialTheme.colorScheme.onPrimary, style=MaterialTheme.typography.headlineSmall) }
+            Box(contentAlignment=Alignment.Center) { Icon(Icons.Rounded.Search, contentDescription=null, tint=MaterialTheme.colorScheme.onPrimary) }
            }
            Column(Modifier.weight(1f), verticalArrangement=Arrangement.spacedBy(2.dp)) {
             Text("Find a bill", style=MaterialTheme.typography.titleMedium, color=MaterialTheme.colorScheme.onPrimaryContainer)
@@ -1313,10 +1360,10 @@ class MainActivity : ComponentActivity() {
            onValueChange={ query=it },
            modifier=Modifier.fillMaxWidth(),
            placeholder={ Text("e.g. Rahul or SO-20261028") },
-           leadingIcon={ Text("⌕", style=MaterialTheme.typography.titleLarge, color=MaterialTheme.colorScheme.primary) },
+           leadingIcon={ Icon(Icons.Rounded.Search, contentDescription=null, tint=MaterialTheme.colorScheme.primary) },
            trailingIcon={
             if(query.isNotBlank()) androidx.compose.material3.IconButton(onClick={ query="" }) {
-             Text("×", style=MaterialTheme.typography.titleLarge, color=MaterialTheme.colorScheme.primary)
+             Icon(Icons.Rounded.Close, contentDescription="Clear search", tint=MaterialTheme.colorScheme.primary)
             }
            },
            singleLine=true,
@@ -1334,7 +1381,7 @@ class MainActivity : ComponentActivity() {
           }
          }
         }
-        Button(onClick={ InvoiceCsv.share(this@MainActivity, invoices) }, modifier=Modifier.fillMaxWidth()) { Text("Export matching invoices as CSV") }
+        Button(onClick={ InvoiceCsv.share(this@MainActivity, invoices) }, modifier=Modifier.fillMaxWidth()) { Icon(Icons.Rounded.FileDownload, contentDescription=null, modifier=Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text("Export matching invoices as CSV") }
         Card(Modifier.fillMaxWidth(), colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface)) {
          Row(Modifier.fillMaxWidth().padding(horizontal=8.dp, vertical=4.dp), verticalAlignment=Alignment.CenterVertically, horizontalArrangement=Arrangement.SpaceBetween) {
           Text(if(invoices.isEmpty()) "No bills" else "Showing ${billHistoryPage * billHistoryPageSize + 1}–${minOf((billHistoryPage + 1) * billHistoryPageSize, invoices.size)} of ${invoices.size}", style=MaterialTheme.typography.labelMedium)
@@ -1354,9 +1401,7 @@ class MainActivity : ComponentActivity() {
               Text(invoice.number, style=MaterialTheme.typography.labelMedium, color=MaterialTheme.colorScheme.secondary)
               Text(invoice.customerName, style=MaterialTheme.typography.titleMedium)
              }
-             Surface(shape=androidx.compose.foundation.shape.RoundedCornerShape(50), color=if(invoice.duePaise<=0) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.errorContainer) {
-              Text(if(invoice.duePaise<=0) "PAID" else if(invoice.paidPaise>0) "PART PAID" else "UNPAID", modifier=Modifier.padding(horizontal=10.dp, vertical=6.dp), style=MaterialTheme.typography.labelSmall, color=if(invoice.duePaise<=0) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.error)
-             }
+             PaymentBadge(invoice.duePaise, invoice.paidPaise)
             }
             Spacer(Modifier.height(10.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.spacedBy(8.dp)) {
@@ -1364,17 +1409,15 @@ class MainActivity : ComponentActivity() {
              Card(Modifier.weight(1f), colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surfaceVariant)) { Column(Modifier.padding(10.dp)) { Text("PAID", style=MaterialTheme.typography.labelSmall); Text("₹${"%.2f".format(invoice.paidPaise/100.0)}", style=MaterialTheme.typography.titleSmall) } }
              Card(Modifier.weight(1f), colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surfaceVariant)) { Column(Modifier.padding(10.dp)) { Text("DUE", style=MaterialTheme.typography.labelSmall); Text("₹${"%.2f".format(invoice.duePaise/100.0)}", style=MaterialTheme.typography.titleSmall, color=if(invoice.duePaise>0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary) } }
             }
-            val paymentStatus = if (invoice.duePaise <= 0) "PAID / RECORDED" else if (invoice.paidPaise > 0) "PARTIALLY PAID · BALANCE DUE" else "UNPAID · PAYMENT DUE"
-            Text("Payment status: $paymentStatus", color=if(invoice.duePaise<=0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error, style=MaterialTheme.typography.labelMedium)
-            if(invoice.duePaise>0) TextButton(onClick={ paymentInvoiceId=invoice.id.toString(); paymentAmount=""; section="Payment" }) { Text("Collect due payment") }
-            Row(horizontalArrangement=Arrangement.spacedBy(6.dp)) {
-             if(canManageRecords()) TextButton(onClick={ lifecycleScope.launch { runCatching { val items=db.dao().items(invoice.id); billCustomer=invoice.customerName; billCustomerId=invoice.customerId?.toString() ?: ""; billPhone=invoice.phone; val linkedCustomer=invoice.customerId?.let { db.dao().customer(it) }; billCustomerAddress=linkedCustomer?.address.orEmpty(); billCustomerAge=linkedCustomer?.age?.toString() ?: ""; billCustomerSearch=linkedCustomer?.name.orEmpty(); billLines=items.map { BillLine(it.productId,it.description,it.qty,it.ratePaise,it.discountPaise,it.taxPaise) }; billPaid="%.2f".format(invoice.paidPaise/100.0); billPrescriptionId=""; billPrescriptionSummary=invoice.prescriptionSummary; billGlassType=invoice.glassType; billDeliveryDate=invoice.deliveryDate; editingInvoiceId=invoice.id; section="New Bill" }.onFailure { toast("Could not load bill for editing") } } }) { Text("Edit") }
-             if(canDeleteRecords()) TextButton(onClick={ invoiceDeleteTarget=invoice }) { Text("Delete") }
-             TextButton(onClick={lifecycleScope.launch{runCatching{val file=InvoicePdf.generate(this@MainActivity,invoice,db.dao().items(invoice.id),db.dao().settings()?:ShopSettings(),invoice.customerId?.let { db.dao().customer(it) });val uri=FileProvider.getUriForFile(this@MainActivity,"${packageName}.fileprovider",file);startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(uri,"application/pdf").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION))}.onFailure{toast("PDF preview failed. Install a PDF viewer.")}}}){Text("Preview PDF")}
-             TextButton(onClick={lifecycleScope.launch{runCatching{val file=InvoicePdf.generate(this@MainActivity,invoice,db.dao().items(invoice.id),db.dao().settings()?:ShopSettings(),invoice.customerId?.let { db.dao().customer(it) });printPdf(file,"Invoice ${invoice.number}")}.onFailure{toast("Could not start system print")}}}){Text("Print")}
-             Button(onClick={lifecycleScope.launch{runCatching{val file=InvoicePdf.generate(this@MainActivity,invoice,db.dao().items(invoice.id),db.dao().settings()?:ShopSettings(),invoice.customerId?.let { db.dao().customer(it) });InvoiceSharing.share(this@MainActivity,file,invoice.phone,true)}.onFailure{toast("Invoice share failed")}}}){Text("WhatsApp PDF")}
+            if(invoice.duePaise>0) TextButton(onClick={ paymentInvoiceId=invoice.id.toString(); paymentAmount=""; section="Payment" }) { Icon(Icons.Rounded.Payments, contentDescription=null, modifier=Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("Collect due payment") }
+            Row(horizontalArrangement=Arrangement.spacedBy(6.dp), modifier=Modifier.horizontalScroll(rememberScrollState())) {
+             if(canManageRecords()) TextButton(onClick={ lifecycleScope.launch { runCatching { val items=db.dao().items(invoice.id); billCustomer=invoice.customerName; billCustomerId=invoice.customerId?.toString() ?: ""; billPhone=invoice.phone; val linkedCustomer=invoice.customerId?.let { db.dao().customer(it) }; billCustomerAddress=linkedCustomer?.address.orEmpty(); billCustomerAge=linkedCustomer?.age?.toString() ?: ""; billCustomerSearch=linkedCustomer?.name.orEmpty(); billLines=items.map { BillLine(it.productId,it.description,it.qty,it.ratePaise,it.discountPaise,it.taxPaise) }; billPaid="%.2f".format(invoice.paidPaise/100.0); billPrescriptionId=""; billPrescriptionSummary=invoice.prescriptionSummary; billGlassType=invoice.glassType; billDeliveryDate=invoice.deliveryDate; editingInvoiceId=invoice.id; section="New Bill" }.onFailure { toast("Could not load bill for editing") } } }) { Icon(Icons.Rounded.Edit, contentDescription=null, modifier=Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("Edit") }
+             if(canDeleteRecords()) TextButton(onClick={ invoiceDeleteTarget=invoice }) { Icon(Icons.Rounded.Delete, contentDescription=null, modifier=Modifier.size(18.dp), tint=MaterialTheme.colorScheme.error); Spacer(Modifier.width(6.dp)); Text("Delete", color=MaterialTheme.colorScheme.error) }
+             TextButton(onClick={lifecycleScope.launch{runCatching{val file=InvoicePdf.generate(this@MainActivity,invoice,db.dao().items(invoice.id),db.dao().settings()?:ShopSettings(),invoice.customerId?.let { db.dao().customer(it) });val uri=FileProvider.getUriForFile(this@MainActivity,"${packageName}.fileprovider",file);startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(uri,"application/pdf").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION))}.onFailure{toast("PDF preview failed. Install a PDF viewer.")}}}){ Icon(Icons.Rounded.Description, contentDescription=null, modifier=Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("PDF") }
+             TextButton(onClick={lifecycleScope.launch{runCatching{val file=InvoicePdf.generate(this@MainActivity,invoice,db.dao().items(invoice.id),db.dao().settings()?:ShopSettings(),invoice.customerId?.let { db.dao().customer(it) });printPdf(file,"Invoice ${invoice.number}")}.onFailure{toast("Could not start system print")}}}){ Icon(Icons.Rounded.Print, contentDescription=null, modifier=Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("Print") }
+             Button(onClick={lifecycleScope.launch{runCatching{val file=InvoicePdf.generate(this@MainActivity,invoice,db.dao().items(invoice.id),db.dao().settings()?:ShopSettings(),invoice.customerId?.let { db.dao().customer(it) });InvoiceSharing.share(this@MainActivity,file,invoice.phone,true)}.onFailure{toast("Invoice share failed")}}}){ Icon(Icons.Rounded.Share, contentDescription=null, modifier=Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("WhatsApp") }
             }
-            if(invoice.duePaise>0) TextButton(onClick={reminderInvoice=invoice}){Text("Payment reminder")}
+            if(invoice.duePaise>0) TextButton(onClick={reminderInvoice=invoice}){ Icon(Icons.Rounded.NotificationsActive, contentDescription=null, modifier=Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("Reminder") }
            }
           }
          }
