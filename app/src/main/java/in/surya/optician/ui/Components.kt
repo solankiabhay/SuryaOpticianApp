@@ -328,3 +328,39 @@ fun AmountRow(
         )
     }
 }
+
+/** White bordered card for list rows (customers, products, bill items...). */
+@Composable
+fun RecordCard(
+    modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    val clickModifier = if (onClick != null) Modifier.clickable { onClick() } else Modifier
+    Card(
+        modifier = modifier.fillMaxWidth().then(clickModifier),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+    ) {
+        Column(
+            Modifier.fillMaxWidth().padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            content = content
+        )
+    }
+}
+
+/** Round badge showing the first letter of a name. */
+@Composable
+fun AvatarBadge(text: String, modifier: Modifier = Modifier) {
+    Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer, modifier = modifier.size(44.dp)) {
+        Box(contentAlignment = Alignment.Center) {
+            Text(
+                text.trim().take(1).uppercase().ifBlank { "?" },
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+    }
+}
