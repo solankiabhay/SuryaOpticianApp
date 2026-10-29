@@ -488,7 +488,7 @@ class MainActivity : ComponentActivity() {
        modifier=Modifier.fillMaxWidth()
       ) {
        val primaryTabs = listOf("Dashboard", "Bills", "New Bill", "Customers")
-       val labels = listOf("Home", "Bills", "New Bill", "Clients")
+       val labels = listOf("Home", "Bills", "Create", "Clients")
        val glyphs = listOf("⌂", "▤", "+", "♙")
        primaryTabs.forEachIndexed { index, tab ->
         NavigationBarItem(
@@ -515,7 +515,7 @@ class MainActivity : ComponentActivity() {
          dragHandle={ BottomSheetDefaults.DragHandle() }
         ) {
          Column(
-          modifier=Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal=16.dp).padding(bottom=20.dp),
+          modifier=Modifier.fillMaxWidth().navigationBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal=16.dp).padding(bottom=20.dp),
           verticalArrangement=Arrangement.spacedBy(6.dp)
          ) {
           Text("Shop menu", style=MaterialTheme.typography.titleLarge)
