@@ -1153,7 +1153,8 @@ class MainActivity : ComponentActivity() {
           val cid=prescriptionCustomerId.toLongOrNull()
           val rightAxisValue=rightAxis.toIntOrNull()
           val leftAxisValue=leftAxis.toIntOrNull()
-          if(cid==null || customers.none{it.id==cid}) toast("Select an existing customer")
+          val selectedCustomer = if(cid!=null) db.dao().customer(cid) else null
+          if(cid==null || selectedCustomer==null) toast("Select an existing customer")
           else if((rightAxis.isNotBlank() && (rightAxisValue==null || rightAxisValue !in 0..180)) || (leftAxis.isNotBlank() && (leftAxisValue==null || leftAxisValue !in 0..180))) toast("Axis must be a number from 0 to 180")
           else {
            val rx = Prescription(id=editingPrescriptionId ?: 0L, customerId=cid,rightSphere=rightSphere.trim(),rightCylinder=rightCylinder.trim(),rightAxis=rightAxis.trim(),rightAdd=rightAdd.trim(),leftSphere=leftSphere.trim(),leftCylinder=leftCylinder.trim(),leftAxis=leftAxis.trim(),leftAdd=leftAdd.trim(),pd=pd.trim(),notes=prescriptionNotes.trim())
@@ -1162,6 +1163,11 @@ class MainActivity : ComponentActivity() {
            rightSphere="";rightCylinder="";rightAxis="";rightAdd="";leftSphere="";leftCylinder="";leftAxis="";leftAdd="";pd="";prescriptionNotes=""
            if(returnToBillAfterPrescription) {
             billPrescriptionId=savedPrescriptionId.toString()
+            billPrescriptionSummary=listOf(
+             "Right eye (OD): SPH ${rx.rightSphere.ifBlank{"—"}}, CYL ${rx.rightCylinder.ifBlank{"—"}}, Axis ${rx.rightAxis.ifBlank{"—"}}, ADD ${rx.rightAdd.ifBlank{"—"}}",
+             "Left eye (OS): SPH ${rx.leftSphere.ifBlank{"—"}}, CYL ${rx.leftCylinder.ifBlank{"—"}}, Axis ${rx.leftAxis.ifBlank{"—"}}, ADD ${rx.leftAdd.ifBlank{"—"}}",
+             "PD: ${rx.pd.ifBlank{"—"}}", rx.notes.takeIf { it.isNotBlank() }?.let { "Notes: $it" }
+            ).filterNotNull().joinToString("\n")
             returnToBillAfterPrescription=false
             section="New Bill"
             toast("Prescription saved and attached to this bill")
