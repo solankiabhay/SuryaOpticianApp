@@ -294,6 +294,7 @@ class MainActivity : ComponentActivity() {
     var billPaymentMethod by remember { mutableStateOf("Cash") }
     var billPrescriptionId by remember { mutableStateOf("") }
     var billPrescriptionSummary by remember { mutableStateOf("") }
+    var billPrescriptionExpanded by remember { mutableStateOf(false) }
     var billGlassType by remember { mutableStateOf("") }
     var billDeliveryDate by remember { mutableStateOf("") }
     var showBillPreview by remember { mutableStateOf(false) }
@@ -823,7 +824,6 @@ class MainActivity : ComponentActivity() {
          Text("Glass / lens type", style=MaterialTheme.typography.titleSmall)
          val glassTypes = listOf("Single Vision","Bifocal","Progressive","Photochromic","Blue Cut","Sunglasses","Frame Only","Contact Lens")
          var glassTypeExpanded by remember { mutableStateOf(false) }
-         var billPrescriptionExpanded by remember { mutableStateOf(false) }
          Box(Modifier.fillMaxWidth()) {
           OutlinedButton(onClick={ glassTypeExpanded=true }, modifier=Modifier.fillMaxWidth(), shape=androidx.compose.foundation.shape.RoundedCornerShape(12.dp)) {
            Text(billGlassType.ifBlank { "Select lens type" }, modifier=Modifier.weight(1f))
