@@ -1255,8 +1255,8 @@ class MainActivity : ComponentActivity() {
         }
         Button(onClick={ if (invalidDateRange) toast("Correct the date range before exporting") else InvoiceCsv.share(this@MainActivity, reportInvoices) }, enabled = !invalidDateRange, modifier=Modifier.fillMaxWidth()) { Text("Export date-filtered invoices to CSV") }
         Text("Customer invoice report", style=MaterialTheme.typography.titleMedium)
-        OutlinedTextField(query, { query=it }, label={Text("Filter by invoice number, customer or phone")}, modifier=Modifier.fillMaxWidth())
-        val visibleReportInvoices = reportInvoices.filter { invoice -> query.isBlank() || invoice.number.contains(query, true) || invoice.customerName.contains(query, true) || invoice.phone.contains(query, true) }
+        OutlinedTextField(reportQuery, { reportQuery=it }, label={Text("Filter by invoice number, customer or phone")}, modifier=Modifier.fillMaxWidth())
+        val visibleReportInvoices = reportInvoices.filter { invoice -> reportQuery.isBlank() || invoice.number.contains(reportQuery, true) || invoice.customerName.contains(reportQuery, true) || invoice.phone.contains(reportQuery, true) }
         Text("${visibleReportInvoices.size} invoices match the date and search filters.", style = MaterialTheme.typography.bodySmall)
         visibleReportInvoices.forEach { invoice ->
          Card(Modifier.fillMaxWidth().padding(vertical=3.dp)) {
