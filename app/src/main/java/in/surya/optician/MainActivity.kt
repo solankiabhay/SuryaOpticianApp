@@ -376,36 +376,39 @@ class MainActivity : ComponentActivity() {
       )
      },
      bottomBar = {
-      NavigationBar(containerColor=MaterialTheme.colorScheme.surface, tonalElevation=8.dp) {
+      NavigationBar(
+       containerColor=MaterialTheme.colorScheme.surface,
+       tonalElevation=8.dp,
+       modifier=Modifier.fillMaxWidth()
+      ) {
        val primaryTabs = listOf("Dashboard", "Bills", "New Bill", "Customers")
-       val labels = listOf("Home", "Bills", "New bill", "Customers")
+       val labels = listOf("Home", "History", "New bill", "Clients")
        val glyphs = listOf("⌂", "▤", "+", "♙")
        primaryTabs.forEachIndexed { index, tab ->
-        if (canAccess(tab)) NavigationBarItem(
+        NavigationBarItem(
          selected=section==tab,
          onClick={ section=tab; showMoreMenu=false },
-         icon={ Text(glyphs[index], style=MaterialTheme.typography.titleLarge) },
-         label={ Text(labels[index], style=MaterialTheme.typography.labelSmall) },
+         icon={ Text(glyphs[index], style=MaterialTheme.typography.titleMedium) },
+         label={ Text(labels[index], style=MaterialTheme.typography.labelSmall, maxLines=1) },
          alwaysShowLabel=true
         )
        }
-       Row {        NavigationBarItem(
-         selected=section !in primaryTabs,
-         onClick={ showMoreMenu=true },
-         icon={ Text("☰", style=MaterialTheme.typography.titleLarge) },
-         label={ Text("More", style=MaterialTheme.typography.labelSmall) },
-         alwaysShowLabel=true
-        )
-        DropdownMenu(expanded=showMoreMenu, onDismissRequest={showMoreMenu=false}) {
-         (listOf("Products", "Payment", "Prescription", "Reports", "Settings") + if(isOwner()) listOf("Users") else emptyList())
-          .filter { canAccess(it) }.forEach { tab ->
-           DropdownMenuItem(
-            text={Text(tab)},
-            leadingIcon={Text(when(tab) { "Products" -> "▦"; "Payment" -> "₹"; "Prescription" -> "◎"; "Reports" -> "▥"; "Settings" -> "⚙"; else -> "♙" })},
-            onClick={section=tab;showMoreMenu=false}
-           )
-          }
-        }
+       NavigationBarItem(
+        selected=section !in primaryTabs,
+        onClick={ showMoreMenu=!showMoreMenu },
+        icon={ Text("☰", style=MaterialTheme.typography.titleMedium) },
+        label={ Text("More", style=MaterialTheme.typography.labelSmall, maxLines=1) },
+        alwaysShowLabel=true
+       )
+       DropdownMenu(expanded=showMoreMenu, onDismissRequest={showMoreMenu=false}) {
+        (listOf("Products", "Payment", "Prescription", "Reports", "Settings") + if(isOwner()) listOf("Users") else emptyList())
+         .filter { canAccess(it) }.forEach { tab ->
+          DropdownMenuItem(
+           text={Text(tab)},
+           leadingIcon={Text(when(tab) { "Products" -> "▦"; "Payment" -> "₹"; "Prescription" -> "◎"; "Reports" -> "▥"; "Settings" -> "⚙"; else -> "♙" })},
+           onClick={section=tab;showMoreMenu=false}
+          )
+         }
        }
       }
      }
