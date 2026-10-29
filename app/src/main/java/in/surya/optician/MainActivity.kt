@@ -683,7 +683,6 @@ class MainActivity : ComponentActivity() {
        }
        "Customers" -> {
         Text("Customer details", style=MaterialTheme.typography.titleLarge)
-        Text("Keep contact details and age together for better customer service.", style=MaterialTheme.typography.bodyMedium)
         Spacer(Modifier.height(10.dp))
         OutlinedTextField(customerName, { customerName = it }, label = { Text("Customer name *") }, modifier = Modifier.fillMaxWidth(), singleLine=true)
         OutlinedTextField(customerPhone, { customerPhone = it }, label = { Text("Phone (WhatsApp)") }, modifier = Modifier.fillMaxWidth(), singleLine=true)
@@ -706,7 +705,6 @@ class MainActivity : ComponentActivity() {
         if (selectedCustomerId != null) TextButton(onClick={ selectedCustomerId=null; customerName=""; customerPhone=""; customerAddress=""; customerAge=""; customerEmail="" }) { Text("Cancel customer edit") }
         Spacer(Modifier.height(12.dp))
         OutlinedTextField(customerSearch, { customerSearch = it }, label={Text("Search customers by name or phone")}, modifier=Modifier.fillMaxWidth(), singleLine=true)
-        Text("Tap Edit to load a customer. Delete is disabled when invoices or prescriptions reference the customer.", style=MaterialTheme.typography.bodySmall)
         Column { customers.filter { customerSearch.isBlank() || it.name.contains(customerSearch,true) || it.phone.contains(customerSearch,true) }.forEach { customer ->
          Card(Modifier.fillMaxWidth().padding(vertical=4.dp), colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface)) { Column(Modifier.padding(12.dp)) {
           Text(customer.name, style=MaterialTheme.typography.titleMedium)
@@ -742,7 +740,6 @@ class MainActivity : ComponentActivity() {
         } }, modifier = Modifier.fillMaxWidth()) { Text(if (selectedProductId == null) "Save product" else "Update product / stock") }
         if (selectedProductId != null) TextButton(onClick={ selectedProductId=null; productName=""; productSku=""; productPrice=""; productCost="0"; productCategory=""; productStock="1"; productLowStock="3" }) { Text("Cancel product edit") }
         OutlinedTextField(productSearch, { productSearch=it }, label={Text("Search products by name, SKU or category")}, modifier=Modifier.fillMaxWidth())
-        Text("Tap Edit to change product details. Products used on invoices cannot be deleted.", style=MaterialTheme.typography.bodySmall)
         Column { products.filter { productSearch.isBlank() || it.name.contains(productSearch,true) || it.sku.contains(productSearch,true) || it.category.contains(productSearch,true) }.forEach { product ->
          Card(Modifier.fillMaxWidth().padding(vertical=3.dp)) { Column(Modifier.padding(8.dp)) {
           Text("#${product.id} · ${product.name} · Sell ₹${"%.2f".format(product.pricePaise/100.0)} · Cost ₹${"%.2f".format(product.costPaise/100.0)} · ${product.category.ifBlank { "Uncategorised" }} · stock ${product.stock}")
@@ -760,7 +757,6 @@ class MainActivity : ComponentActivity() {
         Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.SpaceBetween, verticalAlignment=Alignment.CenterVertically) {
          Column(Modifier.weight(1f)) {
           Text(if(editingInvoiceId==null) "New bill" else "Edit bill", style=MaterialTheme.typography.headlineSmall)
-          Text("Quick checkout · prescription · payment", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSurfaceVariant)
          }
          OutlinedButton(onClick={ showBillPreview=true }, enabled=billLines.isNotEmpty()) { Text("👁 Preview") }
         }
@@ -770,7 +766,6 @@ class MainActivity : ComponentActivity() {
           Text(if(billLines.isEmpty()) "BILL SUMMARY" else "${billLines.size} ${if(billLines.size==1) "item" else "items"} added", style=MaterialTheme.typography.labelLarge)
           Spacer(Modifier.height(4.dp))
           Text("₹${"%.2f".format(billLines.sumOf { it.total }/100.0)}", style=MaterialTheme.typography.headlineMedium, color=MaterialTheme.colorScheme.primary)
-          Text(if(billLines.isEmpty()) "Add a product or custom item to begin." else "Live total · taxes and item discounts included", style=MaterialTheme.typography.bodySmall)
          }
         }
         Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(12.dp), verticalArrangement=Arrangement.spacedBy(8.dp)) {
@@ -779,12 +774,12 @@ class MainActivity : ComponentActivity() {
           val wasSelected=billCustomerId.isNotBlank()
           billCustomer=value; billCustomerId=""; billCustomerSearchMessage=""
           if(wasSelected) { billCustomerAddress=""; billCustomerAge=""; billCustomerEmail=""; billPrescriptionId="" }
-         }, label={ Text("Customer name *") }, placeholder={ Text("Enter customer name") }, modifier=Modifier.fillMaxWidth(), singleLine=true)
+         }, label={ Text("Customer name *") }, modifier=Modifier.fillMaxWidth(), singleLine=true)
          OutlinedTextField(billPhone, { value ->
           val wasSelected=billCustomerId.isNotBlank()
           billPhone=value; billCustomerId=""; billCustomerSearchMessage=""
           if(wasSelected) { billCustomerAddress=""; billCustomerAge=""; billCustomerEmail=""; billPrescriptionId="" }
-         }, label={ Text("Phone number *") }, placeholder={ Text("Enter phone number") }, modifier=Modifier.fillMaxWidth(), singleLine=true)
+         }, label={ Text("Phone number *") }, modifier=Modifier.fillMaxWidth(), singleLine=true)
          Button(
           onClick={
            val phoneDigits=billPhone.filter(Char::isDigit)
@@ -817,11 +812,9 @@ class MainActivity : ComponentActivity() {
          OutlinedTextField(billCustomerAddress, { billCustomerAddress=it }, label={ Text("Address (optional)") }, placeholder={ Text("House no., area, city") }, modifier=Modifier.fillMaxWidth())
          OutlinedTextField(billCustomerAge, { billCustomerAge=it }, label={ Text("Age (optional)") }, modifier=Modifier.fillMaxWidth(), singleLine=true)
          OutlinedTextField(billCustomerEmail, { billCustomerEmail=it }, label={ Text("Email (optional)") }, modifier=Modifier.fillMaxWidth(), singleLine=true)
-         if(billCustomerId.isNotBlank()) Text("Saved customer selected · address, age and email loaded from customer records.", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.secondary)
         } }
         Text("2 · ORDER DETAILS", style=MaterialTheme.typography.labelLarge, color=MaterialTheme.colorScheme.primary)
         Text("Glass / lens type", style=MaterialTheme.typography.titleMedium)
-        Text("Choose the main lens or product type for the customer’s order.", style=MaterialTheme.typography.bodySmall)
         OutlinedTextField(billGlassType, { billGlassType=it }, label={ Text("Glass type (e.g. Single Vision, Progressive, Sunglasses)") }, modifier=Modifier.fillMaxWidth())
         Row(horizontalArrangement=Arrangement.spacedBy(4.dp)) {
          listOf("Single Vision","Bifocal","Progressive","Photochromic","Blue Cut","Sunglasses","Frame Only","Contact Lens").forEach { type ->
@@ -843,7 +836,6 @@ class MainActivity : ComponentActivity() {
          } } }
         }
         Text("3 · ADD ITEMS", style=MaterialTheme.typography.labelLarge, color=MaterialTheme.colorScheme.primary)
-        Text("Tap a product to fill the item. Adjust quantity, discount and tax, then add it to the bill.", style=MaterialTheme.typography.bodySmall)
         OutlinedTextField(billItemSearch, { billItemSearch=it }, label={ Text("Search frame / lens / product") }, modifier=Modifier.fillMaxWidth(), singleLine=true)
         products.filter { billItemSearch.isBlank() || it.name.contains(billItemSearch, true) || it.sku.contains(billItemSearch, true) || it.category.contains(billItemSearch, true) }.take(6).forEach { product -> TextButton(onClick={ billProductId=product.id.toString(); billDescription=product.name; billRate="%.2f".format(product.pricePaise/100.0); billItemSearch=product.name }) { Text("${product.name} · ₹${"%.2f".format(product.pricePaise/100.0)} · stock ${product.stock}") } }
         OutlinedTextField(billDescription, { billDescription=it }, label={ Text("Item / frame / lens description *") }, modifier=Modifier.fillMaxWidth(), singleLine=true)
@@ -935,7 +927,6 @@ class MainActivity : ComponentActivity() {
         "Payment" -> {
         val selectedPaymentInvoice = invoices.firstOrNull { it.id.toString() == paymentInvoiceId }
         Text("Payments & collections", style=MaterialTheme.typography.headlineSmall)
-        Text("Record customer payments, track outstanding balances, and review every transaction.", style=MaterialTheme.typography.bodyMedium)
         Spacer(Modifier.height(12.dp))
         Card(Modifier.fillMaxWidth(), colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.primaryContainer)) {
          Column(Modifier.padding(16.dp), verticalArrangement=Arrangement.spacedBy(6.dp)) {
@@ -1008,7 +999,6 @@ class MainActivity : ComponentActivity() {
            }
            Column(Modifier.weight(1f), verticalArrangement=Arrangement.spacedBy(4.dp)) {
             Text(if(editingPrescriptionId==null) "Eye prescription" else "Edit prescription", style=MaterialTheme.typography.titleLarge, color=MaterialTheme.colorScheme.onPrimaryContainer)
-            Text("Enter the prescribed values carefully for each eye.", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onPrimaryContainer)
            }
           }
          }
@@ -1025,7 +1015,6 @@ class MainActivity : ComponentActivity() {
              }
             }
            }
-           Text("Tap a customer to select:", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSurfaceVariant)
            if(customers.isEmpty()) Text("No customers added yet. Add a customer first.", style=MaterialTheme.typography.bodyMedium)
            customers.forEach { customer ->
             Surface(
@@ -1086,7 +1075,6 @@ class MainActivity : ComponentActivity() {
          Card(Modifier.fillMaxWidth()) {
           Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement=Arrangement.spacedBy(10.dp)) {
            Text("2. ADDITIONAL DETAILS", style=MaterialTheme.typography.labelLarge, color=MaterialTheme.colorScheme.primary)
-           OutlinedTextField(pd, { pd=it }, label={ Text("Pupillary distance (PD)") }, placeholder={ Text("e.g. 62") }, supportingText={ Text("Distance in millimetres (mm)") }, modifier=Modifier.fillMaxWidth(), singleLine=true)
            OutlinedTextField(prescriptionNotes, { prescriptionNotes=it }, label={ Text("Notes / lens recommendation") }, placeholder={ Text("Optional notes") }, modifier=Modifier.fillMaxWidth(), minLines=3)
            Text("Important: + and − signs matter. Copy the values exactly from the prescribing optometrist. Axis must be between 0 and 180 degrees.", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSurfaceVariant)
           }
