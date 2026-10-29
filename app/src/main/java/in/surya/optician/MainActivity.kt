@@ -250,6 +250,7 @@ class MainActivity : ComponentActivity() {
     var showMoreMenu by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
     var billHistoryPage by remember { mutableIntStateOf(0) }
+    var selectedBillId by remember { mutableStateOf<Long?>(null) }
     var customerSearch by remember { mutableStateOf("") }
     var productSearch by remember { mutableStateOf("") }
     var editingPrescriptionId by remember { mutableStateOf<Long?>(null) }
@@ -1310,7 +1311,7 @@ class MainActivity : ComponentActivity() {
         }
         Column {
          visibleBillHistory.forEach { invoice ->
-          Card(Modifier.fillMaxWidth().padding(vertical=5.dp), colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface)) {
+          Card(Modifier.fillMaxWidth().padding(vertical=5.dp).clickable { selectedBillId = if (selectedBillId == invoice.id) null else invoice.id }, colors=CardDefaults.cardColors(containerColor=if(selectedBillId==invoice.id) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface)) {
            Column(Modifier.padding(14.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.SpaceBetween, verticalAlignment=androidx.compose.ui.Alignment.CenterVertically) {
              Column(Modifier.weight(1f)) {
