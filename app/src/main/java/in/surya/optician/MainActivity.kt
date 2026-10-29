@@ -567,16 +567,6 @@ class MainActivity : ComponentActivity() {
      Column(Modifier.fillMaxSize().padding(padding).padding(horizontal=16.dp, vertical=12.dp))
      {
       Row(horizontalArrangement=Arrangement.spacedBy(8.dp), modifier=Modifier.fillMaxWidth()) {
-       Card(Modifier.weight(1f), colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.primaryContainer)) { Column(Modifier.padding(12.dp)) {
-        Text("Outstanding", style=MaterialTheme.typography.labelMedium)
-        Text("₹${"%.2f".format(due/100.0)}", style=MaterialTheme.typography.titleLarge)
-       } }
-       Card(Modifier.weight(1f), colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.secondaryContainer)) { Column(Modifier.padding(12.dp)) {
-        Text("Low stock items", style=MaterialTheme.typography.labelMedium)
-        Text("${lowStock.size}", style=MaterialTheme.typography.titleLarge)
-       } }
-      }
-      Spacer(Modifier.height(8.dp))
       Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())) {
       when (section) {
        "Dashboard" -> {
