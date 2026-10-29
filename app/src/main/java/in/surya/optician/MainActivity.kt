@@ -819,45 +819,59 @@ class MainActivity : ComponentActivity() {
          OutlinedTextField(billCustomerEmail, { billCustomerEmail=it }, label={ Text("Email (optional)") }, modifier=Modifier.fillMaxWidth(), singleLine=true)
         } }
         Text("2 · ORDER DETAILS", style=MaterialTheme.typography.labelLarge, color=MaterialTheme.colorScheme.primary)
-        Column(verticalArrangement=Arrangement.spacedBy(6.dp), modifier=Modifier.fillMaxWidth()) {
+        Column(verticalArrangement=Arrangement.spacedBy(8.dp), modifier=Modifier.fillMaxWidth()) {
          Text("Glass / lens type", style=MaterialTheme.typography.titleSmall)
-         OutlinedTextField(
-          value=billGlassType,
-          onValueChange={ billGlassType=it },
-          label={ Text("Glass / lens type") },
-          placeholder={ Text("Choose below or enter custom type") },
-          modifier=Modifier.fillMaxWidth(),
-          singleLine=true
-         )
          val glassTypes = listOf("Single Vision","Bifocal","Progressive","Photochromic","Blue Cut","Sunglasses","Frame Only","Contact Lens")
-         glassTypes.chunked(4).forEach { typeRow ->
-          Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.spacedBy(5.dp)) {
-           typeRow.forEach { type ->
-            FilterChip(
-             selected=billGlassType.equals(type, ignoreCase=true),
-             onClick={ billGlassType=type },
-             label={ Text(type, fontSize=10.sp, maxLines=2) },
-             modifier=Modifier.weight(1f)
-            )
+         var glassTypeExpanded by remember { mutableStateOf(false) }
+         Box(Modifier.fillMaxWidth()) {
+          OutlinedButton(onClick={ glassTypeExpanded=true }, modifier=Modifier.fillMaxWidth(), shape=androidx.compose.foundation.shape.RoundedCornerShape(12.dp)) {
+           Text(billGlassType.ifBlank { "Select lens type" }, modifier=Modifier.weight(1f))
+           Text("⌄", style=MaterialTheme.typography.titleMedium)
+          }
+          DropdownMenu(expanded=glassTypeExpanded, onDismissRequest={ glassTypeExpanded=false }, modifier=Modifier.fillMaxWidth(0.88f)) {
+           glassTypes.forEach { type ->
+            DropdownMenuItem(text={ Text(type) }, onClick={ billGlassType=type; glassTypeExpanded=false })
            }
-           repeat(4-typeRow.size) { Spacer(Modifier.weight(1f)) }
+           DropdownMenuItem(text={ Text("Other / Custom…") }, onClick={ billGlassType="Custom type"; glassTypeExpanded=false })
           }
          }
+         if (billGlassType=="Custom type" || (billGlassType.isNotBlank() && glassTypes.none { it.equals(billGlassType, true) })) {
+          OutlinedTextField(value=if(billGlassType=="Custom type") "" else billGlassType, onValueChange={ billGlassType=it }, label={ Text("Custom lens type") }, placeholder={ Text("Enter lens type") }, modifier=Modifier.fillMaxWidth(), singleLine=true)
+         }
         }
-        Spacer(Modifier.height(2.dp))
         DateInputField(value=billDeliveryDate, onValueChange={ billDeliveryDate=it }, label="Expected delivery date", displayFormat="dd/MM/yyyy", placeholder="e.g. 05/11/2026", supportingText="Optional for walk-in sales; fill for orders awaiting lens fitting.", modifier=Modifier.fillMaxWidth())
-        if (billCustomerId.toLongOrNull() != null) {
-         Text("Attach eye prescription (optional)", style=MaterialTheme.typography.titleMedium)
-         if (billPrescriptions.isEmpty()) Text("No saved prescription for this customer. You can still bill sunglasses or other products.", style=MaterialTheme.typography.bodySmall)
-         billPrescriptions.forEach { rx -> TextButton(onClick={ billPrescriptionId=rx.id.toString() }) { Text((if (billPrescriptionId == rx.id.toString()) "✓ " else "") + "Prescription · " + java.text.SimpleDateFormat("dd MMM yyyy", java.util.Locale.getDefault()).format(java.util.Date(rx.createdAt))) } }
-         selectedBillPrescription?.let { rx -> Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(12.dp)) {
-          Text("Prescription attached to this bill", style=MaterialTheme.typography.titleSmall)
-          Text("Right eye (OD): SPH ${rx.rightSphere.ifBlank{"—"}} · CYL ${rx.rightCylinder.ifBlank{"—"}} · Axis ${rx.rightAxis.ifBlank{"—"}} · ADD ${rx.rightAdd.ifBlank{"—"}}")
-          Text("Left eye (OS): SPH ${rx.leftSphere.ifBlank{"—"}} · CYL ${rx.leftCylinder.ifBlank{"—"}} · Axis ${rx.leftAxis.ifBlank{"—"}} · ADD ${rx.leftAdd.ifBlank{"—"}}")
-          Text("PD: ${rx.pd.ifBlank{"—"}}", style=MaterialTheme.typography.bodySmall)
-          if(rx.notes.isNotBlank()) Text("Notes: ${rx.notes}", style=MaterialTheme.typography.bodySmall)
-          TextButton(onClick={billPrescriptionId=""}) { Text("Remove prescription") }
-         } } }
+        Card(Modifier.fillMaxWidth(), colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surfaceVariant)) {
+         Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement=Arrangement.spacedBy(6.dp)) {
+          Row(verticalAlignment=Alignment.CenterVertically, horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+           Column(Modifier.weight(1f)) {
+            Text("Prescription", style=MaterialTheme.typography.titleSmall)
+            Text("Optional · attach an existing eye prescription", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSurfaceVariant)
+           }
+           OutlinedButton(onClick={
+            val cid=billCustomerId.toLongOrNull()
+            if(cid==null) toast("Select or save a customer first, then add prescription")
+            else { prescriptionCustomerId=cid.toString(); editingPrescriptionId=null; section="Prescription" }
+           }) { Text("＋ Add") }
+          }
+          if (billCustomerId.toLongOrNull()!=null) {
+           if (billPrescriptions.isNotEmpty()) {
+            billPrescriptions.forEach { rx ->
+             Row(Modifier.fillMaxWidth(), verticalAlignment=Alignment.CenterVertically, horizontalArrangement=Arrangement.SpaceBetween) {
+              Text("Prescription · " + java.text.SimpleDateFormat("dd MMM yyyy", java.util.Locale.getDefault()).format(java.util.Date(rx.createdAt)), modifier=Modifier.weight(1f), style=MaterialTheme.typography.bodyMedium)
+              if(billPrescriptionId==rx.id.toString()) Text("Attached ✓", color=MaterialTheme.colorScheme.primary, style=MaterialTheme.typography.labelSmall)
+              else TextButton(onClick={ billPrescriptionId=rx.id.toString() }) { Text("Attach") }
+             }
+            }
+           } else Text("No saved prescription yet. Add one if needed.", style=MaterialTheme.typography.bodySmall)
+           selectedBillPrescription?.let { rx -> Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(10.dp), verticalArrangement=Arrangement.spacedBy(4.dp)) {
+            Text("Attached prescription", style=MaterialTheme.typography.titleSmall)
+            Text("OD: SPH ${rx.rightSphere.ifBlank{"—"}} · CYL ${rx.rightCylinder.ifBlank{"—"}} · Axis ${rx.rightAxis.ifBlank{"—"}} · ADD ${rx.rightAdd.ifBlank{"—"}}", style=MaterialTheme.typography.bodySmall)
+            Text("OS: SPH ${rx.leftSphere.ifBlank{"—"}} · CYL ${rx.leftCylinder.ifBlank{"—"}} · Axis ${rx.leftAxis.ifBlank{"—"}} · ADD ${rx.leftAdd.ifBlank{"—"}}", style=MaterialTheme.typography.bodySmall)
+            Text("PD: ${rx.pd.ifBlank{"—"}}", style=MaterialTheme.typography.bodySmall)
+            TextButton(onClick={billPrescriptionId=""}) { Text("Remove") }
+           } } }
+          } else Text("Select a customer above to attach or create a prescription.", style=MaterialTheme.typography.bodySmall)
+         }
         }
         Text("3 · ADD ITEMS", style=MaterialTheme.typography.labelLarge, color=MaterialTheme.colorScheme.primary)
         OutlinedTextField(billItemSearch, { billItemSearch=it }, label={ Text("Search frame / lens / product") }, modifier=Modifier.fillMaxWidth(), singleLine=true)
@@ -877,7 +891,7 @@ class MainActivity : ComponentActivity() {
          else runCatching { BillLine(pid,billDescription.trim(),qty,(rate*100).toLong(),(discount*100).toLong(),(tax*100).toLong()) }
           .onSuccess { line -> billLines=billLines+line; billProductId=""; billDescription=""; billQty="1"; billRate=""; billDiscount="0"; billTax="0"; toast("Item added to bill") }
           .onFailure { toast(it.message ?: "Invalid item") }
-        }, modifier=Modifier.fillMaxWidth()) { Text("Add item to bill") }
+        }, modifier=Modifier.fillMaxWidth(), shape=androidx.compose.foundation.shape.RoundedCornerShape(12.dp)) { Text("＋  Add more item") }
         Text("4 · BILL ITEMS (${billLines.size})", style=MaterialTheme.typography.labelLarge, color=MaterialTheme.colorScheme.primary)
         Text("Items in cart · ₹${"%.2f".format(billLines.sumOf { it.total }/100.0)}", style=MaterialTheme.typography.titleSmall)
         billLines.forEachIndexed { index, line ->
@@ -886,17 +900,7 @@ class MainActivity : ComponentActivity() {
           TextButton(onClick={ billLines=billLines.filterIndexed { i, _ -> i != index } }) { Text("Remove") }
          }
         }
-        val draftSubtotal = billLines.sumOf { it.subtotalPaise }
-        val draftDiscount = billLines.sumOf { it.discountPaise }
-        val draftTax = billLines.sumOf { it.taxPaise }
-        val draftTotal = billLines.sumOf { it.total }
-        Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(12.dp)) {
-         Text("Live bill preview", style=MaterialTheme.typography.titleMedium)
-         Text("Items subtotal: ₹${"%.2f".format(draftSubtotal/100.0)}")
-         Text("Discount: ₹${"%.2f".format(draftDiscount/100.0)} · Tax: ₹${"%.2f".format(draftTax/100.0)}")
-         Text("Grand total: ₹${"%.2f".format(draftTotal/100.0)}", style=MaterialTheme.typography.titleLarge)
-         Text("Balance after payment: ₹${"%.2f".format((draftTotal-(billPaid.toDoubleOrNull()?.times(100)?.toLong() ?: 0L)).coerceAtLeast(0)/100.0)}")
-        } }
+
         Text("5 · PAYMENT", style=MaterialTheme.typography.labelLarge, color=MaterialTheme.colorScheme.primary)
         OutlinedTextField(billPaid, { billPaid=it }, label={ Text("Amount received ₹") }, modifier=Modifier.fillMaxWidth(), singleLine=true)
         Text("Payment type", style=MaterialTheme.typography.titleSmall)
@@ -1355,13 +1359,14 @@ class MainActivity : ComponentActivity() {
             val paymentStatus = if (invoice.duePaise <= 0) "PAID / RECORDED" else if (invoice.paidPaise > 0) "PARTIALLY PAID · BALANCE DUE" else "UNPAID · PAYMENT DUE"
             Text("Payment status: $paymentStatus", color=if(invoice.duePaise<=0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error, style=MaterialTheme.typography.labelMedium)
             if(invoice.duePaise>0) TextButton(onClick={ paymentInvoiceId=invoice.id.toString(); paymentAmount=""; section="Payment" }) { Text("Collect due payment") }
+            OutlinedButton(onClick={lifecycleScope.launch{runCatching{val file=InvoicePdf.generate(this@MainActivity,invoice,db.dao().items(invoice.id),db.dao().settings()?:ShopSettings(),invoice.customerId?.let { db.dao().customer(it) });InvoiceSharing.share(this@MainActivity,file,invoice.phone,true)}.onFailure{toast("WhatsApp share failed: ${it.message ?: "unknown error"}")}}}, modifier=Modifier.fillMaxWidth(), shape=androidx.compose.foundation.shape.RoundedCornerShape(12.dp)) { Text("↗  Share bill on WhatsApp") }
             if(selectedBillId==invoice.id) {
              Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement=Arrangement.spacedBy(6.dp)) {
              if(canManageRecords()) TextButton(onClick={ lifecycleScope.launch { runCatching { val items=db.dao().items(invoice.id); billCustomer=invoice.customerName; billCustomerId=invoice.customerId?.toString() ?: ""; billPhone=invoice.phone; val linkedCustomer=invoice.customerId?.let { db.dao().customer(it) }; billCustomerAddress=linkedCustomer?.address.orEmpty(); billCustomerAge=linkedCustomer?.age?.toString() ?: ""; billCustomerSearch=linkedCustomer?.name.orEmpty(); billLines=items.map { BillLine(it.productId,it.description,it.qty,it.ratePaise,it.discountPaise,it.taxPaise) }; billPaid="%.2f".format(invoice.paidPaise/100.0); billPrescriptionId=""; billPrescriptionSummary=invoice.prescriptionSummary; billGlassType=invoice.glassType; billDeliveryDate=invoice.deliveryDate; editingInvoiceId=invoice.id; section="New Bill" }.onFailure { toast("Could not load bill for editing") } } }) { Text("Edit") }
              if(canDeleteRecords()) TextButton(onClick={ invoiceDeleteTarget=invoice }) { Text("Delete") }
              TextButton(onClick={lifecycleScope.launch{runCatching{val file=InvoicePdf.generate(this@MainActivity,invoice,db.dao().items(invoice.id),db.dao().settings()?:ShopSettings(),invoice.customerId?.let { db.dao().customer(it) });val uri=FileProvider.getUriForFile(this@MainActivity,"${packageName}.fileprovider",file);startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(uri,"application/pdf").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION))}.onFailure{toast("PDF preview failed. Install a PDF viewer.")}}}){Text("▧  Preview PDF")}
              TextButton(onClick={lifecycleScope.launch{runCatching{val file=InvoicePdf.generate(this@MainActivity,invoice,db.dao().items(invoice.id),db.dao().settings()?:ShopSettings(),invoice.customerId?.let { db.dao().customer(it) });printPdf(file,"Invoice ${invoice.number}")}.onFailure{toast("Could not start system print")}}}){Text("⎙  Print")}
-             Button(onClick={lifecycleScope.launch{runCatching{val file=InvoicePdf.generate(this@MainActivity,invoice,db.dao().items(invoice.id),db.dao().settings()?:ShopSettings(),invoice.customerId?.let { db.dao().customer(it) });InvoiceSharing.share(this@MainActivity,file,invoice.phone,true)}.onFailure{toast("Invoice share failed")}}}){Text("↗  Share PDF")}
+             OutlinedButton(onClick={lifecycleScope.launch{runCatching{val file=InvoicePdf.generate(this@MainActivity,invoice,db.dao().items(invoice.id),db.dao().settings()?:ShopSettings(),invoice.customerId?.let { db.dao().customer(it) });InvoiceSharing.share(this@MainActivity,file,invoice.phone,false)}.onFailure{toast("Invoice share failed")}}}){Text("Share PDF")}
              OutlinedButton(onClick={lifecycleScope.launch {
               runCatching {
                val file=InvoicePdf.generate(this@MainActivity,invoice,db.dao().items(invoice.id),db.dao().settings()?:ShopSettings(),invoice.customerId?.let { db.dao().customer(it) })
