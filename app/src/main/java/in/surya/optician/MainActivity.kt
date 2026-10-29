@@ -1397,46 +1397,78 @@ class MainActivity : ComponentActivity() {
     }
     if (showBillPreview) {
      val previewTotal = billLines.sumOf { it.total }
-     AlertDialog(
-      onDismissRequest = { showBillPreview = false },
-      title = { Text("Bill preview") },
-      text = {
-       Column(Modifier.heightIn(max=460.dp).verticalScroll(rememberScrollState())) {
-        Text("SURYA OPTICIAN", style=MaterialTheme.typography.titleMedium)
-        Text("Customer: " + billCustomer.ifBlank { customers.firstOrNull { it.id.toString()==billCustomerId }?.name ?: "Not selected" })
-        Text("Phone: " + billPhone.ifBlank { customers.firstOrNull { it.id.toString()==billCustomerId }?.phone ?: "—" })
-        if (billCustomerAddress.isNotBlank()) Text("Address: $billCustomerAddress")
-        if (billCustomerAge.isNotBlank()) Text("Age: $billCustomerAge")
-        if (billGlassType.isNotBlank()) Text("Glass type: $billGlassType")
-        if (billDeliveryDate.isNotBlank()) Text("Expected delivery: $billDeliveryDate")
-        Spacer(Modifier.height(8.dp))
-        billLines.forEachIndexed { index, line ->
-         Column(Modifier.fillMaxWidth().padding(vertical=4.dp)) {
-          Text("${index+1}. ${line.description}", style=MaterialTheme.typography.bodyMedium)
-          Text("Qty: ${line.qty}  ·  Rate: ₹${"%.2f".format(line.ratePaise/100.0)}", style=MaterialTheme.typography.bodySmall)
-          Text("Discount: ₹${"%.2f".format(line.discountPaise/100.0)}  ·  Tax: ₹${"%.2f".format(line.taxPaise/100.0)}", style=MaterialTheme.typography.bodySmall)
-          Text("Amount: ₹${"%.2f".format(line.total/100.0)}", style=MaterialTheme.typography.bodyMedium)
+     androidx.compose.ui.window.Dialog(onDismissRequest = { showBillPreview = false }) {
+      Card(
+       modifier = Modifier.fillMaxWidth().heightIn(max = 720.dp),
+       shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
+       colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+      ) {
+       Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
+        Column(
+         Modifier.fillMaxWidth().background(androidx.compose.ui.graphics.Color(0xFF102F52)).padding(18.dp),
+         verticalArrangement = Arrangement.spacedBy(5.dp)
+        ) {
+         Text("SURYA OPTICIAN", style = MaterialTheme.typography.titleLarge, color = androidx.compose.ui.graphics.Color.White)
+         Text("TAX INVOICE PREVIEW", style = MaterialTheme.typography.labelLarge, color = androidx.compose.ui.graphics.Color(0xFFB9D8E8))
+         Text("Invoice: ${if (editingInvoiceId == null) "DRAFT" else "#${editingInvoiceId}"}  ·  ${java.text.SimpleDateFormat("dd MMM yyyy", java.util.Locale.getDefault()).format(java.util.Date())}", style = MaterialTheme.typography.bodySmall, color = androidx.compose.ui.graphics.Color.White)
+        }
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+         Text("BILL TO", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+         Text(billCustomer.ifBlank { customers.firstOrNull { it.id.toString() == billCustomerId }?.name ?: "Walk-in customer" }, style = MaterialTheme.typography.titleMedium)
+         Text("Phone: " + billPhone.ifBlank { customers.firstOrNull { it.id.toString() == billCustomerId }?.phone ?: "—" }, style = MaterialTheme.typography.bodySmall)
+         if (billCustomerAddress.isNotBlank()) Text("Address: $billCustomerAddress", style = MaterialTheme.typography.bodySmall)
+         if (billCustomerAge.isNotBlank()) Text("Age: $billCustomerAge", style = MaterialTheme.typography.bodySmall)
+         if (billGlassType.isNotBlank()) Text("Glass type: $billGlassType", style = MaterialTheme.typography.bodySmall)
+         if (billDeliveryDate.isNotBlank()) Text("Expected delivery: $billDeliveryDate", style = MaterialTheme.typography.bodySmall)
+         Divider(Modifier.padding(vertical = 4.dp))
+         Text("ITEMS", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+          Text("Description / Qty", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+          Text("Amount", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+         }
+         billLines.forEachIndexed { index, line ->
+          Row(Modifier.fillMaxWidth().padding(vertical = 5.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+           Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text("${index + 1}. ${line.description}", style = MaterialTheme.typography.bodyMedium)
+            Text("Qty ${line.qty} × ${"%.2f".format(line.ratePaise / 100.0)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+           }
+           Text("₹${"%.2f".format(line.total / 100.0)}", style = MaterialTheme.typography.titleSmall)
+          }
+          Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.45f))
+         }
+         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Subtotal"); Text("₹${"%.2f".format(billLines.sumOf { it.subtotalPaise } / 100.0)}") }
+         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Discount"); Text("− ₹${"%.2f".format(billLines.sumOf { it.discountPaise } / 100.0)}") }
+         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Tax"); Text("₹${"%.2f".format(billLines.sumOf { it.taxPaise } / 100.0)}") }
+         Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)) {
+          Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+           Text("GRAND TOTAL", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
+           Text("₹${"%.2f".format(previewTotal / 100.0)}", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onPrimaryContainer)
+          }
+         }
+         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Amount paid"); Text("₹${"%.2f".format(((billPaid.toDoubleOrNull() ?: 0.0) * 100).toLong() / 100.0)}") }
+         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+          Text("BALANCE DUE", style = MaterialTheme.typography.titleSmall)
+          Text("₹${"%.2f".format((previewTotal - ((billPaid.toDoubleOrNull() ?: 0.0) * 100).toLong()).coerceAtLeast(0) / 100.0)}", style = MaterialTheme.typography.titleMedium, color = if (previewTotal > ((billPaid.toDoubleOrNull() ?: 0.0) * 100).toLong()) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
+         }
+         if (billPrescriptionSummary.isNotBlank() || selectedBillPrescription != null) {
+          Divider(Modifier.padding(vertical = 4.dp))
+          Text("PRESCRIPTION DETAILS", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+          if (billPrescriptionSummary.isNotBlank()) Text(billPrescriptionSummary, style = MaterialTheme.typography.bodySmall)
+          selectedBillPrescription?.let { rx ->
+           Text("OD: SPH ${rx.rightSphere.ifBlank { "—" }} · CYL ${rx.rightCylinder.ifBlank { "—" }} · Axis ${rx.rightAxis.ifBlank { "—" }} · ADD ${rx.rightAdd.ifBlank { "—" }}", style = MaterialTheme.typography.bodySmall)
+           Text("OS: SPH ${rx.leftSphere.ifBlank { "—" }} · CYL ${rx.leftCylinder.ifBlank { "—" }} · Axis ${rx.leftAxis.ifBlank { "—" }} · ADD ${rx.leftAdd.ifBlank { "—" }}", style = MaterialTheme.typography.bodySmall)
+           Text("PD: ${rx.pd.ifBlank { "—" }}", style = MaterialTheme.typography.bodySmall)
+          }
+         }
+         Text("Thank you for choosing Surya Optician!", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+          OutlinedButton(onClick = { showBillPreview = false }, modifier = Modifier.weight(1f)) { Text("Back to edit") }
+          Button(onClick = { showBillPreview = false }, modifier = Modifier.weight(1f)) { Text("Close preview") }
          }
         }
-        Divider(Modifier.padding(vertical=8.dp))
-        Text("Subtotal: ₹${"%.2f".format(billLines.sumOf { it.subtotalPaise }/100.0)}")
-        Text("Discount: ₹${"%.2f".format(billLines.sumOf { it.discountPaise }/100.0)}")
-        Text("Tax: ₹${"%.2f".format(billLines.sumOf { it.taxPaise }/100.0)}")
-        Text("GRAND TOTAL: ₹${"%.2f".format(previewTotal/100.0)}", style=MaterialTheme.typography.titleMedium)
-        Text("Paid: ₹${"%.2f".format(((billPaid.toDoubleOrNull() ?: 0.0)*100).toLong()/100.0)}")
-        Text("Balance: ₹${"%.2f".format((previewTotal-((billPaid.toDoubleOrNull() ?: 0.0)*100).toLong()).coerceAtLeast(0)/100.0)}")
-        selectedBillPrescription?.let { rx ->
-         Spacer(Modifier.height(8.dp))
-         Text("EYE PRESCRIPTION", style=MaterialTheme.typography.titleSmall)
-         Text("OD: SPH ${rx.rightSphere.ifBlank{"—"}} · CYL ${rx.rightCylinder.ifBlank{"—"}} · Axis ${rx.rightAxis.ifBlank{"—"}} · ADD ${rx.rightAdd.ifBlank{"—"}}")
-         Text("OS: SPH ${rx.leftSphere.ifBlank{"—"}} · CYL ${rx.leftCylinder.ifBlank{"—"}} · Axis ${rx.leftAxis.ifBlank{"—"}} · ADD ${rx.leftAdd.ifBlank{"—"}}")
-         Text("PD: ${rx.pd.ifBlank{"—"}}")
-        }
        }
-      },
-      confirmButton = { TextButton(onClick={ showBillPreview=false }) { Text("Back to edit") } },
-      dismissButton = { TextButton(onClick={ showBillPreview=false }) { Text("Close preview") } }
-     )
+      }
+     }
     }
     if (loggedInUser != null && !unlocked) {
      AlertDialog(
