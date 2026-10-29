@@ -252,6 +252,7 @@ class MainActivity : ComponentActivity() {
     var showMoreMenu by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
     var billHistoryPage by remember { mutableIntStateOf(0) }
+    var billStatusFilter by remember { mutableStateOf("All") }
     var selectedBillId by remember { mutableStateOf<Long?>(null) }
     var customerSearch by remember { mutableStateOf("") }
     var productSearch by remember { mutableStateOf("") }
@@ -313,10 +314,11 @@ class MainActivity : ComponentActivity() {
     var prescriptionNotes by remember { mutableStateOf("") }
     var reminderInvoice by remember { mutableStateOf<Invoice?>(null) }
     val invoices by db.dao().searchInvoices(query).collectAsState(initial = emptyList())
-    LaunchedEffect(query) { billHistoryPage = 0 }
+    LaunchedEffect(query, billStatusFilter) { billHistoryPage = 0; selectedBillId = null }
     val billHistoryPageSize = 10
-    val billHistoryPageCount = maxOf(1, (invoices.size + billHistoryPageSize - 1) / billHistoryPageSize)
-    val visibleBillHistory = invoices.drop(billHistoryPage * billHistoryPageSize).take(billHistoryPageSize)
+    val filteredBillHistory = invoices.filter { invoice -> when (billStatusFilter) { "Paid" -> invoice.duePaise <= 0; "Due" -> invoice.duePaise > 0; else -> true } }
+    val billHistoryPageCount = maxOf(1, (filteredBillHistory.size + billHistoryPageSize - 1) / billHistoryPageSize)
+    val visibleBillHistory = filteredBillHistory.drop(billHistoryPage * billHistoryPageSize).take(billHistoryPageSize)
     val allInvoices by db.dao().invoices().collectAsState(initial = emptyList())
     val prescriptionsFlow = remember(prescriptionCustomerId) {
      prescriptionCustomerId.toLongOrNull()?.let { db.dao().prescriptions(it) } ?: flowOf<List<Prescription>>(emptyList())
@@ -713,13 +715,13 @@ class MainActivity : ComponentActivity() {
           Text(customer.name, style=MaterialTheme.typography.titleMedium)
           Text(listOfNotNull(customer.phone.takeIf { it.isNotBlank() }, customer.age?.let { "Age $it years" }, customer.address.takeIf { it.isNotBlank() }, customer.email.takeIf { it.isNotBlank() }).joinToString("  ·  ").ifBlank { "No additional details" }, style=MaterialTheme.typography.bodyMedium)
           Row {
-           if(canManageRecords()) TextButton(onClick={ selectedCustomerId=customer.id; customerName=customer.name; customerPhone=customer.phone; customerAddress=customer.address; customerAge=customer.age?.toString() ?: ""; customerEmail=customer.email }) { Text("Edit") }
+           if(canManageRecords()) TextButton(onClick={ selectedCustomerId=customer.id; customerName=customer.name; customerPhone=customer.phone; customerAddress=customer.address; customerAge=customer.age?.toString() ?: ""; customerEmail=customer.email }) { Text("✎  Edit") }
            if(canDeleteRecords()) TextButton(onClick={ if(!canDeleteRecords()) denyPermission("delete customers") else lifecycleScope.launch {
             val hasInvoices=db.dao().customerInvoiceCount(customer.id)>0
             val hasPrescriptions=db.dao().customerPrescriptionCount(customer.id)>0
             if(hasInvoices || hasPrescriptions) toast("Cannot delete: customer has invoice or prescription history")
             else runCatching { db.dao().deleteCustomer(customer) }.onSuccess { toast("Customer deleted") }.onFailure { toast("Could not delete customer") }
-           } }) { Text("Delete") }
+           } }) { Text("⌫  Delete") }
           }
          } }
         } }
@@ -1300,10 +1302,11 @@ class MainActivity : ComponentActivity() {
           }
          }
         }
-        Button(onClick={ InvoiceCsv.share(this@MainActivity, invoices) }, modifier=Modifier.fillMaxWidth()) { Text("Export matching invoices as CSV") }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.spacedBy(8.dp)) { listOf("All", "Paid", "Due").forEach { filter -> FilterChip(selected=billStatusFilter==filter, onClick={ billStatusFilter=filter }, label={ Text(if(filter=="Due") "Payment due" else filter) }) } }
+         Button(onClick={ InvoiceCsv.share(this@MainActivity, filteredBillHistory) }, modifier=Modifier.fillMaxWidth()) { Text("Export matching invoices as CSV") }
         Card(Modifier.fillMaxWidth(), colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface)) {
          Row(Modifier.fillMaxWidth().padding(horizontal=8.dp, vertical=4.dp), verticalAlignment=Alignment.CenterVertically, horizontalArrangement=Arrangement.SpaceBetween) {
-          Text(if(invoices.isEmpty()) "No bills" else "Showing ${billHistoryPage * billHistoryPageSize + 1}–${minOf((billHistoryPage + 1) * billHistoryPageSize, invoices.size)} of ${invoices.size}", style=MaterialTheme.typography.labelMedium)
+          Text(if(filteredBillHistory.isEmpty()) "No bills" else "Showing ${billHistoryPage * billHistoryPageSize + 1}–${minOf((billHistoryPage + 1) * billHistoryPageSize, filteredBillHistory.size)} of ${filteredBillHistory.size}", style=MaterialTheme.typography.labelMedium)
           Row(verticalAlignment=Alignment.CenterVertically) {
            TextButton(onClick={ billHistoryPage = (billHistoryPage - 1).coerceAtLeast(0) }, enabled=billHistoryPage > 0) { Text("Previous") }
            Text("${billHistoryPage + 1}/${billHistoryPageCount}", style=MaterialTheme.typography.labelMedium)
@@ -1334,12 +1337,12 @@ class MainActivity : ComponentActivity() {
             Text("Payment status: $paymentStatus", color=if(invoice.duePaise<=0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error, style=MaterialTheme.typography.labelMedium)
             if(invoice.duePaise>0) TextButton(onClick={ paymentInvoiceId=invoice.id.toString(); paymentAmount=""; section="Payment" }) { Text("Collect due payment") }
             if(selectedBillId==invoice.id) {
-             Row(horizontalArrangement=Arrangement.spacedBy(6.dp)) {
+             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement=Arrangement.spacedBy(6.dp)) {
              if(canManageRecords()) TextButton(onClick={ lifecycleScope.launch { runCatching { val items=db.dao().items(invoice.id); billCustomer=invoice.customerName; billCustomerId=invoice.customerId?.toString() ?: ""; billPhone=invoice.phone; val linkedCustomer=invoice.customerId?.let { db.dao().customer(it) }; billCustomerAddress=linkedCustomer?.address.orEmpty(); billCustomerAge=linkedCustomer?.age?.toString() ?: ""; billCustomerSearch=linkedCustomer?.name.orEmpty(); billLines=items.map { BillLine(it.productId,it.description,it.qty,it.ratePaise,it.discountPaise,it.taxPaise) }; billPaid="%.2f".format(invoice.paidPaise/100.0); billPrescriptionId=""; billPrescriptionSummary=invoice.prescriptionSummary; billGlassType=invoice.glassType; billDeliveryDate=invoice.deliveryDate; editingInvoiceId=invoice.id; section="New Bill" }.onFailure { toast("Could not load bill for editing") } } }) { Text("Edit") }
              if(canDeleteRecords()) TextButton(onClick={ invoiceDeleteTarget=invoice }) { Text("Delete") }
-             TextButton(onClick={lifecycleScope.launch{runCatching{val file=InvoicePdf.generate(this@MainActivity,invoice,db.dao().items(invoice.id),db.dao().settings()?:ShopSettings(),invoice.customerId?.let { db.dao().customer(it) });val uri=FileProvider.getUriForFile(this@MainActivity,"${packageName}.fileprovider",file);startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(uri,"application/pdf").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION))}.onFailure{toast("PDF preview failed. Install a PDF viewer.")}}}){Text("Preview PDF")}
-             TextButton(onClick={lifecycleScope.launch{runCatching{val file=InvoicePdf.generate(this@MainActivity,invoice,db.dao().items(invoice.id),db.dao().settings()?:ShopSettings(),invoice.customerId?.let { db.dao().customer(it) });printPdf(file,"Invoice ${invoice.number}")}.onFailure{toast("Could not start system print")}}}){Text("Print")}
-             Button(onClick={lifecycleScope.launch{runCatching{val file=InvoicePdf.generate(this@MainActivity,invoice,db.dao().items(invoice.id),db.dao().settings()?:ShopSettings(),invoice.customerId?.let { db.dao().customer(it) });InvoiceSharing.share(this@MainActivity,file,invoice.phone,true)}.onFailure{toast("Invoice share failed")}}}){Text("WhatsApp PDF")}
+             TextButton(onClick={lifecycleScope.launch{runCatching{val file=InvoicePdf.generate(this@MainActivity,invoice,db.dao().items(invoice.id),db.dao().settings()?:ShopSettings(),invoice.customerId?.let { db.dao().customer(it) });val uri=FileProvider.getUriForFile(this@MainActivity,"${packageName}.fileprovider",file);startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(uri,"application/pdf").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION))}.onFailure{toast("PDF preview failed. Install a PDF viewer.")}}}){Text("▧  Preview PDF")}
+             TextButton(onClick={lifecycleScope.launch{runCatching{val file=InvoicePdf.generate(this@MainActivity,invoice,db.dao().items(invoice.id),db.dao().settings()?:ShopSettings(),invoice.customerId?.let { db.dao().customer(it) });printPdf(file,"Invoice ${invoice.number}")}.onFailure{toast("Could not start system print")}}}){Text("⎙  Print")}
+             Button(onClick={lifecycleScope.launch{runCatching{val file=InvoicePdf.generate(this@MainActivity,invoice,db.dao().items(invoice.id),db.dao().settings()?:ShopSettings(),invoice.customerId?.let { db.dao().customer(it) });InvoiceSharing.share(this@MainActivity,file,invoice.phone,true)}.onFailure{toast("Invoice share failed")}}}){Text("↗  Share PDF")}
             } else {
              TextButton(onClick={selectedBillId=invoice.id}) { Text("Hold or double-tap for actions  ⋯") }
             }
