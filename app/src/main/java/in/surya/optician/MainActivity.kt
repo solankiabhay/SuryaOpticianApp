@@ -481,6 +481,7 @@ class MainActivity : ComponentActivity() {
       )
      },
      bottomBar = {
+      Box(Modifier.fillMaxWidth()) {
       NavigationBar(
        containerColor=MaterialTheme.colorScheme.surface,
        tonalElevation=8.dp,
@@ -505,6 +506,8 @@ class MainActivity : ComponentActivity() {
         label={ Text("Menu", style=MaterialTheme.typography.labelSmall, maxLines=1) },
         alwaysShowLabel=true
        )
+
+      }
        if (showMoreMenu) {
         ModalBottomSheet(
          onDismissRequest={ showMoreMenu=false },
@@ -539,7 +542,6 @@ class MainActivity : ComponentActivity() {
          }
         }
        }
-      }
      }
     ) { padding ->
      Column(Modifier.fillMaxSize().padding(padding).padding(horizontal=16.dp, vertical=12.dp))
