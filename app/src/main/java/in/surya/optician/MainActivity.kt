@@ -1281,22 +1281,59 @@ class MainActivity : ComponentActivity() {
         }
        }
        else -> {
-        Text("Bill history", style=MaterialTheme.typography.headlineSmall)
-        Text("Search, review, print, share or collect payment for an existing bill.", style=MaterialTheme.typography.bodyMedium, color=MaterialTheme.colorScheme.onSurfaceVariant)
-        Spacer(Modifier.height(4.dp))
         Card(
          modifier=Modifier.fillMaxWidth(),
-         colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.primaryContainer),
+         colors=CardDefaults.cardColors(containerColor=androidx.compose.ui.graphics.Color(0xFF102F52)),
+         shape=androidx.compose.foundation.shape.RoundedCornerShape(22.dp)
+        ) {
+         Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment=Alignment.CenterVertically, horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+          Surface(shape=androidx.compose.foundation.shape.RoundedCornerShape(16.dp), color=androidx.compose.ui.graphics.Color.White, modifier=Modifier.size(56.dp)) {
+           Box(contentAlignment=Alignment.Center) { OpticianLogo(modifier=Modifier.size(42.dp), color=androidx.compose.ui.graphics.Color(0xFF174C70)) }
+          }
+          Column(Modifier.weight(1f), verticalArrangement=Arrangement.spacedBy(3.dp)) {
+           Text("BILL HISTORY", style=MaterialTheme.typography.labelMedium, color=androidx.compose.ui.graphics.Color(0xFFB9D8E8))
+           Text("All your bills, in one place", style=MaterialTheme.typography.titleLarge, color=androidx.compose.ui.graphics.Color.White)
+           Text("Search · Track payments · Share invoices", style=MaterialTheme.typography.bodySmall, color=androidx.compose.ui.graphics.Color(0xFFD9E7F6))
+          }
+         }
+        }
+        Spacer(Modifier.height(10.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+         val paidCount = filteredBillHistory.count { it.duePaise <= 0 }
+         val dueCount = filteredBillHistory.count { it.duePaise > 0 }
+         Card(Modifier.weight(1f), colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface), shape=androidx.compose.foundation.shape.RoundedCornerShape(16.dp)) {
+          Column(Modifier.padding(12.dp), verticalArrangement=Arrangement.spacedBy(3.dp)) {
+           Text("TOTAL BILLS", style=MaterialTheme.typography.labelSmall, color=MaterialTheme.colorScheme.onSurfaceVariant)
+           Text("${filteredBillHistory.size}", style=MaterialTheme.typography.titleLarge, color=MaterialTheme.colorScheme.primary)
+          }
+         }
+         Card(Modifier.weight(1f), colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface), shape=androidx.compose.foundation.shape.RoundedCornerShape(16.dp)) {
+          Column(Modifier.padding(12.dp), verticalArrangement=Arrangement.spacedBy(3.dp)) {
+           Text("PAID", style=MaterialTheme.typography.labelSmall, color=MaterialTheme.colorScheme.onSurfaceVariant)
+           Text("${paidCount}", style=MaterialTheme.typography.titleLarge, color=androidx.compose.ui.graphics.Color(0xFF16804A))
+          }
+         }
+         Card(Modifier.weight(1f), colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface), shape=androidx.compose.foundation.shape.RoundedCornerShape(16.dp)) {
+          Column(Modifier.padding(12.dp), verticalArrangement=Arrangement.spacedBy(3.dp)) {
+           Text("PAYMENT DUE", style=MaterialTheme.typography.labelSmall, color=MaterialTheme.colorScheme.onSurfaceVariant)
+           Text("${dueCount}", style=MaterialTheme.typography.titleLarge, color=MaterialTheme.colorScheme.error)
+          }
+         }
+        }
+        Spacer(Modifier.height(10.dp))
+        Card(
+         modifier=Modifier.fillMaxWidth(),
+         colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface),
          shape=androidx.compose.foundation.shape.RoundedCornerShape(20.dp)
         ) {
          Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement=Arrangement.spacedBy(8.dp)) {
           Row(verticalAlignment=Alignment.CenterVertically, horizontalArrangement=Arrangement.spacedBy(10.dp)) {
-           Surface(shape=androidx.compose.foundation.shape.RoundedCornerShape(12.dp), color=MaterialTheme.colorScheme.primary, modifier=Modifier.size(42.dp)) {
-            Box(contentAlignment=Alignment.Center) { Text("⌕", color=MaterialTheme.colorScheme.onPrimary, style=MaterialTheme.typography.headlineSmall) }
+           Surface(shape=androidx.compose.foundation.shape.RoundedCornerShape(12.dp), color=MaterialTheme.colorScheme.primaryContainer, modifier=Modifier.size(42.dp)) {
+            Box(contentAlignment=Alignment.Center) { Text("⌕", color=MaterialTheme.colorScheme.primary, style=MaterialTheme.typography.headlineSmall) }
            }
            Column(Modifier.weight(1f), verticalArrangement=Arrangement.spacedBy(2.dp)) {
-            Text("Find a bill", style=MaterialTheme.typography.titleMedium, color=MaterialTheme.colorScheme.onPrimaryContainer)
-            Text("Search by customer name, bill number or phone", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onPrimaryContainer)
+            Text("Find an invoice", style=MaterialTheme.typography.titleMedium)
+            Text("Customer name, bill number or phone", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSurfaceVariant)
            }
           }
           OutlinedTextField(
