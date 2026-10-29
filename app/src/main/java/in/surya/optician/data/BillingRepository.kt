@@ -113,13 +113,16 @@ class BillingRepository(private val db: OpticianDatabase) {
         val dao = db.dao()
         val existing = dao.invoice(invoiceId) ?: error("Invoice not found")
         val paid = dao.paid(invoiceId)
+        require(b.paidPaise >= paid) {
+            "Amount received cannot be reduced below recorded payments. Use Payments & collections for any adjustment."
+        }
         val subtotal = b.lines.fold(0L) { total, line -> Math.addExact(total, line.subtotalPaise) }
         val lineDiscounts = b.lines.fold(0L) { total, line -> Math.addExact(total, line.discountPaise) }
         val discounts = Math.addExact(lineDiscounts, b.discountPaise)
         val taxes = b.lines.fold(0L) { total, line -> Math.addExact(total, line.taxPaise) }
         require(discounts <= subtotal) { "Total discounts cannot exceed subtotal" }
         val total = Math.addExact(Math.subtractExact(subtotal, discounts), taxes)
-        require(paid <= total) { "The revised total is below payments already received. Record a refund/payment adjustment first." }
+        require(b.paidPaise <= total) { "Amount received cannot exceed the revised bill total." }
         b.customerId?.let { require(dao.customer(it) != null) { "Customer not found" } }
 
         val oldItems = dao.items(invoiceId)
@@ -141,7 +144,7 @@ class BillingRepository(private val db: OpticianDatabase) {
             discountPaise = discounts,
             taxPaise = taxes,
             totalPaise = total,
-            paidPaise = paid,
+            paidPaise = b.paidPaise,
             prescriptionSummary = b.prescriptionSummary.trim(),
             glassType = b.glassType.trim(),
             deliveryDate = b.deliveryDate.trim()
@@ -156,6 +159,17 @@ class BillingRepository(private val db: OpticianDatabase) {
         b.lines.filter { it.productId != null }.groupBy { it.productId!! }.forEach { (id, lines) ->
             val product = dao.product(id) ?: error("Product not found")
             dao.updateProduct(product.copy(stock = product.stock - lines.sumOf { it.qty }))
+        }
+        val additionalPayment = b.paidPaise - paid
+        if (additionalPayment > 0) {
+            dao.addPayment(
+                Payment(
+                    invoiceId = invoiceId,
+                    amountPaise = additionalPayment,
+                    method = b.method.trim().ifBlank { "Cash" },
+                    reference = "Additional payment recorded while editing bill"
+                )
+            )
         }
     }
 

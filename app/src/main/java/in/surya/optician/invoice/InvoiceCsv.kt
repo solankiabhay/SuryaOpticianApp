@@ -17,7 +17,12 @@ object InvoiceCsv {
   val dir=File(context.cacheDir,"shared-invoices")
   check(dir.exists() || dir.mkdirs()) { "Unable to create export directory" }
   val file=File(dir,"surya-invoices-${SimpleDateFormat("yyyyMMdd-HHmmss",Locale.US).format(Date())}.csv")
-  fun cell(value: String): String = "\"" + value.replace("\"", "\"\"").replace("\r"," ").replace("\n"," ") + "\""
+  fun cell(value: String): String {
+  val flattened = value.replace("\r"," ").replace("\n"," ")
+  val trimmed = flattened.trimStart()
+  val safe = if (trimmed.startsWith("=") || trimmed.startsWith("+") || trimmed.startsWith("-") || trimmed.startsWith("@") || trimmed.startsWith("\t") || trimmed.startsWith("\u0000")) "\u0027$flattened" else flattened
+  return "\"" + safe.replace("\"", "\"\"") + "\""
+ }
   val csv=buildString {
    appendLine("Invoice Number,Created At,Customer,Phone,Subtotal Paise,Discount Paise,Tax Paise,Total Paise,Paid Paise,Due Paise")
    invoices.forEach { invoice ->
