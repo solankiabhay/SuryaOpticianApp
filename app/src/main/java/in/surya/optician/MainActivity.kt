@@ -25,6 +25,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -1311,7 +1313,7 @@ class MainActivity : ComponentActivity() {
         }
         Column {
          visibleBillHistory.forEach { invoice ->
-          Card(Modifier.fillMaxWidth().padding(vertical=5.dp).clickable { selectedBillId = if (selectedBillId == invoice.id) null else invoice.id }, colors=CardDefaults.cardColors(containerColor=if(selectedBillId==invoice.id) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface)) {
+          Card(Modifier.fillMaxWidth().padding(vertical=5.dp).pointerInput(invoice.id) { detectTapGestures(onLongPress={ selectedBillId=invoice.id }, onDoubleTap={ selectedBillId=invoice.id }, onTap={ selectedBillId=if(selectedBillId==invoice.id) null else invoice.id }) }, colors=CardDefaults.cardColors(containerColor=if(selectedBillId==invoice.id) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface)) {
            Column(Modifier.padding(14.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.SpaceBetween, verticalAlignment=androidx.compose.ui.Alignment.CenterVertically) {
              Column(Modifier.weight(1f)) {
