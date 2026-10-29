@@ -382,7 +382,7 @@ class MainActivity : ComponentActivity() {
        modifier=Modifier.fillMaxWidth()
       ) {
        val primaryTabs = listOf("Dashboard", "Bills", "New Bill", "Customers")
-       val labels = listOf("Home", "History", "New bill", "Clients")
+       val labels = listOf("Home", "Bills", "New Bill", "Clients")
        val glyphs = listOf("⌂", "▤", "+", "♙")
        primaryTabs.forEachIndexed { index, tab ->
         NavigationBarItem(
@@ -394,21 +394,45 @@ class MainActivity : ComponentActivity() {
         )
        }
        NavigationBarItem(
-        selected=section !in primaryTabs,
-        onClick={ showMoreMenu=!showMoreMenu },
+        selected=showMoreMenu || section !in primaryTabs,
+        onClick={ showMoreMenu=true },
         icon={ Text("☰", style=MaterialTheme.typography.titleMedium) },
-        label={ Text("More", style=MaterialTheme.typography.labelSmall, maxLines=1) },
+        label={ Text("Menu", style=MaterialTheme.typography.labelSmall, maxLines=1) },
         alwaysShowLabel=true
        )
-       DropdownMenu(expanded=showMoreMenu, onDismissRequest={showMoreMenu=false}) {
-        (listOf("Products", "Payment", "Prescription", "Reports", "Settings") + if(isOwner()) listOf("Users") else emptyList())
-         .filter { canAccess(it) }.forEach { tab ->
-          DropdownMenuItem(
-           text={Text(tab)},
-           leadingIcon={Text(when(tab) { "Products" -> "▦"; "Payment" -> "₹"; "Prescription" -> "◎"; "Reports" -> "▥"; "Settings" -> "⚙"; else -> "♙" })},
-           onClick={section=tab;showMoreMenu=false}
-          )
+       if (showMoreMenu) {
+        ModalBottomSheet(
+         onDismissRequest={ showMoreMenu=false },
+         containerColor=MaterialTheme.colorScheme.surface,
+         dragHandle={ BottomSheetDefaults.DragHandle() }
+        ) {
+         Column(
+          modifier=Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal=16.dp).padding(bottom=20.dp),
+          verticalArrangement=Arrangement.spacedBy(6.dp)
+         ) {
+          Text("Shop menu", style=MaterialTheme.typography.titleLarge)
+          Text("Open a section", style=MaterialTheme.typography.bodyMedium, color=MaterialTheme.colorScheme.onSurfaceVariant)
+          val menuTabs = listOf("Dashboard", "Bills", "New Bill", "Customers", "Products", "Payment", "Prescription", "Reports", "Settings") + if(isOwner()) listOf("Users") else emptyList()
+          menuTabs.distinct().filter { canAccess(it) }.forEach { tab ->
+           Surface(
+            modifier=Modifier.fillMaxWidth().clickable { section=tab; showMoreMenu=false },
+            shape=androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
+            color=if(section==tab) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
+           ) {
+            Row(
+             modifier=Modifier.fillMaxWidth().padding(horizontal=16.dp, vertical=14.dp),
+             horizontalArrangement=Arrangement.spacedBy(14.dp),
+             verticalAlignment=Alignment.CenterVertically
+            ) {
+             Text(when(tab) { "Dashboard" -> "⌂"; "Bills" -> "▤"; "New Bill" -> "+"; "Customers" -> "♙"; "Products" -> "▦"; "Payment" -> "₹"; "Prescription" -> "◎"; "Reports" -> "▥"; "Settings" -> "⚙"; else -> "♙" }, style=MaterialTheme.typography.titleMedium, color=MaterialTheme.colorScheme.primary)
+             Text(if(tab=="Bills") "Bill History" else if(tab=="New Bill") "Create New Bill" else tab, style=MaterialTheme.typography.titleMedium)
+             Spacer(Modifier.weight(1f))
+             if(section==tab) Text("Current", style=MaterialTheme.typography.labelSmall, color=MaterialTheme.colorScheme.primary)
+            }
+           }
+          }
          }
+        }
        }
       }
      }
