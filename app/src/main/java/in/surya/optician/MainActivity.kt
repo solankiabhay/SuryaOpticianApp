@@ -357,7 +357,7 @@ class MainActivity : ComponentActivity() {
      Box(
       modifier=Modifier.fillMaxSize().background(
        androidx.compose.ui.graphics.Brush.verticalGradient(
-        colors=listOf(androidx.compose.ui.graphics.Color(0xFF102C46),androidx.compose.ui.graphics.Color(0xFF174C70),androidx.compose.ui.graphics.Color(0xFFF2F6FA)),
+        colors=listOf(androidx.compose.ui.graphics.Color(0xFF102D4A),androidx.compose.ui.graphics.Color(0xFF174C70),androidx.compose.ui.graphics.Color(0xFFF4F7FB)),
         startY=0f,
         endY=1200f
        )
@@ -372,7 +372,7 @@ class MainActivity : ComponentActivity() {
        Surface(
         modifier=Modifier.size(88.dp),
         shape=androidx.compose.foundation.shape.RoundedCornerShape(26.dp),
-        color=androidx.compose.ui.graphics.Color(0xFFF8FBFF),
+        color=androidx.compose.ui.graphics.Color(0xFFF4F7FB),
         shadowElevation=10.dp
        ) {
         Box(contentAlignment=Alignment.Center) {
@@ -384,7 +384,7 @@ class MainActivity : ComponentActivity() {
        }
        Spacer(Modifier.height(16.dp))
        Text("SURYA", style=MaterialTheme.typography.headlineMedium, color=androidx.compose.ui.graphics.Color.White, fontWeight=androidx.compose.ui.text.font.FontWeight.Bold, letterSpacing=3.sp)
-       Text("OPTICIAN  •  SHOP MANAGEMENT", style=MaterialTheme.typography.labelMedium, color=androidx.compose.ui.graphics.Color(0xFFD3E5F5), letterSpacing=1.2.sp)
+       Text("OPTICIAN  •  SHOP MANAGEMENT", style=MaterialTheme.typography.labelMedium, color=androidx.compose.ui.graphics.Color(0xFFDCEBFA), letterSpacing=1.2.sp)
        Spacer(Modifier.height(28.dp))
        Card(
         modifier=Modifier.fillMaxWidth().widthIn(max=440.dp),
@@ -396,7 +396,7 @@ class MainActivity : ComponentActivity() {
          modifier=Modifier.fillMaxWidth().padding(24.dp),
          verticalArrangement=Arrangement.spacedBy(12.dp)
         ) {
-         Text(if(needsOwnerSetup) "Set up your shop" else "Welcome back", style=MaterialTheme.typography.headlineSmall, color=androidx.compose.ui.graphics.Color(0xFF152D43), fontWeight=androidx.compose.ui.text.font.FontWeight.Bold)
+         Text(if(needsOwnerSetup) "Set up your shop" else "Welcome back", style=MaterialTheme.typography.headlineSmall, color=androidx.compose.ui.graphics.Color(0xFF102D4A), fontWeight=androidx.compose.ui.text.font.FontWeight.Bold)
          Text(
           if(needsOwnerSetup) "Create your owner account to keep your shop records protected." else "Sign in to continue to your billing workspace.",
           style=MaterialTheme.typography.bodyMedium,
@@ -469,7 +469,7 @@ class MainActivity : ComponentActivity() {
         }
        }
        Spacer(Modifier.height(18.dp))
-       Text("CLEAR VISION. SIMPLE BILLING.", style=MaterialTheme.typography.labelSmall, color=androidx.compose.ui.graphics.Color(0xFFD3E5F5), letterSpacing=1.1.sp)
+       Text("CLEAR VISION. SIMPLE BILLING.", style=MaterialTheme.typography.labelSmall, color=androidx.compose.ui.graphics.Color(0xFFDCEBFA), letterSpacing=1.1.sp)
       }
      }
     } else {
@@ -574,7 +574,7 @@ class MainActivity : ComponentActivity() {
         Card(
          Modifier.fillMaxWidth(),
          shape=androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
-         colors=CardDefaults.cardColors(containerColor=androidx.compose.ui.graphics.Color(0xFF102F52))
+         colors=CardDefaults.cardColors(containerColor=androidx.compose.ui.graphics.Color(0xFF123A63))
         ) {
          Column(Modifier.padding(22.dp), verticalArrangement=Arrangement.spacedBy(12.dp)) {
           Row(verticalAlignment=androidx.compose.ui.Alignment.CenterVertically, horizontalArrangement=Arrangement.spacedBy(12.dp)) {
@@ -1283,7 +1283,7 @@ class MainActivity : ComponentActivity() {
        else -> {
         Card(
          modifier=Modifier.fillMaxWidth(),
-         colors=CardDefaults.cardColors(containerColor=androidx.compose.ui.graphics.Color(0xFF102F52)),
+         colors=CardDefaults.cardColors(containerColor=androidx.compose.ui.graphics.Color(0xFF123A63)),
          shape=androidx.compose.foundation.shape.RoundedCornerShape(22.dp)
         ) {
          Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment=Alignment.CenterVertically, horizontalArrangement=Arrangement.spacedBy(12.dp)) {
@@ -1466,7 +1466,7 @@ class MainActivity : ComponentActivity() {
       ) {
        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
         Column(
-         Modifier.fillMaxWidth().background(androidx.compose.ui.graphics.Color(0xFF102F52)).padding(18.dp),
+         Modifier.fillMaxWidth().background(androidx.compose.ui.graphics.Color(0xFF123A63)).padding(18.dp),
          verticalArrangement = Arrangement.spacedBy(5.dp)
         ) {
          Text("SURYA OPTICIAN", style = MaterialTheme.typography.titleLarge, color = androidx.compose.ui.graphics.Color.White)
