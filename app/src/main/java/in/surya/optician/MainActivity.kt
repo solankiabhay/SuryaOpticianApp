@@ -543,6 +543,7 @@ class MainActivity : ComponentActivity() {
         }
        }
      }
+    }
     ) { padding ->
      Column(Modifier.fillMaxSize().padding(padding).padding(horizontal=16.dp, vertical=12.dp))
      {
