@@ -33,6 +33,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -785,7 +787,7 @@ class MainActivity : ComponentActivity() {
           val wasSelected=billCustomerId.isNotBlank()
           billPhone=value; billCustomerId=""; billCustomerSearchMessage=""
           if(wasSelected) { billCustomerAddress=""; billCustomerAge=""; billCustomerEmail=""; billPrescriptionId="" }
-         }, label={ Text("Phone number *") }, modifier=Modifier.fillMaxWidth(), singleLine=true)
+         }, label={ Text("Phone number *") }, modifier=Modifier.fillMaxWidth(), singleLine=true, keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Phone))
          Button(
           onClick={
            val phoneDigits=billPhone.filter(Char::isDigit)
@@ -816,7 +818,7 @@ class MainActivity : ComponentActivity() {
          ) { Text("Search Customer") }
          if(billCustomerSearchMessage.isNotBlank()) Text(billCustomerSearchMessage, style=MaterialTheme.typography.bodySmall, color=if(billCustomerId.isNotBlank()) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant)
          OutlinedTextField(billCustomerAddress, { billCustomerAddress=it }, label={ Text("Address (optional)") }, placeholder={ Text("House no., area, city") }, modifier=Modifier.fillMaxWidth())
-         OutlinedTextField(billCustomerAge, { billCustomerAge=it }, label={ Text("Age (optional)") }, modifier=Modifier.fillMaxWidth(), singleLine=true)
+         OutlinedTextField(billCustomerAge, { billCustomerAge=it.filter(Char::isDigit).take(3) }, label={ Text("Age (optional)") }, modifier=Modifier.fillMaxWidth(), singleLine=true, keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number))
          OutlinedTextField(billCustomerEmail, { billCustomerEmail=it }, label={ Text("Email (optional)") }, modifier=Modifier.fillMaxWidth(), singleLine=true)
         } }
         Text("2 · ORDER DETAILS", style=MaterialTheme.typography.labelLarge, color=MaterialTheme.colorScheme.primary)
@@ -850,8 +852,27 @@ class MainActivity : ComponentActivity() {
            }
            OutlinedButton(onClick={
             val cid=billCustomerId.toLongOrNull()
-            if(cid==null) toast("Select or save a customer first, then add prescription")
-            else { prescriptionCustomerId=cid.toString(); editingPrescriptionId=null; section="Prescription" }
+            if(cid!=null) { prescriptionCustomerId=cid.toString(); editingPrescriptionId=null; section="Prescription" }
+            else if(billCustomer.isBlank()) toast("Enter the customer's name first")
+            else lifecycleScope.launch {
+             runCatching {
+              val allCustomers=db.dao().customers().first()
+              val digits=billPhone.filter(Char::isDigit)
+              val existing=if(digits.isNotBlank()) allCustomers.firstOrNull { it.phone.filter(Char::isDigit)==digits }
+               else allCustomers.filter { it.name.equals(billCustomer.trim(), ignoreCase=true) }.singleOrNull()
+              val savedId=if(existing!=null) {
+               db.dao().updateCustomer(Customer(id=existing.id,name=billCustomer.trim(),phone=billPhone.trim().ifBlank { existing.phone },address=billCustomerAddress.trim().ifBlank { existing.address },age=billCustomerAge.toIntOrNull() ?: existing.age,email=billCustomerEmail.trim().ifBlank { existing.email }))
+               existing.id
+              } else db.dao().addCustomer(Customer(name=billCustomer.trim(),phone=billPhone.trim(),address=billCustomerAddress.trim(),age=billCustomerAge.toIntOrNull(),email=billCustomerEmail.trim()))
+              savedId
+             }.onSuccess { savedId ->
+              billCustomerId=savedId.toString()
+              prescriptionCustomerId=savedId.toString()
+              editingPrescriptionId=null
+              toast("Customer saved. Add the prescription now.")
+              section="Prescription"
+             }.onFailure { toast(it.message ?: "Could not save customer before prescription") }
+            }
            }) { Text("＋ Add") }
           }
           if (billCustomerId.toLongOrNull()!=null) {
@@ -883,12 +904,12 @@ class MainActivity : ComponentActivity() {
         products.filter { billItemSearch.isBlank() || it.name.contains(billItemSearch, true) || it.sku.contains(billItemSearch, true) || it.category.contains(billItemSearch, true) }.take(6).forEach { product -> TextButton(onClick={ billProductId=product.id.toString(); billDescription=product.name; billRate="%.2f".format(product.pricePaise/100.0); billItemSearch=product.name }) { Text("${product.name} · ₹${"%.2f".format(product.pricePaise/100.0)} · stock ${product.stock}") } }
         OutlinedTextField(billDescription, { billDescription=it }, label={ Text("Item / frame / lens description *") }, modifier=Modifier.fillMaxWidth(), singleLine=true)
         Row(horizontalArrangement=Arrangement.spacedBy(8.dp), modifier=Modifier.fillMaxWidth()) {
-         OutlinedTextField(billQty, { billQty=it }, label={ Text("Qty") }, modifier=Modifier.weight(0.7f), singleLine=true)
-         OutlinedTextField(billRate, { billRate=it }, label={ Text("Rate ₹") }, modifier=Modifier.weight(1f), singleLine=true)
+         OutlinedTextField(billQty, { billQty=it.filter(Char::isDigit).take(5) }, label={ Text("Qty") }, modifier=Modifier.weight(0.7f), singleLine=true, keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number))
+         OutlinedTextField(billRate, { billRate=it.filter { ch -> ch.isDigit() || ch=='.' }.let { v -> if(v.count { ch -> ch=='.' }<=1) v else v.dropLast(1) } }, label={ Text("Rate ₹") }, modifier=Modifier.weight(1f), singleLine=true, keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Decimal))
         }
         Row(horizontalArrangement=Arrangement.spacedBy(8.dp), modifier=Modifier.fillMaxWidth()) {
-         OutlinedTextField(billDiscount, { billDiscount=it }, label={ Text("Discount ₹") }, modifier=Modifier.weight(1f), singleLine=true)
-         OutlinedTextField(billTax, { billTax=it }, label={ Text("Tax ₹") }, modifier=Modifier.weight(1f), singleLine=true)
+         OutlinedTextField(billDiscount, { billDiscount=it.filter { ch -> ch.isDigit() || ch=='.' }.let { v -> if(v.count { ch -> ch=='.' }<=1) v else v.dropLast(1) } }, label={ Text("Discount ₹") }, modifier=Modifier.weight(1f), singleLine=true, keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Decimal))
+         OutlinedTextField(billTax, { billTax=it.filter { ch -> ch.isDigit() || ch=='.' }.let { v -> if(v.count { ch -> ch=='.' }<=1) v else v.dropLast(1) } }, label={ Text("Tax ₹") }, modifier=Modifier.weight(1f), singleLine=true, keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Decimal))
         }
         Button(onClick={
          val qty=billQty.toIntOrNull(); val rate=billRate.toDoubleOrNull(); val discount=billDiscount.toDoubleOrNull(); val tax=billTax.toDoubleOrNull(); val pid=billProductId.toLongOrNull()
@@ -907,7 +928,7 @@ class MainActivity : ComponentActivity() {
         }
 
         Text("5 · PAYMENT", style=MaterialTheme.typography.labelLarge, color=MaterialTheme.colorScheme.primary)
-        OutlinedTextField(billPaid, { billPaid=it }, label={ Text("Amount received ₹") }, modifier=Modifier.fillMaxWidth(), singleLine=true)
+        OutlinedTextField(billPaid, { billPaid=it.filter { ch -> ch.isDigit() || ch=='.' }.let { v -> if(v.count { ch -> ch=='.' }<=1) v else v.dropLast(1) } }, label={ Text("Amount received ₹") }, modifier=Modifier.fillMaxWidth(), singleLine=true, keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Decimal))
         Text("Payment type", style=MaterialTheme.typography.titleSmall)
         Row(horizontalArrangement=Arrangement.spacedBy(6.dp), modifier=Modifier.fillMaxWidth()) {
          listOf("Cash", "Online", "Other").forEach { method ->
@@ -917,10 +938,24 @@ class MainActivity : ComponentActivity() {
         }
         OutlinedButton(onClick={ showBillPreview=true }, modifier=Modifier.fillMaxWidth(), enabled=billLines.isNotEmpty()) { Text("Preview bill before saving") }
         Button(onClick={ lifecycleScope.launch {
+         val pendingLine = if(billDescription.isBlank() && billRate.isBlank()) null else {
+          val qty=billQty.toIntOrNull()
+          val rate=billRate.toDoubleOrNull()
+          val discount=billDiscount.toDoubleOrNull()
+          val tax=billTax.toDoubleOrNull()
+          val pid=billProductId.toLongOrNull()
+          if(billDescription.isBlank() || qty==null || qty<=0 || rate==null || rate<0 || discount==null || discount<0 || tax==null || tax<0 || (billProductId.isNotBlank() && pid==null)) {
+           toast("Finish the current item: description, quantity and valid amounts are required")
+           return@launch
+          }
+          runCatching { BillLine(pid,billDescription.trim(),qty,(rate*100).toLong(),(discount*100).toLong(),(tax*100).toLong()) }
+           .getOrElse { toast(it.message ?: "Current item is invalid"); return@launch }
+         }
+         val linesToSave = if(pendingLine==null) billLines else billLines + pendingLine
          val paid=billPaid.toDoubleOrNull()
          val cid=billCustomerId.toLongOrNull()
          val existingCustomer=if(cid!=null) db.dao().customer(cid) else null
-         if((billCustomer.isBlank() && existingCustomer==null) || billLines.isEmpty() || paid==null || paid<0) toast("Enter/select a customer, add at least one item and check payment")
+         if((billCustomer.isBlank() && existingCustomer==null) || linesToSave.isEmpty() || paid==null || paid<0) toast("Enter customer details, add an item and check payment")
          else if(billCustomerId.isNotBlank() && existingCustomer==null) toast("Existing customer ID was not found")
          else runCatching {
           run {
@@ -942,7 +977,7 @@ class MainActivity : ComponentActivity() {
            val finalPhone = billPhone.trim().ifBlank { matchedCustomer?.phone.orEmpty() }
            val draft = NewBill(
             customerId=savedCustomerId, customerName=finalCustomerName, phone=finalPhone,
-            lines=billLines, paidPaise=(paid*100).toLong(), method=billPaymentMethod,
+            lines=linesToSave, paidPaise=(paid*100).toLong(), method=billPaymentMethod,
             glassType=billGlassType.trim(), deliveryDate=billDeliveryDate.trim(),
             prescriptionSummary=selectedBillPrescription?.let { rx -> listOf(
              "Right eye (OD): SPH ${rx.rightSphere.ifBlank{"—"}}, CYL ${rx.rightCylinder.ifBlank{"—"}}, Axis ${rx.rightAxis.ifBlank{"—"}}, ADD ${rx.rightAdd.ifBlank{"—"}}",
