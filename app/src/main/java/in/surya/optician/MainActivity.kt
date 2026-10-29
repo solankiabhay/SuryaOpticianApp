@@ -819,13 +819,32 @@ class MainActivity : ComponentActivity() {
          OutlinedTextField(billCustomerEmail, { billCustomerEmail=it }, label={ Text("Email (optional)") }, modifier=Modifier.fillMaxWidth(), singleLine=true)
         } }
         Text("2 · ORDER DETAILS", style=MaterialTheme.typography.labelLarge, color=MaterialTheme.colorScheme.primary)
-        Text("Glass / lens type", style=MaterialTheme.typography.titleMedium)
-        OutlinedTextField(billGlassType, { billGlassType=it }, label={ Text("Glass type (e.g. Single Vision, Progressive, Sunglasses)") }, modifier=Modifier.fillMaxWidth())
-        Row(horizontalArrangement=Arrangement.spacedBy(4.dp)) {
-         listOf("Single Vision","Bifocal","Progressive","Photochromic","Blue Cut","Sunglasses","Frame Only","Contact Lens").forEach { type ->
-          TextButton(onClick={billGlassType=type}) { Text(type, style=MaterialTheme.typography.labelSmall) }
+        Column(verticalArrangement=Arrangement.spacedBy(6.dp), modifier=Modifier.fillMaxWidth()) {
+         Text("Glass / lens type", style=MaterialTheme.typography.titleSmall)
+         OutlinedTextField(
+          value=billGlassType,
+          onValueChange={ billGlassType=it },
+          label={ Text("Glass / lens type") },
+          placeholder={ Text("Choose below or enter custom type") },
+          modifier=Modifier.fillMaxWidth(),
+          singleLine=true
+         )
+         val glassTypes = listOf("Single Vision","Bifocal","Progressive","Photochromic","Blue Cut","Sunglasses","Frame Only","Contact Lens")
+         glassTypes.chunked(4).forEach { typeRow ->
+          Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.spacedBy(5.dp)) {
+           typeRow.forEach { type ->
+            FilterChip(
+             selected=billGlassType.equals(type, ignoreCase=true),
+             onClick={ billGlassType=type },
+             label={ Text(type, fontSize=10.sp, maxLines=2) },
+             modifier=Modifier.weight(1f)
+            )
+           }
+           repeat(4-typeRow.size) { Spacer(Modifier.weight(1f)) }
+          }
          }
         }
+        Spacer(Modifier.height(2.dp))
         DateInputField(value=billDeliveryDate, onValueChange={ billDeliveryDate=it }, label="Expected delivery date", displayFormat="dd/MM/yyyy", placeholder="e.g. 05/11/2026", supportingText="Optional for walk-in sales; fill for orders awaiting lens fitting.", modifier=Modifier.fillMaxWidth())
         if (billCustomerId.toLongOrNull() != null) {
          Text("Attach eye prescription (optional)", style=MaterialTheme.typography.titleMedium)
