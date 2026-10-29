@@ -1096,6 +1096,9 @@ class MainActivity : ComponentActivity() {
         }
        }
        else -> {
+        Text("Bill history", style=MaterialTheme.typography.headlineSmall)
+        Text("Search, review, print, share or collect payment for an existing bill.", style=MaterialTheme.typography.bodyMedium, color=MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.height(4.dp))
         Card(
          modifier=Modifier.fillMaxWidth(),
          colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.primaryContainer),
