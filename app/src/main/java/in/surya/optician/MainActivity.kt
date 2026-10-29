@@ -823,6 +823,7 @@ class MainActivity : ComponentActivity() {
          Text("Glass / lens type", style=MaterialTheme.typography.titleSmall)
          val glassTypes = listOf("Single Vision","Bifocal","Progressive","Photochromic","Blue Cut","Sunglasses","Frame Only","Contact Lens")
          var glassTypeExpanded by remember { mutableStateOf(false) }
+         var billPrescriptionExpanded by remember { mutableStateOf(false) }
          Box(Modifier.fillMaxWidth()) {
           OutlinedButton(onClick={ glassTypeExpanded=true }, modifier=Modifier.fillMaxWidth(), shape=androidx.compose.foundation.shape.RoundedCornerShape(12.dp)) {
            Text(billGlassType.ifBlank { "Select lens type" }, modifier=Modifier.weight(1f))
@@ -855,20 +856,24 @@ class MainActivity : ComponentActivity() {
           }
           if (billCustomerId.toLongOrNull()!=null) {
            if (billPrescriptions.isNotEmpty()) {
-            billPrescriptions.forEach { rx ->
-             Row(Modifier.fillMaxWidth(), verticalAlignment=Alignment.CenterVertically, horizontalArrangement=Arrangement.SpaceBetween) {
-              Text("Prescription · " + java.text.SimpleDateFormat("dd MMM yyyy", java.util.Locale.getDefault()).format(java.util.Date(rx.createdAt)), modifier=Modifier.weight(1f), style=MaterialTheme.typography.bodyMedium)
-              if(billPrescriptionId==rx.id.toString()) Text("Attached ✓", color=MaterialTheme.colorScheme.primary, style=MaterialTheme.typography.labelSmall)
-              else TextButton(onClick={ billPrescriptionId=rx.id.toString() }) { Text("Attach") }
+            Box(Modifier.fillMaxWidth()) {
+             OutlinedButton(onClick={ billPrescriptionExpanded=true }, modifier=Modifier.fillMaxWidth(), shape=androidx.compose.foundation.shape.RoundedCornerShape(12.dp)) {
+              Text(selectedBillPrescription?.let { "Prescription · " + java.text.SimpleDateFormat("dd MMM yyyy", java.util.Locale.getDefault()).format(java.util.Date(it.createdAt)) } ?: "Choose one saved prescription", modifier=Modifier.weight(1f))
+              Text("⌄")
+             }
+             DropdownMenu(expanded=billPrescriptionExpanded, onDismissRequest={ billPrescriptionExpanded=false }, modifier=Modifier.fillMaxWidth(0.88f)) {
+              billPrescriptions.forEach { rx ->
+               DropdownMenuItem(text={ Text("Prescription · " + java.text.SimpleDateFormat("dd MMM yyyy", java.util.Locale.getDefault()).format(java.util.Date(rx.createdAt))) }, onClick={ billPrescriptionId=rx.id.toString(); billPrescriptionExpanded=false })
+              }
              }
             }
-           } else Text("No saved prescription yet. Add one if needed.", style=MaterialTheme.typography.bodySmall)
+           } else Text("No saved prescription yet. Tap ＋ Add to create one.", style=MaterialTheme.typography.bodySmall)
            selectedBillPrescription?.let { rx -> Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(10.dp), verticalArrangement=Arrangement.spacedBy(4.dp)) {
             Text("Attached prescription", style=MaterialTheme.typography.titleSmall)
             Text("OD: SPH ${rx.rightSphere.ifBlank{"—"}} · CYL ${rx.rightCylinder.ifBlank{"—"}} · Axis ${rx.rightAxis.ifBlank{"—"}} · ADD ${rx.rightAdd.ifBlank{"—"}}", style=MaterialTheme.typography.bodySmall)
             Text("OS: SPH ${rx.leftSphere.ifBlank{"—"}} · CYL ${rx.leftCylinder.ifBlank{"—"}} · Axis ${rx.leftAxis.ifBlank{"—"}} · ADD ${rx.leftAdd.ifBlank{"—"}}", style=MaterialTheme.typography.bodySmall)
             Text("PD: ${rx.pd.ifBlank{"—"}}", style=MaterialTheme.typography.bodySmall)
-            TextButton(onClick={billPrescriptionId=""}) { Text("Remove") }
+            TextButton(onClick={billPrescriptionId=""}) { Text("Remove prescription") }
            } } }
           } else Text("Select a customer above to attach or create a prescription.", style=MaterialTheme.typography.bodySmall)
          }
