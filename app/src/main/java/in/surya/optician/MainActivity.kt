@@ -775,12 +775,22 @@ class MainActivity : ComponentActivity() {
         }
         Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(12.dp), verticalArrangement=Arrangement.spacedBy(8.dp)) {
          Text("1 · CUSTOMER", style=MaterialTheme.typography.labelLarge, color=MaterialTheme.colorScheme.primary)
-         OutlinedTextField(billCustomer, { billCustomer=it; billCustomerId=""; billCustomerSearchMessage="" }, label={ Text("Customer name *") }, placeholder={ Text("Enter customer name") }, modifier=Modifier.fillMaxWidth(), singleLine=true)
-         OutlinedTextField(billPhone, { billPhone=it; billCustomerId=""; billCustomerSearchMessage="" }, label={ Text("Phone number *") }, placeholder={ Text("Enter phone number") }, modifier=Modifier.fillMaxWidth(), singleLine=true)
+         OutlinedTextField(billCustomer, { value ->
+          val wasSelected=billCustomerId.isNotBlank()
+          billCustomer=value; billCustomerId=""; billCustomerSearchMessage=""
+          if(wasSelected) { billCustomerAddress=""; billCustomerAge=""; billCustomerEmail=""; billPrescriptionId="" }
+         }, label={ Text("Customer name *") }, placeholder={ Text("Enter customer name") }, modifier=Modifier.fillMaxWidth(), singleLine=true)
+         OutlinedTextField(billPhone, { value ->
+          val wasSelected=billCustomerId.isNotBlank()
+          billPhone=value; billCustomerId=""; billCustomerSearchMessage=""
+          if(wasSelected) { billCustomerAddress=""; billCustomerAge=""; billCustomerEmail=""; billPrescriptionId="" }
+         }, label={ Text("Phone number *") }, placeholder={ Text("Enter phone number") }, modifier=Modifier.fillMaxWidth(), singleLine=true)
          Button(
           onClick={
            val phoneDigits=billPhone.filter(Char::isDigit)
-           val match=if(phoneDigits.isNotBlank()) customers.firstOrNull { it.phone.filter(Char::isDigit)==phoneDigits } else customers.filter { billCustomer.isNotBlank() && it.name.equals(billCustomer.trim(), ignoreCase=true) }.singleOrNull()
+           val byPhone=if(phoneDigits.isNotBlank()) customers.firstOrNull { it.phone.filter(Char::isDigit)==phoneDigits } else null
+           val byName=if(billCustomer.isNotBlank()) customers.filter { it.name.equals(billCustomer.trim(), ignoreCase=true) }.singleOrNull() else null
+           val match=byPhone ?: byName
            if(billCustomer.isBlank() && phoneDigits.isBlank()) {
             billCustomerSearchMessage="Enter customer name or phone number to search."
             toast(billCustomerSearchMessage)
