@@ -281,6 +281,7 @@ class MainActivity : ComponentActivity() {
     var billPrescriptionSummary by remember { mutableStateOf("") }
     var billEyeTestFee by remember { mutableStateOf("") }
     var savingCustomerForPrescription by remember { mutableStateOf(false) }
+    var showPrescriptionCustomerForm by remember { mutableStateOf(false) }
     var billPrescriptionExpanded by remember { mutableStateOf(false) }
     var billGlassType by remember { mutableStateOf("") }
     var billDeliveryDate by remember { mutableStateOf("") }
@@ -1053,6 +1054,38 @@ class MainActivity : ComponentActivity() {
             }
            }
            if(customers.isEmpty()) Text("No customers added yet. Add a customer first.", style=MaterialTheme.typography.bodyMedium)
+           OutlinedButton(onClick={ showPrescriptionCustomerForm=!showPrescriptionCustomerForm }, modifier=Modifier.fillMaxWidth()) {
+            Text(if(showPrescriptionCustomerForm) "Cancel Add Customer" else "Add Customer")
+           }
+           if(showPrescriptionCustomerForm) {
+            AppField(value=customerName, onValueChange={ customerName=it }, label="Customer name *", icon=Icons.Rounded.Person)
+            AppField(value=customerPhone, onValueChange={ customerPhone=it }, label="Phone (WhatsApp)", keyboardType=KeyboardType.Phone, icon=Icons.Rounded.Phone)
+            AppField(value=customerAddress, onValueChange={ customerAddress=it }, label="Address (optional)", icon=Icons.Rounded.LocationOn)
+            AppField(value=customerAge, onValueChange={ customerAge=it.filter(Char::isDigit).take(3) }, label="Age", keyboardType=KeyboardType.Number)
+            AppField(value=customerEmail, onValueChange={ customerEmail=it }, label="Email (optional)", keyboardType=KeyboardType.Email, icon=Icons.Rounded.Email)
+            PrimaryAction(text=if(savingCustomerForPrescription) "Saving customer…" else "Save customer", enabled=!savingCustomerForPrescription, onClick={
+             val ageValue=customerAge.toIntOrNull()
+             val phoneError=Validation.phoneError(customerPhone)
+             when {
+              customerName.isBlank() -> toast("Enter the customer name")
+              phoneError!=null -> toast(phoneError)
+              customerAge.isNotBlank() && (ageValue==null || ageValue !in 0..120) -> toast("Age must be between 0 and 120")
+              !canManageRecords() -> denyPermission("add customer")
+              else -> {
+               savingCustomerForPrescription=true
+               lifecycleScope.launch {
+                try {
+                 val saved=BillingRepository(db).saveCustomer(CustomerInput(id=null,name=customerName.trim(),phone=customerPhone.trim(),address=customerAddress.trim(),age=ageValue,email=customerEmail.trim()))
+                 prescriptionCustomerId=saved.id.toString(); customerName="";customerPhone="";customerAddress="";customerAge="";customerEmail="";showPrescriptionCustomerForm=false
+                 toast("Customer saved. You can now enter the prescription.")
+                } catch(e: kotlinx.coroutines.CancellationException) { throw e }
+                catch(e: Exception) { toast(e.message ?: "Could not save customer") }
+                finally { savingCustomerForPrescription=false }
+               }
+              }
+             }
+            }, icon=Icons.Rounded.PersonAdd)
+           }
            customers.forEach { customer ->
             Surface(
              modifier=Modifier.fillMaxWidth().clickable { prescriptionCustomerId=customer.id.toString() },
