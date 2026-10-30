@@ -691,13 +691,13 @@ class MainActivity : ComponentActivity() {
           AppField(value=productLowStock, onValueChange={ productLowStock=it }, label="Low stock alert at", modifier=Modifier.weight(1f), keyboardType=KeyboardType.Number, isError=productTouched && Validation.wholeNumberError(productLowStock, "Low stock alert")!=null, supportingText=if(productTouched) Validation.wholeNumberError(productLowStock, "Low stock alert") else null)
          }
          val saveProductAction: () -> Unit = { if(!canManageRecords()) { denyPermission("manage inventory") } else lifecycleScope.launch {
-         val price = productPrice.toDoubleOrNull()
-         val cost = productCost.toDoubleOrNull()
+         val pricePaise = Money.parseRupeesToPaise(productPrice)
+         val costPaise = Money.parseRupeesToPaise(productCost, blankAs=0L)
          val stock = productStock.toIntOrNull()
          val low = productLowStock.toIntOrNull()
-         if (productName.isBlank() || price == null || price < 0 || cost == null || cost < 0 || stock == null || stock < 0 || low == null || low < 0) toast("Enter valid product, selling/purchase price and stock")
+         if (productName.isBlank() || pricePaise == null || pricePaise <= 0L || costPaise == null || stock == null || stock < 0 || low == null || low < 0) toast("Enter valid product, selling/purchase price and stock")
          else if (selectedProductId == null) {
-          runCatching { db.dao().addProduct(Product(name=productName.trim(), sku=productSku.trim(), pricePaise=(price*100).toLong(), stock=stock, lowStock=low, costPaise=(cost*100).toLong(), category=productCategory.trim())) }
+          runCatching { db.dao().addProduct(Product(name=productName.trim(), sku=productSku.trim(), pricePaise=pricePaise, stock=stock, lowStock=low, costPaise=costPaise, category=productCategory.trim())) }
            .onSuccess { productName=""; productSku=""; productPrice=""; productCost="0"; productCategory=""; productStock="1"; productLowStock="3"; toast("Product saved") }
            .onFailure { toast(it.message ?: "Could not save product") }
          } else {
@@ -705,7 +705,7 @@ class MainActivity : ComponentActivity() {
           if(id==null) toast("Product selection expired. Select the product again.")
           else runCatching {
            val existingProduct=db.dao().product(id) ?: error("Product no longer exists. Refresh inventory and try again.")
-           db.dao().updateProduct(existingProduct.copy(name=productName.trim(), sku=productSku.trim(), pricePaise=(price*100).toLong(), stock=stock, lowStock=low, costPaise=(cost*100).toLong(), category=productCategory.trim()))
+           db.dao().updateProduct(existingProduct.copy(name=productName.trim(), sku=productSku.trim(), pricePaise=pricePaise, stock=stock, lowStock=low, costPaise=costPaise, category=productCategory.trim()))
           }
            .onSuccess { selectedProductId=null; productName=""; productSku=""; productPrice=""; productCost="0"; productCategory=""; productStock="1"; productLowStock="3"; toast("Product and stock updated") }
            .onFailure { toast(it.message ?: "Could not update product") }
