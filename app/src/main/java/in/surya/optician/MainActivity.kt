@@ -757,7 +757,7 @@ class MainActivity : ComponentActivity() {
         val draftDiscount = effectiveBillLines.sumOf { it.discountPaise }
         val draftTax = effectiveBillLines.sumOf { it.taxPaise }
         val draftTotal = effectiveBillLines.sumOf { it.total }
-        val draftPaid = ((billPaid.toDoubleOrNull() ?: 0.0) * 100).toLong()
+        val draftPaid = Money.parseRupeesToPaise(billPaid, blankAs=0L) ?: 0L
         val draftBalance = (draftTotal - draftPaid).coerceAtLeast(0)
         Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.spacedBy(12.dp), verticalAlignment=Alignment.CenterVertically) {
          ScreenHeader(if(editingInvoiceId==null) "New bill" else "Edit bill", "Customer · order · items · payment", Modifier.weight(1f))
@@ -1558,8 +1558,9 @@ class MainActivity : ComponentActivity() {
         Text("Discount: ₹${"%.2f".format(effectiveBillLines.sumOf { it.discountPaise }/100.0)}")
         Text("Tax: ₹${"%.2f".format(effectiveBillLines.sumOf { it.taxPaise }/100.0)}")
         Text("GRAND TOTAL: ₹${"%.2f".format(previewTotal/100.0)}", style=MaterialTheme.typography.titleMedium)
-        Text("Paid: ₹${"%.2f".format(((billPaid.toDoubleOrNull() ?: 0.0)*100).toLong()/100.0)}")
-        Text("Balance: ₹${"%.2f".format((previewTotal-((billPaid.toDoubleOrNull() ?: 0.0)*100).toLong()).coerceAtLeast(0)/100.0)}")
+        val previewPaidPaise = Money.parseRupeesToPaise(billPaid, blankAs=0L) ?: 0L
+        Text("Paid: ${formatRupees(previewPaidPaise)}")
+        Text("Balance: ${formatRupees((previewTotal-previewPaidPaise).coerceAtLeast(0))}")
         selectedBillPrescription?.let { rx ->
          Spacer(Modifier.height(8.dp))
          Text("EYE PRESCRIPTION", style=MaterialTheme.typography.titleSmall)
