@@ -110,7 +110,8 @@ class BillingRepository(private val db: OpticianDatabase) {
                 paidPaise = b.paidPaise,
                 prescriptionSummary = b.prescriptionSummary.trim(),
                 glassType = b.glassType.trim(),
-                deliveryDate = b.deliveryDate.trim()
+                deliveryDate = b.deliveryDate.trim(),
+                prescriptionId = b.prescriptionId
             )
         )
         dao.addItems(b.lines.map { line ->
@@ -179,7 +180,8 @@ class BillingRepository(private val db: OpticianDatabase) {
             paidPaise = b.paidPaise,
             prescriptionSummary = b.prescriptionSummary.trim(),
             glassType = b.glassType.trim(),
-            deliveryDate = b.deliveryDate.trim()
+            deliveryDate = b.deliveryDate.trim(),
+            prescriptionId = b.prescriptionId
         ))
         dao.deleteItemsForInvoice(invoiceId)
         dao.addItems(b.lines.map { line ->
