@@ -226,8 +226,7 @@ class BillingRepository(private val db: OpticianDatabase) {
         val existing = dao.payment(paymentId) ?: error("Payment record not found")
         val invoice = dao.invoice(existing.invoiceId) ?: error("Invoice not found")
         val paidBefore = dao.paid(existing.invoiceId)
-        val revisedPaid = Math.addExact(Math.subtractExact(paidBefore, existing.amountPaise), amountPaise)
-        require(revisedPaid <= invoice.totalPaise) { "Updated payments cannot exceed the invoice total" }
+        val revisedPaid = PaymentAccounting.revisedPaidTotal(paidBefore, existing.amountPaise, amountPaise, invoice.totalPaise)
         dao.updatePayment(existing.copy(
             amountPaise = amountPaise,
             method = method.trim().ifBlank { "Cash" },
@@ -239,8 +238,10 @@ class BillingRepository(private val db: OpticianDatabase) {
     suspend fun deletePayment(paymentId: Long) = db.withTransaction {
         val dao = db.dao()
         val existing = dao.payment(paymentId) ?: error("Payment record not found")
+        val paidBefore = dao.paid(existing.invoiceId)
+        val revisedPaid = PaymentAccounting.paidTotalAfterDelete(paidBefore, existing.amountPaise)
         dao.deletePayment(existing)
-        dao.setPaid(existing.invoiceId, dao.paid(existing.invoiceId))
+        dao.setPaid(existing.invoiceId, revisedPaid)
     }
 
     suspend fun recordPayment(invoiceId: Long, amountPaise: Long, method: String, reference: String = "") =
