@@ -331,7 +331,9 @@ class MainActivity : ComponentActivity() {
     val selectedBillCustomer = customers.firstOrNull { it.id.toString() == billCustomerId }
     val pendingItem = BillDraft.parsePending(billProductId, billDescription, billQty, billRate, billDiscount, billTax)
     val eyeTestFeePaise = Money.parseRupeesToPaise(billEyeTestFee)
-    val eyeTestFeeLine = runCatching { PrescriptionBilling.chargeLine(billEyeTestFee, billPrescriptionId.isNotBlank() || billPrescriptionSummary.isNotBlank()) }.getOrNull()?.let(::listOf) ?: emptyList()
+    val hasSaleLines = billLines.isNotEmpty() || pendingItem is PendingItem.Ready
+    val hasPrescription = billPrescriptionId.isNotBlank() || billPrescriptionSummary.isNotBlank()
+    val eyeTestFeeLine = runCatching { PrescriptionBilling.chargeLine(billEyeTestFee, hasPrescription && !hasSaleLines) }.getOrNull()?.let(::listOf) ?: emptyList()
     val effectiveBillLines = billLines + listOfNotNull((pendingItem as? PendingItem.Ready)?.line) + eyeTestFeeLine
     val products by db.dao().products().collectAsState(initial = emptyList())
     val due by db.dao().outstanding().collectAsState(initial = 0L)
