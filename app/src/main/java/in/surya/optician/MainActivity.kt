@@ -998,6 +998,8 @@ class MainActivity : ComponentActivity() {
             db.dao().addCustomer(Customer(name=finalCustomerName, phone=billPhone.trim(), address=billCustomerAddress.trim(), age=age, email=billCustomerEmail.trim()))
            }
            val finalPhone = billPhone.trim().ifBlank { matchedCustomer?.phone.orEmpty() }
+           require(rightAxis.isBlank() || (rightAxis.toIntOrNull() ?: -1) in 0..180) { "Right eye axis must be between 0 and 180" }
+           require(leftAxis.isBlank() || (leftAxis.toIntOrNull() ?: -1) in 0..180) { "Left eye axis must be between 0 and 180" }
            val draft = NewBill(
             customerId=savedCustomerId, customerName=finalCustomerName, phone=finalPhone,
             lines=linesToSave, paidPaise=(paid*100).toLong(), method=billPaymentMethod,
@@ -1014,7 +1016,7 @@ class MainActivity : ComponentActivity() {
            if(editingInvoiceId==null) BillingRepository(db).createBill(draft)
            else { BillingRepository(db).updateBill(editingInvoiceId!!,draft); editingInvoiceId!! }
           }
-         }.onSuccess { id -> toast(if(editingInvoiceId==null) "Invoice created: #$id" else "Invoice updated"); section="Bills"; editingInvoiceId=null; billCustomer=""; billCustomerId=""; billPhone=""; billCustomerAddress=""; billCustomerAge=""; billCustomerSearch=""; billLines=emptyList(); billProductId=""; billDescription=""; billQty="1"; billRate=""; billDiscount="0"; billTax="0"; billPaid="0"; billPaymentMethod="Cash"; billPrescriptionId=""; billPrescriptionSummary=""; billGlassType=""; billDeliveryDate="" }
+         }.onSuccess { id -> toast(if(editingInvoiceId==null) "Invoice created: #$id" else "Invoice updated"); section="Bills"; editingInvoiceId=null; billCustomer=""; billCustomerId=""; billPhone=""; billCustomerAddress=""; billCustomerAge=""; billCustomerSearch=""; billLines=emptyList(); billProductId=""; billDescription=""; billQty="1"; billRate=""; billDiscount="0"; billTax="0"; billPaid="0"; billPaymentMethod="Cash"; billPrescriptionId=""; billPrescriptionSummary=""; rightSphere="";rightCylinder="";rightAxis="";rightAdd="";leftSphere="";leftCylinder="";leftAxis="";leftAdd="";pd="";prescriptionNotes="";billInlinePrescriptionExpanded=false; billGlassType=""; billDeliveryDate="" }
           .onFailure { toast(it.message ?: "Could not create invoice") }
         } }, modifier=Modifier.fillMaxWidth()) { Text(if(editingInvoiceId==null) "Create bill and deduct stock" else "Save bill changes") }
        }
