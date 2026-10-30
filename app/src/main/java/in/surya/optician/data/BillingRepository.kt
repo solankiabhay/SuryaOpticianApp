@@ -36,10 +36,36 @@ data class NewBill(
     val method: String = "Cash",
     val prescriptionSummary: String = "",
     val glassType: String = "",
-    val deliveryDate: String = ""
+    val deliveryDate: String = "",
+    val customer: CustomerInput? = null
 )
 
 class BillingRepository(private val db: OpticianDatabase) {
+    /** Saves (or finds) a customer on its own, e.g. so a prescription can be chosen before the bill exists. */
+    suspend fun saveCustomer(input: CustomerInput): Customer = db.withTransaction { upsertCustomer(input) }
+
+    /** Must run inside a transaction: creates, matches or updates a customer without creating duplicates. */
+    private suspend fun upsertCustomer(input: CustomerInput): Customer {
+        val dao = db.dao()
+        require(input.age == null || input.age in 0..120) { "Age must be between 0 and 120" }
+        val existing = CustomerMatcher.findExisting(dao.allCustomers(), input.id, input.phone, input.name)
+        if (input.id != null && existing == null) error("Customer not found")
+        if (existing == null) {
+            require(input.name.isNotBlank()) { "Customer name is required" }
+            val draft = Customer(name = input.name.trim(), phone = input.phone.trim(), address = input.address.trim(), age = input.age, email = input.email.trim())
+            return draft.copy(id = dao.addCustomer(draft))
+        }
+        val updated = existing.copy(
+            name = input.name.trim().ifBlank { existing.name },
+            phone = input.phone.trim().ifBlank { existing.phone },
+            address = input.address.trim().ifBlank { existing.address },
+            age = input.age ?: existing.age,
+            email = input.email.trim().ifBlank { existing.email }
+        )
+        if (updated != existing) dao.updateCustomer(updated)
+        return updated
+    }
+
     suspend fun createBill(b: NewBill): Long = db.withTransaction {
         require(b.customerName.isNotBlank()) { "Customer name is required" }
         require(b.lines.isNotEmpty()) { "Add at least one bill item" }
@@ -54,7 +80,9 @@ class BillingRepository(private val db: OpticianDatabase) {
         require(b.paidPaise <= total) { "Payment exceeds total" }
 
         val dao = db.dao()
-        b.customerId?.let { id -> require(dao.customer(id) != null) { "Customer not found" } }
+        val resolvedCustomer = b.customer?.let { upsertCustomer(it) }
+        val customerId = resolvedCustomer?.id ?: b.customerId
+        customerId?.let { id -> require(dao.customer(id) != null) { "Customer not found" } }
         val productCosts = mutableMapOf<Long, Long>()
         b.lines.filter { it.productId != null }.groupBy { it.productId!! }.forEach { (id, lines) ->
             val product = dao.product(id) ?: error("Product not found")
@@ -71,9 +99,9 @@ class BillingRepository(private val db: OpticianDatabase) {
         val invoiceId = dao.addInvoice(
             Invoice(
                 number = number,
-                customerId = b.customerId,
-                customerName = b.customerName.trim(),
-                phone = b.phone.trim(),
+                customerId = customerId,
+                customerName = (resolvedCustomer?.name ?: b.customerName).trim(),
+                phone = (resolvedCustomer?.phone ?: b.phone).trim(),
                 subtotalPaise = subtotal,
                 discountPaise = discounts,
                 taxPaise = taxes,
@@ -110,6 +138,7 @@ class BillingRepository(private val db: OpticianDatabase) {
     suspend fun updateBill(invoiceId: Long, b: NewBill) = db.withTransaction {
         require(b.customerName.isNotBlank()) { "Customer name is required" }
         require(b.lines.isNotEmpty()) { "Add at least one bill item" }
+        require(b.discountPaise >= 0) { "Discount cannot be negative" }
         val dao = db.dao()
         val existing = dao.invoice(invoiceId) ?: error("Invoice not found")
         val paid = dao.paid(invoiceId)
@@ -123,7 +152,9 @@ class BillingRepository(private val db: OpticianDatabase) {
         require(discounts <= subtotal) { "Total discounts cannot exceed subtotal" }
         val total = Math.addExact(Math.subtractExact(subtotal, discounts), taxes)
         require(b.paidPaise <= total) { "Amount received cannot exceed the revised bill total." }
-        b.customerId?.let { require(dao.customer(it) != null) { "Customer not found" } }
+        val resolvedCustomer = b.customer?.let { upsertCustomer(it) }
+        val customerId = resolvedCustomer?.id ?: b.customerId
+        customerId?.let { require(dao.customer(it) != null) { "Customer not found" } }
 
         val oldItems = dao.items(invoiceId)
         oldItems.filter { it.productId != null }.groupBy { it.productId!! }.forEach { (id, lines) ->
@@ -137,9 +168,9 @@ class BillingRepository(private val db: OpticianDatabase) {
             productCosts[id] = product.costPaise
         }
         dao.updateInvoice(existing.copy(
-            customerId = b.customerId,
-            customerName = b.customerName.trim(),
-            phone = b.phone.trim(),
+            customerId = customerId,
+            customerName = (resolvedCustomer?.name ?: b.customerName).trim(),
+            phone = (resolvedCustomer?.phone ?: b.phone).trim(),
             subtotalPaise = subtotal,
             discountPaise = discounts,
             taxPaise = taxes,
