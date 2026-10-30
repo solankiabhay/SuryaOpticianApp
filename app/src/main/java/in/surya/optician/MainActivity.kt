@@ -1198,16 +1198,8 @@ class MainActivity : ComponentActivity() {
           else if(prescriptionProblem!=null) toast(prescriptionProblem)
           else {
            try {
-           val rx = if (editingPrescriptionId == null) {
-            Prescription(customerId=cid,rightSphere=rightSphere.trim(),rightCylinder=rightCylinder.trim(),rightAxis=rightAxis.trim(),rightAdd=rightAdd.trim(),leftSphere=leftSphere.trim(),leftCylinder=leftCylinder.trim(),leftAxis=leftAxis.trim(),leftAdd=leftAdd.trim(),pd=pd.trim(),notes=prescriptionNotes.trim())
-           } else {
-            val existing = db.dao().prescription(editingPrescriptionId!!) ?: error("This prescription no longer exists. Refresh the history and try again.")
-            if(cid != existing.customerId && db.dao().prescriptionInvoiceCount(existing.id)>0) {
-             error("This prescription is linked to an invoice. Its customer cannot be changed.")
-            }
-            existing.copy(customerId=cid,rightSphere=rightSphere.trim(),rightCylinder=rightCylinder.trim(),rightAxis=rightAxis.trim(),rightAdd=rightAdd.trim(),leftSphere=leftSphere.trim(),leftCylinder=leftCylinder.trim(),leftAxis=leftAxis.trim(),leftAdd=leftAdd.trim(),pd=pd.trim(),notes=prescriptionNotes.trim())
-           }
-           val savedPrescriptionId = if(editingPrescriptionId == null) db.dao().addPrescription(rx) else { db.dao().updatePrescription(rx); editingPrescriptionId!! }
+           val rx = Prescription(id=editingPrescriptionId ?: 0L,customerId=cid,rightSphere=rightSphere.trim(),rightCylinder=rightCylinder.trim(),rightAxis=rightAxis.trim(),rightAdd=rightAdd.trim(),leftSphere=leftSphere.trim(),leftCylinder=leftCylinder.trim(),leftAxis=leftAxis.trim(),leftAdd=leftAdd.trim(),pd=pd.trim(),notes=prescriptionNotes.trim())
+           val savedPrescriptionId = BillingRepository(db).savePrescription(rx)
            editingPrescriptionId=null
            rightSphere="";rightCylinder="";rightAxis="";rightAdd="";leftSphere="";leftCylinder="";leftAxis="";leftAdd="";pd="";prescriptionNotes=""
            if(returnToBillAfterPrescription) {
@@ -1251,8 +1243,7 @@ class MainActivity : ComponentActivity() {
              TextButton(onClick={ sharePrescriptionPdf(rx, prescriptionCustomerName) }) { Text("PDF / Share") }
              TextButton(onClick={ printPrescriptionPdf(rx, prescriptionCustomerName) }) { Text("Print") }
              if(canDeleteRecords()) TextButton(onClick={ if(!canDeleteRecords()) denyPermission("delete prescriptions") else lifecycleScope.launch {
-              if(db.dao().prescriptionInvoiceCount(rx.id)>0) toast("Cannot delete: this prescription is attached to an invoice")
-              else runCatching { db.dao().deletePrescription(rx) }.onSuccess { toast("Prescription deleted") }.onFailure { toast(it.message ?: "Could not delete prescription") }
+              runCatching { BillingRepository(db).deletePrescription(rx.id) }.onSuccess { toast("Prescription deleted") }.onFailure { toast(it.message ?: "Could not delete prescription") }
              } }) { Text("Delete") }
             }
            }
