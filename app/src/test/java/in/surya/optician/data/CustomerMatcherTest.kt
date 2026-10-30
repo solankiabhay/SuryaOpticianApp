@@ -20,7 +20,7 @@ class CustomerMatcherTest {
 
     @Test
     fun normalizedPhoneMatchesCompatibleCustomerName() {
-        assertEquals(1L, CustomerMatcher.findExisting(customers, null, "9876543210", "Aarav")?.id)
+        assertEquals(1L, CustomerMatcher.findExisting(customers, null, "+91-9876543210", "Aarav")?.id)
     }
 
     @Test
