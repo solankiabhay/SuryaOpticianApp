@@ -1249,7 +1249,7 @@ class MainActivity : ComponentActivity() {
             InvoiceSharing.share(this@MainActivity,pdf,selectedCustomer.phone,true)
            }
            editingPrescriptionId=null
-           rightSphere="";rightCylinder="";rightAxis="";rightAdd="";leftSphere="";leftCylinder="";leftAxis="";leftAdd="";pd="";prescriptionNotes=""
+           rightSphere="";rightCylinder="";rightAxis="";rightAdd="";leftSphere="";leftCylinder="";leftAxis="";leftAdd="";pd="";prescriptionNotes="";rxServiceCharge="";rxAmountPaid="";rxPaymentMethod="Cash"
            if(returnToBillAfterPrescription) {
             billPrescriptionId=savedPrescriptionId.toString()
             billPrescriptionSummary=listOf(
