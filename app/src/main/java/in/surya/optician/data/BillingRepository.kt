@@ -37,6 +37,7 @@ data class NewBill(
     val prescriptionSummary: String = "",
     val glassType: String = "",
     val deliveryDate: String = "",
+    val prescriptionId: Long? = null,
     val customer: CustomerInput? = null
 )
 
