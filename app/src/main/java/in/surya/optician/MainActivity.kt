@@ -223,6 +223,7 @@ class MainActivity : ComponentActivity() {
     var newStaffName by remember { mutableStateOf("") }
     var newStaffPassword by remember { mutableStateOf("") }
     var newStaffRole by remember { mutableStateOf("Staff") }
+    var editingStaffUsername by remember { mutableStateOf<String?>(null) }
     var unlocked by remember { mutableStateOf(securityPrefs.getString("pin_hash", null) == null) }
     var unlockPin by remember { mutableStateOf("") }
     var pinError by remember { mutableStateOf("") }
@@ -1353,18 +1354,20 @@ class MainActivity : ComponentActivity() {
        "Users" -> {
         ScreenHeader("Users", "Local accounts for shop staff. Only the owner can manage accounts.")
         Spacer(Modifier.height(12.dp))
-        SectionCard(title="Create staff account", icon=Icons.Rounded.PersonAdd) {
-         AppField(value=newStaffName, onValueChange={ newStaffName=it }, label="Staff username", icon=Icons.Rounded.Person)
-         AppField(value=newStaffPassword, onValueChange={ newStaffPassword=it }, label="Temporary password (8+ characters)", icon=Icons.Rounded.Lock)
+        SectionCard(title=if(editingStaffUsername==null) "Create staff account" else "Update staff account", icon=Icons.Rounded.PersonAdd) {
+         AppField(value=newStaffName, onValueChange={ newStaffName=it }, label="Staff username", icon=Icons.Rounded.Person, enabled=editingStaffUsername==null)
+         AppField(value=newStaffPassword, onValueChange={ newStaffPassword=it }, label=if(editingStaffUsername==null) "Temporary password (8+ characters)" else "New password (leave blank to keep current)", icon=Icons.Rounded.Lock)
          Text("Role", style=MaterialTheme.typography.labelLarge)
          ChoiceChips(options=listOf("Staff","Manager"), selected=newStaffRole, onSelect={ newStaffRole=it })
-         PrimaryAction(text="Create staff account", onClick={
-         if(!isOwner()) denyPermission("manage user accounts") else runCatching {
-          accountStore.create(newStaffName.trim(),newStaffPassword,newStaffRole)
-          accountVersion++
-          newStaffName="";newStaffPassword=""
-         }.onSuccess { toast("User account created") }.onFailure { toast(it.message ?: "Could not create user") }
-        }, icon=Icons.Rounded.Check, enabled=newStaffName.trim().length>=3&&newStaffPassword.length>=8)
+         PrimaryAction(text=if(editingStaffUsername==null) "Create staff account" else "Save account changes", onClick={
+          if(!isOwner()) denyPermission("manage user accounts") else runCatching {
+           if(editingStaffUsername==null) accountStore.create(newStaffName.trim(),newStaffPassword,newStaffRole)
+           else accountStore.update(editingStaffUsername!!,newStaffRole,newStaffPassword)
+           accountVersion++
+           newStaffName="";newStaffPassword="";newStaffRole="Staff";editingStaffUsername=null
+          }.onSuccess { toast(if(editingStaffUsername==null) "User account created" else "User account updated") }.onFailure { toast(it.message ?: "Could not save user account") }
+         }, icon=Icons.Rounded.Check, enabled=if(editingStaffUsername==null) newStaffName.trim().length>=3&&newStaffPassword.length>=8 else newStaffPassword.isBlank()||newStaffPassword.length>=8)
+         if(editingStaffUsername!=null) SecondaryAction(text="Cancel account edit", onClick={ editingStaffUsername=null;newStaffName="";newStaffPassword="";newStaffRole="Staff" })
         }
         Spacer(Modifier.height(20.dp))
         Text("Accounts on this device", style=MaterialTheme.typography.titleLarge)
@@ -1376,7 +1379,10 @@ class MainActivity : ComponentActivity() {
            AvatarBadge(user.username)
            Column(Modifier.weight(1f)) { Text(user.username, style=MaterialTheme.typography.titleMedium) }
            StatusPill(user.role.uppercase(), MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.primary)
-           if(isOwner() && user.role!="Owner" && user.username!=loggedInUser?.username) IconButton(onClick={ if(isOwner()) { accountStore.remove(user.username);accountVersion++;toast("Account removed") } else denyPermission("manage user accounts") }) { Icon(Icons.Rounded.Delete, contentDescription="Remove account", tint=MaterialTheme.colorScheme.error) }
+           if(isOwner() && user.role!="Owner" && user.username!=loggedInUser?.username) {
+            IconButton(onClick={ newStaffName=user.username;newStaffRole=user.role;newStaffPassword="";editingStaffUsername=user.username;lifecycleScope.launch { mainScroll.animateScrollTo(0) } }) { Icon(Icons.Rounded.Edit, contentDescription="Edit account", tint=MaterialTheme.colorScheme.primary) }
+            IconButton(onClick={ if(isOwner()) { accountStore.remove(user.username);accountVersion++;toast("Account removed") } else denyPermission("manage user accounts") }) { Icon(Icons.Rounded.Delete, contentDescription="Remove account", tint=MaterialTheme.colorScheme.error) }
+           }
           }
          }
         }
