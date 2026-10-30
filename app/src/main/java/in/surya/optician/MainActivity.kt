@@ -279,6 +279,8 @@ class MainActivity : ComponentActivity() {
     var billPaymentMethod by remember { mutableStateOf("Cash") }
     var billPrescriptionId by remember { mutableStateOf("") }
     var billPrescriptionSummary by remember { mutableStateOf("") }
+    var billEyeTestFee by remember { mutableStateOf("") }
+    var savingCustomerForPrescription by remember { mutableStateOf(false) }
     var billPrescriptionExpanded by remember { mutableStateOf(false) }
     var billGlassType by remember { mutableStateOf("") }
     var billDeliveryDate by remember { mutableStateOf("") }
@@ -327,7 +329,9 @@ class MainActivity : ComponentActivity() {
     val customers by db.dao().customers().collectAsState(initial = emptyList())
     val selectedBillCustomer = customers.firstOrNull { it.id.toString() == billCustomerId }
     val pendingItem = BillDraft.parsePending(billProductId, billDescription, billQty, billRate, billDiscount, billTax)
-    val effectiveBillLines = billLines + listOfNotNull((pendingItem as? PendingItem.Ready)?.line)
+    val eyeTestFeePaise = Money.parseRupeesToPaise(billEyeTestFee)
+    val eyeTestFeeLine = if (billEyeTestFee.isNotBlank() && eyeTestFeePaise != null && eyeTestFeePaise > 0L) listOf(BillLine(null, "Eye test / prescription fee", 1, eyeTestFeePaise)) else emptyList()
+    val effectiveBillLines = billLines + listOfNotNull((pendingItem as? PendingItem.Ready)?.line) + eyeTestFeeLine
     val products by db.dao().products().collectAsState(initial = emptyList())
     val due by db.dao().outstanding().collectAsState(initial = 0L)
     val lowStock by db.dao().lowStock().collectAsState(initial = emptyList())
@@ -782,6 +786,7 @@ class MainActivity : ComponentActivity() {
          ChoiceChips(options=listOf("Single Vision","Bifocal","Progressive","Photochromic","Blue Cut","Sunglasses","Frame Only","Contact Lens"), selected=billGlassType, onSelect={ billGlassType=it })
          AppField(value=billGlassType, onValueChange={ billGlassType=it }, label="Glass type (or type your own)")
          DateInputField(value=billDeliveryDate, onValueChange={ billDeliveryDate=it }, label="Expected delivery date", displayFormat="dd/MM/yyyy", placeholder="e.g. 05/11/2026", supportingText="Optional for walk-in sales; fill for orders awaiting lens fitting.", modifier=Modifier.fillMaxWidth())
+         AppField(value=billEyeTestFee, onValueChange={ billEyeTestFee=it }, label="Eye test / prescription charge (₹)", placeholder="e.g. 200", keyboardType=KeyboardType.Decimal, supportingText="Optional. Added as a non-stock invoice item; works even when no product is sold.")
          if (billCustomerId.toLongOrNull() != null) {
           Text("Eye prescription (optional)", style=MaterialTheme.typography.labelLarge)
           if (billPrescriptions.isEmpty()) Text("No saved prescription for this customer. You can still bill sunglasses or other products.", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSurfaceVariant)
@@ -886,6 +891,7 @@ class MainActivity : ComponentActivity() {
            typedName.isBlank() && selectedBillCustomer==null -> toast("Enter the customer name")
            phoneProblem!=null -> toast(phoneProblem)
            billCustomerAge.isNotBlank() && (age==null || age !in 0..120) -> toast("Age must be between 0 and 120")
+           billEyeTestFee.isNotBlank() && (eyeTestFeePaise == null || eyeTestFeePaise < 0L) -> toast("Eye test charge is not a valid amount")
            pending is PendingItem.Invalid -> toast(pending.message)
            effectiveBillLines.isEmpty() -> toast("Add an item: enter the description and rate")
            paidPaise==null -> toast("Amount received is not a valid amount")
@@ -908,7 +914,7 @@ class MainActivity : ComponentActivity() {
               )
               val id=if(editingInvoiceId==null) BillingRepository(db).createBill(draft) else { BillingRepository(db).updateBill(editingInvoiceId!!,draft); editingInvoiceId!! }
               toast(if(editingInvoiceId==null) "Invoice created: #$id" else "Invoice updated")
-              section="Bills"; editingInvoiceId=null; billCustomer=""; billCustomerId=""; billPhone=""; billCustomerAddress=""; billCustomerAge=""; billCustomerEmail=""; billCustomerSearch=""; billLines=emptyList(); billProductId=""; billDescription=""; billQty="1"; billRate=""; billDiscount="0"; billTax="0"; billPaid="0"; billPaymentMethod="Cash"; billPrescriptionId=""; billPrescriptionSummary=""; billGlassType=""; billDeliveryDate=""; billTouched=false
+              section="Bills"; editingInvoiceId=null; billCustomer=""; billCustomerId=""; billPhone=""; billCustomerAddress=""; billCustomerAge=""; billCustomerEmail=""; billCustomerSearch=""; billLines=emptyList(); billProductId=""; billDescription=""; billQty="1"; billRate=""; billDiscount="0"; billTax="0"; billPaid="0"; billPaymentMethod="Cash"; billPrescriptionId=""; billPrescriptionSummary=""; billEyeTestFee=""; billGlassType=""; billDeliveryDate=""; billTouched=false
              } catch(e: kotlinx.coroutines.CancellationException) {
               throw e
              } catch(e: Exception) {
