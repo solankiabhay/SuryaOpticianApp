@@ -1411,7 +1411,7 @@ class MainActivity : ComponentActivity() {
          AppField(value=shopPhone, onValueChange={ shopPhone=it }, label="Shop phone", keyboardType=KeyboardType.Phone)
          AppField(value=shopGstin, onValueChange={ shopGstin=it }, label="GSTIN")
          AppField(value=shopFooter, onValueChange={ shopFooter=it }, label="Invoice footer")
-         PrimaryAction(text="Save settings", onClick={ lifecycleScope.launch { runCatching { require(shopName.isNotBlank()) { "Shop name is required" }; db.dao().saveSettings(ShopSettings(name=shopName.trim(),address=shopAddress.trim(),phone=shopPhone.trim(),gstin=shopGstin.trim(),footer=shopFooter.trim())) }.onSuccess { toast("Shop settings saved") }.onFailure { toast(it.message ?: "Could not update shop settings") } } }, icon=Icons.Rounded.Check)
+         PrimaryAction(text="Save settings", onClick={ if(!isOwner()) denyPermission("update shop settings") else lifecycleScope.launch { runCatching { require(shopName.isNotBlank()) { "Shop name is required" }; Validation.phoneError(shopPhone)?.let { error(it) }; db.dao().saveSettings(ShopSettings(name=shopName.trim(),address=shopAddress.trim(),phone=shopPhone.trim(),gstin=shopGstin.trim(),footer=shopFooter.trim())) }.onSuccess { toast("Shop settings saved") }.onFailure { toast(it.message ?: "Could not update shop settings") } } }, icon=Icons.Rounded.Check)
         }
         if(isOwner()) {
          Spacer(Modifier.height(12.dp))
