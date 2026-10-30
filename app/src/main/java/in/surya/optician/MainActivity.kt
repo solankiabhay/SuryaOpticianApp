@@ -1060,7 +1060,7 @@ class MainActivity : ComponentActivity() {
            }
            if(canManageRecords()) Row(horizontalArrangement=Arrangement.End, modifier=Modifier.fillMaxWidth()) {
             TextButton(onClick={ editingPaymentId=payment.id;paymentInvoiceId=payment.invoiceId.toString();paymentAmount="%.2f".format(payment.amountPaise/100.0);paymentMethod=payment.method;paymentReference=payment.reference }) { Text("Edit") }
-            TextButton(onClick={ paymentDeleteTarget=payment }) { Text("Delete", color=MaterialTheme.colorScheme.error) }
+            if(canDeleteRecords()) TextButton(onClick={ paymentDeleteTarget=payment }) { Text("Delete", color=MaterialTheme.colorScheme.error) }
            }
           }
          }
