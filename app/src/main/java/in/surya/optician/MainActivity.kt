@@ -76,18 +76,20 @@ private fun OpticianLogo(
 
 @Composable
 private fun ReportBarChart(values: List<Pair<String, Long>>, modifier: Modifier = Modifier) {
- val color = MaterialTheme.colorScheme.primary
+ val barColor = MaterialTheme.colorScheme.primary
  val maxValue = (values.maxOfOrNull { it.second } ?: 0L).coerceAtLeast(1L)
- Column(modifier.fillMaxWidth(), verticalArrangement=Arrangement.spacedBy(6.dp)) {
-  Canvas(Modifier.fillMaxWidth().height(142.dp)) {
-   val count=values.size.coerceAtLeast(1); val slot=size.width/count; val barWidth=(slot*0.48f).coerceAtLeast(8f)
-   values.forEachIndexed { index,item ->
-    val h=(size.height*item.second.toFloat()/maxValue.toFloat()).coerceAtLeast(3f)
-    drawRoundRect(color,Offset(index*slot+(slot-barWidth)/2f,size.height-h),Size(barWidth,h),CornerRadius(8.dp.toPx()))
+ Column(modifier.fillMaxWidth(), verticalArrangement=Arrangement.spacedBy(8.dp)) {
+  Row(Modifier.fillMaxWidth().height(156.dp),horizontalArrangement=Arrangement.spacedBy(8.dp),verticalAlignment=Alignment.Bottom) {
+   values.forEach { (label,amount) ->
+    val fraction=(amount.toDouble()/maxValue.toDouble()).coerceIn(0.0,1.0)
+    Column(Modifier.weight(1f).fillMaxHeight(),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Bottom) {
+     Text(formatRupees(amount),style=MaterialTheme.typography.labelSmall,maxLines=1,color=MaterialTheme.colorScheme.onSurfaceVariant)
+     Spacer(Modifier.height(5.dp))
+     Box(Modifier.widthIn(min=12.dp,max=28.dp).fillMaxWidth().height((112.0*fraction).coerceAtLeast(5.0).dp).background(barColor,RoundedCornerShape(topStart=7.dp,topEnd=7.dp)))
+     Spacer(Modifier.height(5.dp))
+     Text(label,style=MaterialTheme.typography.labelSmall,maxLines=1,color=MaterialTheme.colorScheme.onSurface)
+    }
    }
-  }
-  Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceEvenly) {
-   values.forEach { (label,_) -> Text(label,style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant,maxLines=1) }
   }
  }
 }
@@ -262,6 +264,7 @@ class MainActivity : ComponentActivity() {
     var savingBill by remember { mutableStateOf(false) }
     var billTouched by remember { mutableStateOf(false) }
     var customerSearch by remember { mutableStateOf("") }
+    var customerTouched by remember { mutableStateOf(false) }
     var productSearch by remember { mutableStateOf("") }
     var editingPrescriptionId by remember { mutableStateOf<Long?>(null) }
     var returnToBillAfterPrescription by remember { mutableStateOf(false) }
@@ -685,7 +688,19 @@ class MainActivity : ComponentActivity() {
             Text(customer.name, style=MaterialTheme.typography.titleMedium)
             Text(listOfNotNull(customer.phone.takeIf { it.isNotBlank() }, customer.age?.let { "Age $it" }, customer.address.takeIf { it.isNotBlank() }, customer.email.takeIf { it.isNotBlank() }).joinToString("  ·  ").ifBlank { "No additional details" }, style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSurfaceVariant)
            }
-           if(canManageRecords()) IconButton(onClick={ val form=customer.toEditForm(); selectedCustomerId=form.customerId; customerName=form.name; customerPhone=form.phone; customerAddress=form.address; customerAge=form.age; customerEmail=form.email; lifecycleScope.launch { mainScroll.animateScrollTo(0) } }) { Icon(Icons.Rounded.Edit, contentDescription="Edit customer", tint=MaterialTheme.colorScheme.primary) }
+           if(canManageRecords()) IconButton(onClick={
+             runCatching {
+              val form=customer.toEditForm()
+              selectedCustomerId=form.customerId
+              customerName=form.name
+              customerPhone=form.phone
+              customerAddress=form.address
+              customerAge=form.age
+              customerEmail=form.email
+              customerTouched=false
+             }.onSuccess { lifecycleScope.launch { runCatching { mainScroll.scrollTo(0) } } }
+              .onFailure { error -> toast("Could not open customer for editing: ${error.message ?: "Please try again"}") }
+            }) { Icon(Icons.Rounded.Edit, contentDescription="Edit customer", tint=MaterialTheme.colorScheme.primary) }
            if(canDeleteRecords()) IconButton(onClick={ if(!canDeleteRecords()) denyPermission("delete customers") else lifecycleScope.launch {
             val hasInvoices=db.dao().customerInvoiceCount(customer.id)>0
             val hasPrescriptions=db.dao().customerPrescriptionCount(customer.id)>0
@@ -1277,9 +1292,9 @@ class MainActivity : ComponentActivity() {
         }
        }
        "Reports" -> {
- ScreenHeader("Reports","Collection aur sales ka financial overview")
- ChoiceChips(options=listOf("Collection","Sales"),selected=reportType,onSelect={reportType=it})
- SectionCard(title="Date range",icon=Icons.Rounded.DateRange,subtitle="YYYY-MM-DD · Search se report update hogi") {
+ ScreenHeader("Reports")
+ ChoiceChips(options=listOf("Collection","Sales"),selected=reportType,onSelect={reportType=it;reportQuery=""})
+ SectionCard(title="Date range",icon=Icons.Rounded.DateRange) {
   DateInputField(value=reportFrom,onValueChange={reportFrom=it},label="From date",displayFormat="yyyy-MM-dd",placeholder="2026-10-01",modifier=Modifier.fillMaxWidth())
   DateInputField(value=reportTo,onValueChange={reportTo=it},label="To date",displayFormat="yyyy-MM-dd",placeholder="2026-10-30",modifier=Modifier.fillMaxWidth())
   val df=if(reportFrom.isBlank()) null else parseReportDate(reportFrom)
@@ -1295,6 +1310,7 @@ class MainActivity : ComponentActivity() {
  val to=remember(reportAppliedTo){if(reportAppliedTo.isBlank()) null else parseReportDate(reportAppliedTo)?.let { Calendar.getInstance().apply { timeInMillis=it; add(Calendar.DAY_OF_MONTH,1) }.timeInMillis }}
  val selectedInvoices=allInvoices.filter{(from==null||it.createdAt>=from)&&(to==null||it.createdAt<to)}
  val selectedPayments=allPayments.filter{(from==null||it.paidAt>=from)&&(to==null||it.paidAt<to)}
+  val invoicesById=allInvoices.associateBy { it.id }
  val cash=selectedPayments.filter{it.method.equals("Cash",true)}.sumOf{it.amountPaise}
  val online=selectedPayments.filter{it.method.equals("Online",true)}.sumOf{it.amountPaise}
  val collected=selectedPayments.sumOf{it.amountPaise}
@@ -1303,21 +1319,21 @@ class MainActivity : ComponentActivity() {
  val advance=selectedPayments.filter{p->selectedInvoices.firstOrNull{it.id==p.invoiceId}?.deliveryDate?.isNotBlank()==true}.sumOf{it.amountPaise}
  val search=reportQuery.trim()
  val shownInvoices=selectedInvoices.filter{search.isBlank()||it.number.contains(search,true)||it.customerName.contains(search,true)||it.phone.contains(search,true)}
- val shownPayments=selectedPayments.filter{p->val inv=selectedInvoices.firstOrNull{it.id==p.invoiceId};search.isBlank()||inv?.number?.contains(search,true)==true||inv?.customerName?.contains(search,true)==true||inv?.phone?.contains(search,true)==true}
+ val shownPayments=selectedPayments.filter{p->val inv=invoicesById[p.invoiceId];search.isBlank()||inv?.number?.contains(search,true)==true||inv?.customerName?.contains(search,true)==true||inv?.phone?.contains(search,true)==true}
  val dateFmt=java.text.SimpleDateFormat("dd MMM",java.util.Locale.getDefault())
  val collectionBars=selectedPayments.groupBy{dateFmt.format(java.util.Date(it.paidAt))}.entries.sortedBy{entry->entry.value.minOf{it.paidAt}}.takeLast(7).map{it.key to it.value.sumOf(Payment::amountPaise)}
  val salesBars=selectedInvoices.groupBy{dateFmt.format(java.util.Date(it.createdAt))}.entries.sortedBy{entry->entry.value.minOf{it.createdAt}}.takeLast(7).map{it.key to it.value.sumOf(Invoice::totalPaise)}
  if(reportType=="Collection") {
-  SectionCard(title="Collection Summary",icon=Icons.Rounded.Payments,subtitle="${selectedPayments.size} payment entries") {
+  SectionCard(title="Collection Summary",icon=Icons.Rounded.Payments) {
    Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){StatTile("Cash",formatRupees(cash),Icons.Rounded.Payments,Brand.Success,Brand.SuccessBg,Modifier.weight(1f));StatTile("Online",formatRupees(online),Icons.Rounded.CreditCard,MaterialTheme.colorScheme.primary,MaterialTheme.colorScheme.primaryContainer,Modifier.weight(1f))}
    Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){StatTile("Total Collection",formatRupees(collected),Icons.Rounded.AccountBalanceWallet,MaterialTheme.colorScheme.primary,MaterialTheme.colorScheme.primaryContainer,Modifier.weight(1f));StatTile("Advance",formatRupees(advance),Icons.Rounded.Savings,Brand.Warning,Brand.WarningBg,Modifier.weight(1f))}
    StatTile("Balance / Due",formatRupees(dueTotal),Icons.Rounded.HourglassBottom,Brand.Danger,Brand.DangerBg,Modifier.fillMaxWidth())
   }
-  SectionCard(title="Collection Bar Chart",icon=Icons.Rounded.BarChart,subtitle="Date-wise payments received"){if(collectionBars.isEmpty()) EmptyState(Icons.Rounded.BarChart,"No collection data","Selected period mein payment nahi hai.") else ReportBarChart(collectionBars)}
+  SectionCard(title="Collection Bar Chart",icon=Icons.Rounded.BarChart){if(collectionBars.isEmpty()) EmptyState(Icons.Rounded.BarChart,"No collection data","Selected period mein payment nahi hai.") else ReportBarChart(collectionBars)}
   SectionCard(title="Collection Details",icon=Icons.Rounded.Receipt) {
    AppField(value=reportQuery,onValueChange={reportQuery=it},label="Search customer, bill number or phone",icon=Icons.Rounded.Search)
    if(shownPayments.isEmpty()) EmptyState(Icons.Rounded.Payments,"No collections found","Date range ya search change karein.")
-   shownPayments.forEach{p->val inv=selectedInvoices.firstOrNull{it.id==p.invoiceId};RecordCard(Modifier.padding(vertical=3.dp)){
+   shownPayments.forEach{p->val inv=invoicesById[p.invoiceId];RecordCard(Modifier.padding(vertical=3.dp)){
     Row(verticalAlignment=Alignment.CenterVertically){Column(Modifier.weight(1f)){Text(inv?.customerName?: "Invoice #${p.invoiceId}",style=MaterialTheme.typography.titleSmall);Text("${inv?.number?: "Bill"} · "+java.text.SimpleDateFormat("dd MMM yyyy, hh:mm a",java.util.Locale.getDefault()).format(java.util.Date(p.paidAt)),style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)};StatusPill(p.method,if(p.method.equals("Cash",true)) Brand.SuccessBg else MaterialTheme.colorScheme.primaryContainer,if(p.method.equals("Cash",true)) Brand.Success else MaterialTheme.colorScheme.primary)}
     AmountRow("Received",formatRupees(p.amountPaise),emphasize=true)
    }}
@@ -1327,14 +1343,14 @@ class MainActivity : ComponentActivity() {
   val todayStart=Calendar.getInstance().apply{set(Calendar.HOUR_OF_DAY,0);set(Calendar.MINUTE,0);set(Calendar.SECOND,0);set(Calendar.MILLISECOND,0)}.timeInMillis
   val todayEnd=Calendar.getInstance().apply{add(Calendar.DAY_OF_MONTH,1);set(Calendar.HOUR_OF_DAY,0);set(Calendar.MINUTE,0);set(Calendar.SECOND,0);set(Calendar.MILLISECOND,0)}.timeInMillis
   val todaySale=allInvoices.filter{it.createdAt>=todayStart&&it.createdAt<todayEnd}.sumOf{it.totalPaise}
-  SectionCard(title="Sales Summary",icon=Icons.Rounded.Assessment,subtitle="Invoice date ke hisaab se") {
+  SectionCard(title="Sales Summary",icon=Icons.Rounded.Assessment) {
    Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){StatTile("Total Sales",formatRupees(sales),Icons.Rounded.Assessment,MaterialTheme.colorScheme.primary,MaterialTheme.colorScheme.primaryContainer,Modifier.weight(1f));StatTile("Total Bills","${selectedInvoices.size}",Icons.Rounded.Receipt,MaterialTheme.colorScheme.secondary,MaterialTheme.colorScheme.secondaryContainer,Modifier.weight(1f))}
    Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){StatTile("Average Bill",formatRupees(if(selectedInvoices.isEmpty())0 else sales/selectedInvoices.size),Icons.Rounded.Calculate,Brand.Success,Brand.SuccessBg,Modifier.weight(1f));StatTile("Paid Amount",formatRupees(selectedInvoices.sumOf{it.paidPaise}),Icons.Rounded.Payments,Brand.Success,Brand.SuccessBg,Modifier.weight(1f))}
    StatTile("Outstanding Amount",formatRupees(dueTotal),Icons.Rounded.AccountBalanceWallet,Brand.Warning,Brand.WarningBg,Modifier.fillMaxWidth())
    StatTile("Today's Sale",formatRupees(todaySale),Icons.Rounded.Today,MaterialTheme.colorScheme.primary,MaterialTheme.colorScheme.primaryContainer,Modifier.fillMaxWidth())
   }
-  SectionCard(title="Sales Bar Chart",icon=Icons.Rounded.BarChart,subtitle="Date-wise invoice sales"){if(salesBars.isEmpty()) EmptyState(Icons.Rounded.BarChart,"No sales data","Selected period mein invoices nahi hain.") else ReportBarChart(salesBars)}
-  SectionCard(title="Sales Details",icon=Icons.Rounded.Receipt,subtitle="${shownInvoices.size} invoices") {
+  SectionCard(title="Sales Bar Chart",icon=Icons.Rounded.BarChart){if(salesBars.isEmpty()) EmptyState(Icons.Rounded.BarChart,"No sales data","Selected period mein invoices nahi hain.") else ReportBarChart(salesBars)}
+  SectionCard(title="Sales Details",icon=Icons.Rounded.Receipt) {
    AppField(value=reportQuery,onValueChange={reportQuery=it},label="Search customer, bill number or phone",icon=Icons.Rounded.Search)
    if(shownInvoices.isEmpty()) EmptyState(Icons.Rounded.Receipt,"No sales found","Date range ya search change karein.")
    shownInvoices.forEach{inv->RecordCard(Modifier.padding(vertical=3.dp)){
