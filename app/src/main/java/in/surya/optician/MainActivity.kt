@@ -267,6 +267,9 @@ class MainActivity : ComponentActivity() {
     var returnToBillAfterPrescription by remember { mutableStateOf(false) }
     var reportFrom by remember { mutableStateOf("") }
     var reportTo by remember { mutableStateOf("") }
+    var reportAppliedFrom by remember { mutableStateOf("") }
+    var reportAppliedTo by remember { mutableStateOf("") }
+    var reportType by remember { mutableStateOf("Collection") }
     var selectedCustomerId by remember { mutableStateOf<Long?>(null) }
     var customerName by remember { mutableStateOf("") }
     var customerPhone by remember { mutableStateOf("") }
@@ -343,6 +346,7 @@ class MainActivity : ComponentActivity() {
     val billHistoryPageCount = maxOf(1, (filteredBillHistory.size + billHistoryPageSize - 1) / billHistoryPageSize)
     val visibleBillHistory = filteredBillHistory.drop(billHistoryPage * billHistoryPageSize).take(billHistoryPageSize)
     val allInvoices by db.dao().invoices().collectAsState(initial = emptyList())
+    val allPayments by db.dao().allPayments().collectAsState(initial = emptyList())
     val prescriptionsFlow = remember(prescriptionCustomerId) {
      prescriptionCustomerId.toLongOrNull()?.let { db.dao().prescriptions(it) } ?: flowOf<List<Prescription>>(emptyList())
     }
