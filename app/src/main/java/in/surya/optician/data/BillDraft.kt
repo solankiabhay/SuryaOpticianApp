@@ -161,6 +161,20 @@ object PrescriptionRules {
     }
 }
 
+/** Builds non-stock charges for an eye test or a prescription-only invoice. */
+object PrescriptionBilling {
+    fun chargeLine(feeText: String, prescriptionAttached: Boolean): BillLine? {
+        if (feeText.isBlank()) {
+            return if (prescriptionAttached) BillLine(null, "Eye prescription", 1, 0L) else null
+        }
+        val amount = Money.parseRupeesToPaise(feeText)
+            ?: throw IllegalArgumentException("Eye test charge is not a valid amount")
+        require(amount >= 0L) { "Eye test charge cannot be negative" }
+        if (amount == 0L && !prescriptionAttached) return null
+        return BillLine(null, if (prescriptionAttached) "Eye test / prescription fee" else "Eye test fee", 1, amount)
+    }
+}
+
 /** Basic field validation shared by the forms. Each function returns an error message or null. */
 object Validation {
     fun phoneError(text: String): String? {
