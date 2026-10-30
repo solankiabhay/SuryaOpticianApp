@@ -778,7 +778,36 @@ class MainActivity : ComponentActivity() {
           AppField(value=billCustomerAge, onValueChange={ billCustomerAge=it.filter(Char::isDigit).take(3) }, label="Age", modifier=Modifier.weight(1f), keyboardType=KeyboardType.Number)
          }
          AppField(value=billCustomerEmail, onValueChange={ billCustomerEmail=it }, label="Email (optional)", keyboardType=KeyboardType.Email, icon=Icons.Rounded.Email)
-         if(billCustomerId.isNotBlank()) StatusPill("Saved customer selected · details update when the bill is saved", Brand.SuccessBg, Brand.Success)
+         if(billCustomerId.isNotBlank()) StatusPill("Saved customer selected", Brand.SuccessBg, Brand.Success)
+         OutlinedButton(onClick={
+          if (savingCustomerForPrescription) Unit
+          else if (!canManageRecords()) denyPermission("save customer and create prescription")
+          else {
+           val ageValue = billCustomerAge.toIntOrNull()
+           val phoneError = Validation.phoneError(billPhone)
+           when {
+            billCustomer.isBlank() -> toast("Enter the customer name first")
+            phoneError != null -> toast(phoneError)
+            billCustomerAge.isNotBlank() && (ageValue == null || ageValue !in 0..120) -> toast("Age must be between 0 and 120")
+            else -> {
+             savingCustomerForPrescription = true
+             lifecycleScope.launch {
+              try {
+               val saved = BillingRepository(db).saveCustomer(CustomerInput(id=billCustomerId.toLongOrNull(), name=billCustomer.trim(), phone=billPhone.trim(), address=billCustomerAddress.trim(), age=ageValue, email=billCustomerEmail.trim()))
+               billCustomerId=saved.id.toString(); billCustomer=saved.name; billPhone=saved.phone
+               prescriptionCustomerId=saved.id.toString(); returnToBillAfterPrescription=true; editingPrescriptionId=null
+               rightSphere="";rightCylinder="";rightAxis="";rightAdd="";leftSphere="";leftCylinder="";leftAxis="";leftAdd="";pd="";prescriptionNotes=""
+               section="Prescription"; toast("Customer saved. Enter the eye prescription.")
+              } catch (e: kotlinx.coroutines.CancellationException) { throw e }
+              catch (e: Exception) { toast(e.message ?: "Could not save customer") }
+              finally { savingCustomerForPrescription=false }
+             }
+            }
+           }
+          }
+         }, modifier=Modifier.fillMaxWidth(), enabled=!savingCustomerForPrescription) {
+          Text(if(savingCustomerForPrescription) "Saving customer…" else "Save customer & add prescription")
+         }
         }
         Spacer(Modifier.height(12.dp))
         SectionCard(title="Order details", step=2, subtitle="Lens type, delivery date and prescription") {
