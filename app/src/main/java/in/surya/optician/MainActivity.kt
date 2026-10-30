@@ -299,6 +299,7 @@ class MainActivity : ComponentActivity() {
     var billPrescriptionId by remember { mutableStateOf("") }
     var billPrescriptionSummary by remember { mutableStateOf("") }
     var billPrescriptionExpanded by remember { mutableStateOf(false) }
+    var billInlinePrescriptionExpanded by remember { mutableStateOf(false) }
     var billGlassType by remember { mutableStateOf("") }
     var billDeliveryDate by remember { mutableStateOf("") }
     var showBillPreview by remember { mutableStateOf(false) }
@@ -851,6 +852,7 @@ class MainActivity : ComponentActivity() {
            Column(Modifier.weight(1f)) {
             Text("Prescription", style=MaterialTheme.typography.titleSmall)
             Text("Optional · attach an existing eye prescription", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSurfaceVariant)
+            TextButton(onClick={ billInlinePrescriptionExpanded=!billInlinePrescriptionExpanded }) { Text(if(billInlinePrescriptionExpanded) "Hide prescription fields" else "＋ Enter prescription here") }
            }
            OutlinedButton(onClick={
             val cid=billCustomerId.toLongOrNull()
@@ -877,6 +879,24 @@ class MainActivity : ComponentActivity() {
              }.onFailure { toast(it.message ?: "Could not save customer before prescription") }
             }
            }) { Text("＋ Add") }
+          }
+          if (billInlinePrescriptionExpanded) {
+           Text("RIGHT EYE (OD)", style=MaterialTheme.typography.labelMedium, color=MaterialTheme.colorScheme.primary)
+           Row(horizontalArrangement=Arrangement.spacedBy(6.dp), modifier=Modifier.fillMaxWidth()) {
+            OutlinedTextField(rightSphere,{rightSphere=it},label={Text("SPH")},modifier=Modifier.weight(1f),singleLine=true)
+            OutlinedTextField(rightCylinder,{rightCylinder=it},label={Text("CYL")},modifier=Modifier.weight(1f),singleLine=true)
+            OutlinedTextField(rightAxis,{rightAxis=it.filter(Char::isDigit).take(3)},label={Text("AXIS")},modifier=Modifier.weight(1f),singleLine=true,keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number))
+            OutlinedTextField(rightAdd,{rightAdd=it},label={Text("ADD")},modifier=Modifier.weight(1f),singleLine=true)
+           }
+           Text("LEFT EYE (OS)", style=MaterialTheme.typography.labelMedium, color=MaterialTheme.colorScheme.secondary)
+           Row(horizontalArrangement=Arrangement.spacedBy(6.dp), modifier=Modifier.fillMaxWidth()) {
+            OutlinedTextField(leftSphere,{leftSphere=it},label={Text("SPH")},modifier=Modifier.weight(1f),singleLine=true)
+            OutlinedTextField(leftCylinder,{leftCylinder=it},label={Text("CYL")},modifier=Modifier.weight(1f),singleLine=true)
+            OutlinedTextField(leftAxis,{leftAxis=it.filter(Char::isDigit).take(3)},label={Text("AXIS")},modifier=Modifier.weight(1f),singleLine=true,keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number))
+            OutlinedTextField(leftAdd,{leftAdd=it},label={Text("ADD")},modifier=Modifier.weight(1f),singleLine=true)
+           }
+           OutlinedTextField(pd,{pd=it},label={Text("PD (mm)")},modifier=Modifier.fillMaxWidth(),singleLine=true)
+           OutlinedTextField(prescriptionNotes,{prescriptionNotes=it},label={Text("Prescription notes")},modifier=Modifier.fillMaxWidth(),minLines=2)
           }
           if (billCustomerId.toLongOrNull()!=null) {
            if (billPrescriptions.isNotEmpty()) {
