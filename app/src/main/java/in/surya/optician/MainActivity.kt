@@ -1301,8 +1301,8 @@ class MainActivity : ComponentActivity() {
  val shownInvoices=selectedInvoices.filter{search.isBlank()||it.number.contains(search,true)||it.customerName.contains(search,true)||it.phone.contains(search,true)}
  val shownPayments=selectedPayments.filter{p->val inv=selectedInvoices.firstOrNull{it.id==p.invoiceId};search.isBlank()||inv?.number?.contains(search,true)==true||inv?.customerName?.contains(search,true)==true||inv?.phone?.contains(search,true)==true}
  val dateFmt=java.text.SimpleDateFormat("dd MMM",java.util.Locale.getDefault())
- val collectionBars=selectedPayments.groupBy{dateFmt.format(java.util.Date(it.paidAt))}.entries.takeLast(7).map{it.key to it.value.sumOf(Payment::amountPaise)}
- val salesBars=selectedInvoices.groupBy{dateFmt.format(java.util.Date(it.createdAt))}.entries.takeLast(7).map{it.key to it.value.sumOf(Invoice::totalPaise)}
+ val collectionBars=selectedPayments.groupBy{dateFmt.format(java.util.Date(it.paidAt))}.entries.sortedBy{entry->entry.value.minOf{it.paidAt}}.takeLast(7).map{it.key to it.value.sumOf(Payment::amountPaise)}
+ val salesBars=selectedInvoices.groupBy{dateFmt.format(java.util.Date(it.createdAt))}.entries.sortedBy{entry->entry.value.minOf{it.createdAt}}.takeLast(7).map{it.key to it.value.sumOf(Invoice::totalPaise)}
  if(reportType=="Collection") {
   SectionCard(title="Collection Summary",icon=Icons.Rounded.Payments,subtitle="${selectedPayments.size} payment entries") {
    Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){StatTile("Cash",formatRupees(cash),Icons.Rounded.Payments,Brand.Success,Brand.SuccessBg,Modifier.weight(1f));StatTile("Online",formatRupees(online),Icons.Rounded.CreditCard,MaterialTheme.colorScheme.primary,MaterialTheme.colorScheme.primaryContainer,Modifier.weight(1f))}
