@@ -45,6 +45,32 @@ class BillingRepository(private val db: OpticianDatabase) {
     /** Saves (or finds) a customer on its own, e.g. so a prescription can be chosen before the bill exists. */
     suspend fun saveCustomer(input: CustomerInput): Customer = db.withTransaction { upsertCustomer(input) }
 
+    suspend fun savePrescription(prescription: Prescription): Long = db.withTransaction {
+        val dao = db.dao()
+        require(dao.customer(prescription.customerId) != null) { "Customer not found" }
+        if (prescription.id == 0L) {
+            dao.addPrescription(prescription)
+        } else {
+            val existing = dao.prescription(prescription.id) ?: error("Prescription not found")
+            if (existing.customerId != prescription.customerId) {
+                require(dao.prescriptionInvoiceCount(existing.id) == 0) {
+                    "This prescription is linked to an invoice. Its customer cannot be changed."
+                }
+            }
+            dao.updatePrescription(prescription.copy(createdAt = existing.createdAt))
+            existing.id
+        }
+    }
+
+    suspend fun deletePrescription(prescriptionId: Long) = db.withTransaction {
+        val dao = db.dao()
+        val existing = dao.prescription(prescriptionId) ?: error("Prescription not found")
+        require(dao.prescriptionInvoiceCount(prescriptionId) == 0) {
+            "Cannot delete: this prescription is attached to an invoice"
+        }
+        dao.deletePrescription(existing)
+    }
+
     /** Must run inside a transaction: creates, matches or updates a customer without creating duplicates. */
     private suspend fun upsertCustomer(input: CustomerInput): Customer {
         val dao = db.dao()
