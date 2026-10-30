@@ -1540,7 +1540,7 @@ class MainActivity : ComponentActivity() {
             Text("Payment status: $paymentStatus", color=if(invoice.duePaise<=0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error, style=MaterialTheme.typography.labelMedium)
             if(invoice.duePaise>0) TextButton(onClick={ paymentInvoiceId=invoice.id.toString(); paymentAmount=""; section="Payment" }) { Text("Collect due payment") }
             Button(
-             onClick={lifecycleScope.launch{runCatching{val file=InvoicePdf.generate(this@MainActivity,invoice,db.dao().items(invoice.id),db.dao().settings()?:ShopSettings(),invoice.customerId?.let { db.dao().customer(it) });InvoiceSharing.share(this@MainActivity,file,invoice.phone,true)}.onFailure{toast("WhatsApp share failed: ${it.message ?: "unknown error"}")}},
+             onClick={lifecycleScope.launch{runCatching{val file=InvoicePdf.generate(this@MainActivity,invoice,db.dao().items(invoice.id),db.dao().settings()?:ShopSettings(),invoice.customerId?.let { db.dao().customer(it) });InvoiceSharing.share(this@MainActivity,file,invoice.phone,true)}.onFailure{toast("WhatsApp share failed: ${it.message ?: "unknown error"}")}}},
              modifier=Modifier.fillMaxWidth(),
              shape=androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
              colors=ButtonDefaults.buttonColors(containerColor=androidx.compose.ui.graphics.Color(0xFF25D366),contentColor=androidx.compose.ui.graphics.Color.White)
