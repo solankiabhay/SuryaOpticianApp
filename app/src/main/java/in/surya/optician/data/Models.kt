@@ -42,6 +42,7 @@ data class Invoice(
     @ColumnInfo(defaultValue = "''") val prescriptionSummary: String = "",
     @ColumnInfo(defaultValue = "''") val glassType: String = "",
     @ColumnInfo(defaultValue = "''") val deliveryDate: String = "",
+    @ColumnInfo(defaultValue = "NULL") val prescriptionId: Long? = null,
     val createdAt: Long = System.currentTimeMillis()
 ) {
     val duePaise: Long get() = (totalPaise - paidPaise).coerceAtLeast(0)
