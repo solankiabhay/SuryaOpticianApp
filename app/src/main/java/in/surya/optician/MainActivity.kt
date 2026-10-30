@@ -291,6 +291,9 @@ class MainActivity : ComponentActivity() {
     var paymentInvoiceId by remember { mutableStateOf("") }
     var paymentAmount by remember { mutableStateOf("") }
     var paymentMethod by remember { mutableStateOf("Cash") }
+    var paymentReference by remember { mutableStateOf("") }
+    var editingPaymentId by remember { mutableStateOf<Long?>(null) }
+    var paymentDeleteTarget by remember { mutableStateOf<Payment?>(null) }
     var prescriptionCustomerId by remember { mutableStateOf("") }
     var rightSphere by remember { mutableStateOf("") }
     var rightCylinder by remember { mutableStateOf("") }
@@ -982,6 +985,7 @@ class MainActivity : ComponentActivity() {
            }
           }
           OutlinedTextField(paymentAmount, { paymentAmount=it }, label={ Text("Amount received (₹)") }, placeholder={ Text("e.g. 500.00") }, singleLine=true, modifier=Modifier.fillMaxWidth())
+          OutlinedTextField(paymentReference, { paymentReference=it }, label={ Text("Reference / transaction ID (optional)") }, singleLine=true, modifier=Modifier.fillMaxWidth())
           Text("Payment method", style=MaterialTheme.typography.titleSmall)
           Row(horizontalArrangement=Arrangement.spacedBy(6.dp), modifier=Modifier.fillMaxWidth()) {
            listOf("Cash", "Online", "Other").forEach { method ->
@@ -989,17 +993,26 @@ class MainActivity : ComponentActivity() {
            }
           }
           Button(onClick={ lifecycleScope.launch {
-           val id=paymentInvoiceId.toLongOrNull(); val amount=paymentAmount.toDoubleOrNull()
-           if(id==null || amount==null || amount<=0) toast("Enter a valid invoice ID and payment amount")
-           else runCatching { BillingRepository(db).recordPayment(id,(amount*100).toLong(),paymentMethod.trim().ifBlank{"Cash"}) }
-            .onSuccess { toast("Payment recorded successfully"); paymentAmount="" }.onFailure { toast(it.message ?: "Payment failed") }
-          } }, enabled=paymentInvoiceId.toLongOrNull()!=null && (paymentAmount.toDoubleOrNull() ?: 0.0)>0, modifier=Modifier.fillMaxWidth()) { Icon(Icons.Rounded.Check, contentDescription=null); Spacer(Modifier.width(8.dp)); Text("Record payment") }
+           val id=paymentInvoiceId.toLongOrNull()
+           val amount=Money.parseRupeesToPaise(paymentAmount)
+           if(id==null || amount==null || amount<=0L) toast("Enter a valid invoice ID and payment amount")
+           else runCatching {
+            if(editingPaymentId==null) BillingRepository(db).recordPayment(id,amount,paymentMethod.trim().ifBlank{"Cash"},paymentReference)
+            else BillingRepository(db).updatePayment(editingPaymentId!!,amount,paymentMethod,paymentReference)
+           }.onSuccess {
+            toast(if(editingPaymentId==null) "Payment recorded successfully" else "Payment updated successfully")
+            paymentAmount="";paymentReference="";editingPaymentId=null
+           }.onFailure { toast(it.message ?: "Payment save failed") }
+          } }, enabled=paymentInvoiceId.toLongOrNull()!=null && (Money.parseRupeesToPaise(paymentAmount) ?: 0L)>0L, modifier=Modifier.fillMaxWidth()) {
+           Icon(Icons.Rounded.Check, contentDescription=null); Spacer(Modifier.width(8.dp)); Text(if(editingPaymentId==null) "Record payment" else "Update payment")
+          }
+          if(editingPaymentId!=null) TextButton(onClick={editingPaymentId=null;paymentAmount="";paymentReference=""}, modifier=Modifier.fillMaxWidth()) { Text("Cancel payment edit") }
          }
         }
         Spacer(Modifier.height(16.dp))
         Text("Choose an invoice", style=MaterialTheme.typography.titleLarge)
         invoices.forEach { inv ->
-         Card(Modifier.fillMaxWidth().padding(vertical=4.dp).clickable { paymentInvoiceId=inv.id.toString(); paymentAmount="" }) {
+         Card(Modifier.fillMaxWidth().padding(vertical=4.dp).clickable { paymentInvoiceId=inv.id.toString(); paymentAmount="";paymentReference="";editingPaymentId=null }) {
           Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement=Arrangement.spacedBy(10.dp), verticalAlignment=androidx.compose.ui.Alignment.CenterVertically) {
            Surface(shape=androidx.compose.foundation.shape.RoundedCornerShape(12.dp), color=if(inv.duePaise<=0) androidx.compose.ui.graphics.Color(0xFFE0F4E8) else androidx.compose.ui.graphics.Color(0xFFFFE8D6), modifier=Modifier.size(44.dp)) {
             Box(contentAlignment=androidx.compose.ui.Alignment.Center) { Icon(if(inv.duePaise<=0) Icons.Rounded.Check else Icons.Rounded.Payments, contentDescription=null, tint=if(inv.duePaise<=0) androidx.compose.ui.graphics.Color(0xFF176B3A) else androidx.compose.ui.graphics.Color(0xFF9A4D00)) }
@@ -1020,13 +1033,20 @@ class MainActivity : ComponentActivity() {
         if(paymentHistory.isEmpty()) Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(16.dp)) { Text("No payments recorded yet", style=MaterialTheme.typography.titleSmall); Text("Select an invoice and record a payment to see its transactions here.", style=MaterialTheme.typography.bodySmall) } }
         paymentHistory.forEach { payment ->
          Card(Modifier.fillMaxWidth().padding(vertical=3.dp)) {
-          Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement=Arrangement.spacedBy(10.dp), verticalAlignment=androidx.compose.ui.Alignment.CenterVertically) {
-           Surface(shape=androidx.compose.foundation.shape.CircleShape, color=MaterialTheme.colorScheme.secondaryContainer, modifier=Modifier.size(40.dp)) { Box(contentAlignment=androidx.compose.ui.Alignment.Center) { Icon(Icons.Rounded.Check, contentDescription=null, tint=MaterialTheme.colorScheme.primary) } }
-           Column(Modifier.weight(1f)) {
-            Text(payment.method, style=MaterialTheme.typography.titleSmall)
-            Text(java.text.SimpleDateFormat("dd MMM yyyy, hh:mm a", java.util.Locale.getDefault()).format(java.util.Date(payment.paidAt)), style=MaterialTheme.typography.bodySmall)
+          Column(Modifier.fillMaxWidth().padding(12.dp)) {
+           Row(horizontalArrangement=Arrangement.spacedBy(10.dp), verticalAlignment=androidx.compose.ui.Alignment.CenterVertically) {
+            Surface(shape=androidx.compose.foundation.shape.CircleShape, color=MaterialTheme.colorScheme.secondaryContainer, modifier=Modifier.size(40.dp)) { Box(contentAlignment=androidx.compose.ui.Alignment.Center) { Icon(Icons.Rounded.Check, contentDescription=null, tint=MaterialTheme.colorScheme.primary) } }
+            Column(Modifier.weight(1f)) {
+             Text(payment.method, style=MaterialTheme.typography.titleSmall)
+             Text(java.text.SimpleDateFormat("dd MMM yyyy, hh:mm a", java.util.Locale.getDefault()).format(java.util.Date(payment.paidAt)), style=MaterialTheme.typography.bodySmall)
+             if(payment.reference.isNotBlank()) Text("Ref: ${payment.reference}", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Text("+₹${"%.2f".format(payment.amountPaise/100.0)}", style=MaterialTheme.typography.titleMedium, color=MaterialTheme.colorScheme.primary)
            }
-           Text("+₹${"%.2f".format(payment.amountPaise/100.0)}", style=MaterialTheme.typography.titleMedium, color=MaterialTheme.colorScheme.primary)
+           if(canManageRecords()) Row(horizontalArrangement=Arrangement.End, modifier=Modifier.fillMaxWidth()) {
+            TextButton(onClick={ editingPaymentId=payment.id;paymentInvoiceId=payment.invoiceId.toString();paymentAmount="%.2f".format(payment.amountPaise/100.0);paymentMethod=payment.method;paymentReference=payment.reference }) { Text("Edit") }
+            TextButton(onClick={ paymentDeleteTarget=payment }) { Text("Delete", color=MaterialTheme.colorScheme.error) }
+           }
           }
          }
         }
@@ -1456,6 +1476,23 @@ class MainActivity : ComponentActivity() {
       }
       }
      }
+    }
+    paymentDeleteTarget?.let { target ->
+     AlertDialog(
+      onDismissRequest={ paymentDeleteTarget=null },
+      title={ Text("Delete payment?") },
+      text={ Text("Delete this ₹${"%.2f".format(target.amountPaise/100.0)} ${target.method} transaction? The invoice paid and due totals will be recalculated.") },
+      confirmButton={ TextButton(onClick={
+       val selected=target;paymentDeleteTarget=null
+       if(!canDeleteRecords()) denyPermission("delete payment records")
+       else lifecycleScope.launch {
+        runCatching { BillingRepository(db).deletePayment(selected.id) }
+         .onSuccess { if(editingPaymentId==selected.id) {editingPaymentId=null;paymentAmount="";paymentReference=""};toast("Payment deleted and invoice balance recalculated") }
+         .onFailure { toast(it.message ?: "Could not delete payment") }
+       }
+      }) { Text("Delete payment", color=MaterialTheme.colorScheme.error) } },
+      dismissButton={ TextButton(onClick={paymentDeleteTarget=null}) { Text("Cancel") } }
+     )
     }
     invoiceDeleteTarget?.let { target ->
      AlertDialog(
