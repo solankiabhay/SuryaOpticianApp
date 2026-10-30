@@ -18,7 +18,7 @@ class PaymentAccountingTest {
     @Test
     fun editingPaymentCannotExceedInvoiceTotal() {
         assertThrows(IllegalArgumentException::class.java) {
-            PaymentAccounting.revisedPaidTotal(90000L, 20000L, 30000L, 100000L)
+            PaymentAccounting.revisedPaidTotal(90000L, 20000L, 30001L, 100000L)
         }
     }
 
