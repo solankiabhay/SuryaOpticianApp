@@ -311,7 +311,7 @@ class MainActivity : ComponentActivity() {
     }
     LaunchedEffect(query, historyFilter) { billHistoryPage = 0 }
     val billHistoryPageSize = 10
-    val filteredBillHistory = invoices.filter { invoice -> when (billStatusFilter) { "Paid" -> invoice.duePaise <= 0; "Due" -> invoice.duePaise > 0; else -> true } }
+    val filteredBillHistory = invoices.filter { invoice -> when (historyFilter) { "Paid" -> invoice.duePaise <= 0; "Due" -> invoice.duePaise > 0; else -> true } }
     val billHistoryPageCount = maxOf(1, (filteredBillHistory.size + billHistoryPageSize - 1) / billHistoryPageSize)
     val visibleBillHistory = filteredBillHistory.drop(billHistoryPage * billHistoryPageSize).take(billHistoryPageSize)
     val allInvoices by db.dao().invoices().collectAsState(initial = emptyList())
