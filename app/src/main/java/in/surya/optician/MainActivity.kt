@@ -774,6 +774,7 @@ class MainActivity : ComponentActivity() {
           AppField(value=billCustomerAddress, onValueChange={ billCustomerAddress=it }, label="Address (optional)", modifier=Modifier.weight(1.4f), icon=Icons.Rounded.LocationOn)
           AppField(value=billCustomerAge, onValueChange={ billCustomerAge=it.filter(Char::isDigit).take(3) }, label="Age", modifier=Modifier.weight(1f), keyboardType=KeyboardType.Number)
          }
+         AppField(value=billCustomerEmail, onValueChange={ billCustomerEmail=it }, label="Email (optional)", keyboardType=KeyboardType.Email, icon=Icons.Rounded.Email)
          if(billCustomerId.isNotBlank()) StatusPill("Saved customer selected · details update when the bill is saved", Brand.SuccessBg, Brand.Success)
         }
         Spacer(Modifier.height(12.dp))
