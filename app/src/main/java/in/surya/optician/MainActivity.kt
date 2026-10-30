@@ -1229,7 +1229,8 @@ class MainActivity : ComponentActivity() {
           val rightAxisValue=rightAxis.toIntOrNull()
           val leftAxisValue=leftAxis.toIntOrNull()
           val selectedCustomer = if(cid!=null) db.dao().customer(cid) else null
-          if(cid==null || selectedCustomer==null) toast("Select an existing customer")
+          if(cid==null || selectedCustomer==null) toast("Select or add a customer")
+          else if(editingPrescriptionId==null && !returnToBillAfterPrescription && (rxServiceCharge.toBigDecimalOrNull()==null || rxServiceCharge.toBigDecimalOrNull()!! <= java.math.BigDecimal.ZERO || (rxAmountPaid.toBigDecimalOrNull() ?: java.math.BigDecimal.ZERO) < java.math.BigDecimal.ZERO || (rxAmountPaid.toBigDecimalOrNull() ?: java.math.BigDecimal.ZERO) > rxServiceCharge.toBigDecimalOrNull()!!)) toast("Enter a valid fee and received amount")
           else if((rightAxis.isNotBlank() && (rightAxisValue==null || rightAxisValue !in 0..180)) || (leftAxis.isNotBlank() && (leftAxisValue==null || leftAxisValue !in 0..180))) toast("Axis must be a number from 0 to 180")
           else {
            val rx = Prescription(id=editingPrescriptionId ?: 0L, customerId=cid,rightSphere=rightSphere.trim(),rightCylinder=rightCylinder.trim(),rightAxis=rightAxis.trim(),rightAdd=rightAdd.trim(),leftSphere=leftSphere.trim(),leftCylinder=leftCylinder.trim(),leftAxis=leftAxis.trim(),leftAdd=leftAdd.trim(),pd=pd.trim(),notes=prescriptionNotes.trim())
