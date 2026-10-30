@@ -234,6 +234,7 @@ class MainActivity : ComponentActivity() {
     LaunchedEffect(section) { mainScroll.scrollTo(0) }
     var showMoreMenu by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
+     var legacyDownloadFile by remember { mutableStateOf<File?>(null) }
      var reportQuery by remember { mutableStateOf("") }
     var billHistoryPage by remember { mutableIntStateOf(0) }
     var historyFilter by remember { mutableStateOf("All") }
@@ -302,6 +303,13 @@ class MainActivity : ComponentActivity() {
     var reminderInvoice by remember { mutableStateOf<Invoice?>(null) }
     val searchedInvoices by db.dao().searchInvoices(query).collectAsState(initial = emptyList())
     val invoices = searchedInvoices.filter { when(historyFilter) { "Paid" -> it.duePaise <= 0; "Due" -> it.duePaise > 0; else -> true } }
+    val legacyPdfDownloadLauncher = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.CreateDocument("application/pdf")) { destination ->
+     val source = legacyDownloadFile
+     legacyDownloadFile = null
+     if (destination != null && source != null) runCatching {
+      contentResolver.openOutputStream(destination)?.use { output -> source.inputStream().use { input -> input.copyTo(output) } } ?: error("Could not open the selected download location")
+     }.onSuccess { Toast.makeText(this@MainActivity, "Invoice PDF downloaded", Toast.LENGTH_LONG).show() }.onFailure { Toast.makeText(this@MainActivity, it.message ?: "Invoice download failed", Toast.LENGTH_LONG).show() }
+    }
     LaunchedEffect(query, historyFilter) { billHistoryPage = 0 }
     val billHistoryPageSize = 10
     val filteredBillHistory = invoices.filter { invoice -> when (billStatusFilter) { "Paid" -> invoice.duePaise <= 0; "Due" -> invoice.duePaise > 0; else -> true } }
@@ -594,6 +602,7 @@ class MainActivity : ComponentActivity() {
           AppField(value=customerAge, onValueChange={ customerAge=it.filter(Char::isDigit).take(3) }, label="Age", modifier=Modifier.weight(1f), keyboardType=KeyboardType.Number, isError=customerTouched && Validation.ageError(customerAge)!=null, supportingText=if(customerTouched) Validation.ageError(customerAge) else null)
          }
          AppField(value=customerAddress, onValueChange={ customerAddress=it }, label="Address", icon=Icons.Rounded.LocationOn, singleLine=false, minLines=2)
+         AppField(value=customerEmail, onValueChange={ customerEmail=it }, label="Email (optional)", keyboardType=KeyboardType.Email, icon=Icons.Rounded.Email)
          val saveCustomerAction: () -> Unit = { if(!canManageRecords()) { denyPermission("edit customer records") } else lifecycleScope.launch {
          val ageValidation = validateCustomerAge(customerAge)
          val ageValue = ageValidation.age
@@ -622,7 +631,7 @@ class MainActivity : ComponentActivity() {
           val problem = (if(customerName.isBlank()) "Enter the customer name" else null) ?: Validation.phoneError(customerPhone) ?: Validation.ageError(customerAge)
           if(problem!=null) toast(problem) else { saveCustomerAction(); customerTouched=false }
          }, icon=Icons.Rounded.Check)
-         if(selectedCustomerId!=null) SecondaryAction(text="Cancel edit", onClick={ selectedCustomerId=null; customerName=""; customerPhone=""; customerAddress=""; customerAge="" })
+         if(selectedCustomerId!=null) SecondaryAction(text="Cancel edit", onClick={ selectedCustomerId=null; customerName=""; customerPhone=""; customerAddress=""; customerAge=""; customerEmail="" })
         }
         Spacer(Modifier.height(20.dp))
         Text("Saved customers (${customers.size})", style=MaterialTheme.typography.titleLarge)
@@ -637,9 +646,9 @@ class MainActivity : ComponentActivity() {
            AvatarBadge(customer.name)
            Column(Modifier.weight(1f), verticalArrangement=Arrangement.spacedBy(2.dp)) {
             Text(customer.name, style=MaterialTheme.typography.titleMedium)
-            Text(listOfNotNull(customer.phone.takeIf { it.isNotBlank() }, customer.age?.let { "Age $it" }, customer.address.takeIf { it.isNotBlank() }).joinToString("  ·  ").ifBlank { "No additional details" }, style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(listOfNotNull(customer.phone.takeIf { it.isNotBlank() }, customer.age?.let { "Age $it" }, customer.address.takeIf { it.isNotBlank() }, customer.email.takeIf { it.isNotBlank() }).joinToString("  ·  ").ifBlank { "No additional details" }, style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSurfaceVariant)
            }
-           if(canManageRecords()) IconButton(onClick={ selectedCustomerId=customer.id; customerName=customer.name; customerPhone=customer.phone; customerAddress=customer.address; customerAge=customer.age?.toString() ?: ""; lifecycleScope.launch { mainScroll.animateScrollTo(0) } }) { Icon(Icons.Rounded.Edit, contentDescription="Edit customer", tint=MaterialTheme.colorScheme.primary) }
+           if(canManageRecords()) IconButton(onClick={ val form=customer.toEditForm(); selectedCustomerId=form.customerId; customerName=form.name; customerPhone=form.phone; customerAddress=form.address; customerAge=form.age; customerEmail=form.email; lifecycleScope.launch { mainScroll.animateScrollTo(0) } }) { Icon(Icons.Rounded.Edit, contentDescription="Edit customer", tint=MaterialTheme.colorScheme.primary) }
            if(canDeleteRecords()) IconButton(onClick={ if(!canDeleteRecords()) denyPermission("delete customers") else lifecycleScope.launch {
             val hasInvoices=db.dao().customerInvoiceCount(customer.id)>0
             val hasPrescriptions=db.dao().customerPrescriptionCount(customer.id)>0
@@ -747,7 +756,7 @@ class MainActivity : ComponentActivity() {
          AppField(value=billCustomerSearch, onValueChange={ billCustomerSearch=it }, label="Find saved customer", placeholder="Search by name or phone", icon=Icons.Rounded.Search)
          val matchedCustomers = customers.filter { billCustomerSearch.isNotBlank() && (it.name.contains(billCustomerSearch, true) || it.phone.contains(billCustomerSearch, true)) }.take(4)
          matchedCustomers.forEach { customer ->
-          RecordCard(onClick={ billCustomerId=customer.id.toString(); billCustomer=customer.name; billPhone=customer.phone; billCustomerAddress=customer.address; billCustomerAge=customer.age?.toString().orEmpty(); billPrescriptionId=""; billCustomerSearch=customer.name }) {
+          RecordCard(onClick={ billCustomerId=customer.id.toString(); billCustomer=customer.name; billPhone=customer.phone; billCustomerAddress=customer.address; billCustomerAge=customer.age?.toString().orEmpty(); billCustomerEmail=customer.email; billPrescriptionId=""; billCustomerSearch=customer.name }) {
            Row(verticalAlignment=Alignment.CenterVertically, horizontalArrangement=Arrangement.spacedBy(12.dp)) {
             AvatarBadge(customer.name)
             Column(Modifier.weight(1f)) {
@@ -1350,6 +1359,7 @@ class MainActivity : ComponentActivity() {
              if(canDeleteRecords()) TextButton(onClick={ invoiceDeleteTarget=invoice }) { Icon(Icons.Rounded.Delete, contentDescription=null, modifier=Modifier.size(18.dp), tint=MaterialTheme.colorScheme.error); Spacer(Modifier.width(6.dp)); Text("Delete", color=MaterialTheme.colorScheme.error) }
              TextButton(onClick={lifecycleScope.launch{runCatching{val file=InvoicePdf.generate(this@MainActivity,invoice,db.dao().items(invoice.id),db.dao().settings()?:ShopSettings(),invoice.customerId?.let { db.dao().customer(it) });val uri=FileProvider.getUriForFile(this@MainActivity,"${packageName}.fileprovider",file);startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(uri,"application/pdf").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION))}.onFailure{toast("PDF preview failed. Install a PDF viewer.")}}}){ Icon(Icons.Rounded.Description, contentDescription=null, modifier=Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("PDF") }
              TextButton(onClick={lifecycleScope.launch{runCatching{val file=InvoicePdf.generate(this@MainActivity,invoice,db.dao().items(invoice.id),db.dao().settings()?:ShopSettings(),invoice.customerId?.let { db.dao().customer(it) });printPdf(file,"Invoice ${invoice.number}")}.onFailure{toast("Could not start system print")}}}){ Icon(Icons.Rounded.Print, contentDescription=null, modifier=Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("Print") }
+              TextButton(onClick={lifecycleScope.launch{runCatching{val file=InvoicePdf.generate(this@MainActivity,invoice,db.dao().items(invoice.id),db.dao().settings()?:ShopSettings(),invoice.customerId?.let { db.dao().customer(it) });legacyDownloadFile=file;legacyPdfDownloadLauncher.launch("Invoice-${invoice.number}.pdf")}.onFailure{toast(it.message ?: "Invoice download failed")}}}){ Icon(Icons.Rounded.FileDownload, contentDescription=null, modifier=Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("Download") }
              Button(onClick={lifecycleScope.launch{runCatching{val file=InvoicePdf.generate(this@MainActivity,invoice,db.dao().items(invoice.id),db.dao().settings()?:ShopSettings(),invoice.customerId?.let { db.dao().customer(it) });InvoiceSharing.share(this@MainActivity,file,invoice.phone,true)}.onFailure{toast("Invoice share failed")}}}){ Icon(Icons.Rounded.Share, contentDescription=null, modifier=Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("WhatsApp") }
             }
             if(invoice.duePaise>0) TextButton(onClick={reminderInvoice=invoice}){ Icon(Icons.Rounded.NotificationsActive, contentDescription=null, modifier=Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("Reminder") }
