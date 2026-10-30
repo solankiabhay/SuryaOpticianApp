@@ -832,11 +832,14 @@ class MainActivity : ComponentActivity() {
            Surface(shape=RoundedCornerShape(14.dp), color=MaterialTheme.colorScheme.secondaryContainer, modifier=Modifier.fillMaxWidth()) {
             Column(Modifier.padding(12.dp), verticalArrangement=Arrangement.spacedBy(2.dp)) {
              Text("Prescription attached to this bill", style=MaterialTheme.typography.titleSmall, color=MaterialTheme.colorScheme.onSecondaryContainer)
-             Text("Right eye (OD): SPH ${rx.rightSphere.ifBlank{"—"}} · CYL ${rx.rightCylinder.ifBlank{"—"}} · Axis ${rx.rightAxis.ifBlank{"—"}} · ADD ${rx.rightAdd.ifBlank{"—"}}", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSecondaryContainer)
-             Text("Left eye (OS): SPH ${rx.leftSphere.ifBlank{"—"}} · CYL ${rx.leftCylinder.ifBlank{"—"}} · Axis ${rx.leftAxis.ifBlank{"—"}} · ADD ${rx.leftAdd.ifBlank{"—"}}", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSecondaryContainer)
-             Text("PD: ${rx.pd.ifBlank{"—"}}", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSecondaryContainer)
-             if(rx.notes.isNotBlank()) Text("Notes: ${rx.notes}", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSecondaryContainer)
-             TextButton(onClick={ billPrescriptionId="" }) { Text("Remove prescription") }
+             TextButton(onClick={ billPrescriptionExpanded=!billPrescriptionExpanded }) { Text(if(billPrescriptionExpanded) "Hide Prescription" else "See Prescription") }
+             if(billPrescriptionExpanded) {
+              Text("Right eye (OD): SPH ${rx.rightSphere.ifBlank{"—"}} · CYL ${rx.rightCylinder.ifBlank{"—"}} · Axis ${rx.rightAxis.ifBlank{"—"}} · ADD ${rx.rightAdd.ifBlank{"—"}}", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSecondaryContainer)
+              Text("Left eye (OS): SPH ${rx.leftSphere.ifBlank{"—"}} · CYL ${rx.leftCylinder.ifBlank{"—"}} · Axis ${rx.leftAxis.ifBlank{"—"}} · ADD ${rx.leftAdd.ifBlank{"—"}}", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSecondaryContainer)
+              Text("PD: ${rx.pd.ifBlank{"—"}}", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSecondaryContainer)
+              if(rx.notes.isNotBlank()) Text("Notes: ${rx.notes}", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSecondaryContainer)
+             }
+             TextButton(onClick={ billPrescriptionId=""; billPrescriptionExpanded=false }) { Text("Remove prescription") }
             }
            }
           }
