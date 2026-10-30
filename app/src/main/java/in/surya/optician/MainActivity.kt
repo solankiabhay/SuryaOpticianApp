@@ -628,7 +628,8 @@ class MainActivity : ComponentActivity() {
            toast("Customer selection expired. Please select the customer again.")
           } else {
            runCatching {
-            db.dao().updateCustomer(Customer(id=customerId, name=customerName.trim(), phone=customerPhone.trim(), address=customerAddress.trim(), age=ageValue, email=customerEmail.trim()))
+            val existingCustomer=db.dao().customer(customerId) ?: error("Customer no longer exists. Refresh the list and try again.")
+            db.dao().updateCustomer(existingCustomer.copy(name=customerName.trim(), phone=customerPhone.trim(), address=customerAddress.trim(), age=ageValue, email=customerEmail.trim()))
            }.onSuccess {
             selectedCustomerId=null; customerName=""; customerPhone=""; customerAddress=""; customerAge=""; customerEmail=""; toast("Customer updated")
            }.onFailure { error ->
@@ -702,7 +703,10 @@ class MainActivity : ComponentActivity() {
          } else {
           val id=selectedProductId
           if(id==null) toast("Product selection expired. Select the product again.")
-          else runCatching { db.dao().updateProduct(Product(id=id, name=productName.trim(), sku=productSku.trim(), pricePaise=(price*100).toLong(), stock=stock, lowStock=low, costPaise=(cost*100).toLong(), category=productCategory.trim())) }
+          else runCatching {
+           val existingProduct=db.dao().product(id) ?: error("Product no longer exists. Refresh inventory and try again.")
+           db.dao().updateProduct(existingProduct.copy(name=productName.trim(), sku=productSku.trim(), pricePaise=(price*100).toLong(), stock=stock, lowStock=low, costPaise=(cost*100).toLong(), category=productCategory.trim()))
+          }
            .onSuccess { selectedProductId=null; productName=""; productSku=""; productPrice=""; productCost="0"; productCategory=""; productStock="1"; productLowStock="3"; toast("Product and stock updated") }
            .onFailure { toast(it.message ?: "Could not update product") }
          }
@@ -856,7 +860,7 @@ class MainActivity : ComponentActivity() {
               Text("PD: ${rx.pd.ifBlank{"—"}}", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSecondaryContainer)
               if(rx.notes.isNotBlank()) Text("Notes: ${rx.notes}", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSecondaryContainer)
              }
-             TextButton(onClick={ billPrescriptionId=""; billPrescriptionExpanded=false }) { Text("Remove prescription") }
+             TextButton(onClick={ billPrescriptionId=""; billPrescriptionSummary=""; billPrescriptionExpanded=false }) { Text("Remove prescription") }
             }
            }
           }
