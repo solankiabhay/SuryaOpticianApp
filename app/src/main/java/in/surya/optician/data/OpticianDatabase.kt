@@ -45,6 +45,7 @@ interface OpticianDao {
  @Query("SELECT COALESCE(SUM(amountPaise),0) FROM payments WHERE invoiceId=:id") suspend fun paid(id: Long): Long
  @Query("UPDATE invoices SET paidPaise=:amount WHERE id=:id") suspend fun setPaid(id: Long, amount: Long)
  @Query("SELECT * FROM payments WHERE invoiceId=:id ORDER BY paidAt DESC") fun payments(id: Long): Flow<List<Payment>>
+ @Query("SELECT * FROM payments ORDER BY paidAt DESC") fun allPayments(): Flow<List<Payment>>
  @Query("SELECT * FROM shop_settings WHERE id=1") suspend fun settings(): ShopSettings?
  @Insert(onConflict=OnConflictStrategy.REPLACE) suspend fun saveSettings(s: ShopSettings)
  @Query("SELECT COUNT(*) FROM invoices") fun invoiceCount(): Flow<Int>
