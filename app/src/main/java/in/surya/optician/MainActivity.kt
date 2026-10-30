@@ -708,8 +708,18 @@ class MainActivity : ComponentActivity() {
           db.dao().addCustomer(Customer(name=customerName.trim(), phone=customerPhone.trim(), address=customerAddress.trim(), age=ageValue, email=customerEmail.trim()))
           customerName=""; customerPhone=""; customerAddress=""; customerAge=""; customerEmail=""; toast("Customer saved")
          } else {
-          db.dao().updateCustomer(Customer(id=selectedCustomerId!!, name=customerName.trim(), phone=customerPhone.trim(), address=customerAddress.trim(), age=ageValue, email=customerEmail.trim()))
-          selectedCustomerId=null; customerName=""; customerPhone=""; customerAddress=""; customerAge=""; customerEmail=""; toast("Customer updated")
+          val customerId = selectedCustomerId
+          if (customerId == null) {
+           toast("Customer selection expired. Please select the customer again.")
+          } else {
+           runCatching {
+            db.dao().updateCustomer(Customer(id=customerId, name=customerName.trim(), phone=customerPhone.trim(), address=customerAddress.trim(), age=ageValue, email=customerEmail.trim()))
+           }.onSuccess {
+            selectedCustomerId=null; customerName=""; customerPhone=""; customerAddress=""; customerAge=""; customerEmail=""; toast("Customer updated")
+           }.onFailure { error ->
+            toast("Could not update customer: ${error.message ?: "Please try again"}")
+           }
+          }
          }
         } }, modifier = Modifier.fillMaxWidth()) { Text(if (selectedCustomerId == null) "Save customer" else "Update customer") }
         if (selectedCustomerId != null) TextButton(onClick={ selectedCustomerId=null; customerName=""; customerPhone=""; customerAddress=""; customerAge=""; customerEmail="" }) { Text("Cancel customer edit") }
@@ -720,7 +730,15 @@ class MainActivity : ComponentActivity() {
           Text(customer.name, style=MaterialTheme.typography.titleMedium)
           Text(listOfNotNull(customer.phone.takeIf { it.isNotBlank() }, customer.age?.let { "Age $it years" }, customer.address.takeIf { it.isNotBlank() }, customer.email.takeIf { it.isNotBlank() }).joinToString("  ·  ").ifBlank { "No additional details" }, style=MaterialTheme.typography.bodyMedium)
           Row {
-           if(canManageRecords()) TextButton(onClick={ selectedCustomerId=customer.id; customerName=customer.name; customerPhone=customer.phone; customerAddress=customer.address; customerAge=customer.age?.toString() ?: ""; customerEmail=customer.email }) { Text("✎  Edit") }
+           if(canManageRecords()) TextButton(onClick={
+             val form = customer.toEditForm()
+             selectedCustomerId=form.customerId
+             customerName=form.name
+             customerPhone=form.phone
+             customerAddress=form.address
+             customerAge=form.age
+             customerEmail=form.email
+            }) { Text("✎  Edit") }
            if(canDeleteRecords()) TextButton(onClick={ if(!canDeleteRecords()) denyPermission("delete customers") else lifecycleScope.launch {
             val hasInvoices=db.dao().customerInvoiceCount(customer.id)>0
             val hasPrescriptions=db.dao().customerPrescriptionCount(customer.id)>0
