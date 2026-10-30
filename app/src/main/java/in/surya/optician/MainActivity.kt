@@ -299,6 +299,8 @@ class MainActivity : ComponentActivity() {
     var billPrescriptionId by remember { mutableStateOf("") }
     var billPrescriptionSummary by remember { mutableStateOf("") }
     var billPrescriptionExpanded by remember { mutableStateOf(false) }
+    var billInlinePrescriptionExpanded by remember { mutableStateOf(false) }
+    var billPrescriptionCharge by remember { mutableStateOf("0") }
     var billGlassType by remember { mutableStateOf("") }
     var billDeliveryDate by remember { mutableStateOf("") }
     var showBillPreview by remember { mutableStateOf(false) }
@@ -308,6 +310,15 @@ class MainActivity : ComponentActivity() {
     var paymentAmount by remember { mutableStateOf("") }
     var paymentMethod by remember { mutableStateOf("Cash") }
     var prescriptionCustomerId by remember { mutableStateOf("") }
+    var showPrescriptionCustomerForm by remember { mutableStateOf(false) }
+    var rxCustomerName by remember { mutableStateOf("") }
+    var rxCustomerPhone by remember { mutableStateOf("") }
+    var rxCustomerAddress by remember { mutableStateOf("") }
+    var rxCustomerAge by remember { mutableStateOf("") }
+    var rxCustomerEmail by remember { mutableStateOf("") }
+    var rxServiceCharge by remember { mutableStateOf("") }
+    var rxAmountPaid by remember { mutableStateOf("") }
+    var rxPaymentMethod by remember { mutableStateOf("Cash") }
     var rightSphere by remember { mutableStateOf("") }
     var rightCylinder by remember { mutableStateOf("") }
     var rightAxis by remember { mutableStateOf("") }
@@ -793,7 +804,7 @@ class MainActivity : ComponentActivity() {
          Column(Modifier.padding(14.dp)) {
           Text(if(billLines.isEmpty()) "BILL SUMMARY" else "${billLines.size} ${if(billLines.size==1) "item" else "items"} added", style=MaterialTheme.typography.labelLarge)
           Spacer(Modifier.height(4.dp))
-          Text("₹${"%.2f".format(billLines.sumOf { it.total }/100.0)}", style=MaterialTheme.typography.headlineMedium, color=MaterialTheme.colorScheme.primary)
+          Text("₹${"%.2f".format((billLines.sumOf { it.total } + if(billInlinePrescriptionExpanded && (listOf(rightSphere,rightCylinder,rightAxis,rightAdd,leftSphere,leftCylinder,leftAxis,leftAdd,pd,prescriptionNotes).any { it.isNotBlank() } || selectedBillPrescription != null || billPrescriptionSummary.isNotBlank())) ((billPrescriptionCharge.toDoubleOrNull() ?: 0.0)*100).toLong() else 0L)/100.0)}", style=MaterialTheme.typography.headlineMedium, color=MaterialTheme.colorScheme.primary)
          }
         }
         Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(12.dp), verticalArrangement=Arrangement.spacedBy(8.dp)) {
@@ -869,6 +880,7 @@ class MainActivity : ComponentActivity() {
            Column(Modifier.weight(1f)) {
             Text("Prescription", style=MaterialTheme.typography.titleSmall)
             Text("Optional · attach an existing eye prescription", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSurfaceVariant)
+            Button(onClick={ billInlinePrescriptionExpanded=!billInlinePrescriptionExpanded }, modifier=Modifier.fillMaxWidth()) { Text(if(billInlinePrescriptionExpanded) "Remove Prescription" else "＋ Add Prescription") }
            }
            OutlinedButton(onClick={
             val cid=billCustomerId.toLongOrNull()
@@ -896,7 +908,26 @@ class MainActivity : ComponentActivity() {
             }
            }) { Text("＋ Add") }
           }
-          if (billCustomerId.toLongOrNull()!=null) {
+          if (billInlinePrescriptionExpanded) {
+           OutlinedTextField(billPrescriptionCharge, { billPrescriptionCharge=it.filter { ch -> ch.isDigit() || ch=='.' }.let { v -> if(v.count { ch -> ch=='.' }<=1) v else v.dropLast(1) } }, label={Text("Prescription charges ₹ *")}, supportingText={Text("This amount will be added to the bill total.")}, modifier=Modifier.fillMaxWidth(), singleLine=true, keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Decimal))
+           Text("RIGHT EYE (OD)", style=MaterialTheme.typography.labelMedium, color=MaterialTheme.colorScheme.primary)
+           Row(horizontalArrangement=Arrangement.spacedBy(6.dp), modifier=Modifier.fillMaxWidth()) {
+            OutlinedTextField(rightSphere,{rightSphere=it},label={Text("SPH")},modifier=Modifier.weight(1f),singleLine=true)
+            OutlinedTextField(rightCylinder,{rightCylinder=it},label={Text("CYL")},modifier=Modifier.weight(1f),singleLine=true)
+            OutlinedTextField(rightAxis,{rightAxis=it.filter(Char::isDigit).take(3)},label={Text("AXIS")},modifier=Modifier.weight(1f),singleLine=true,keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number))
+            OutlinedTextField(rightAdd,{rightAdd=it},label={Text("ADD")},modifier=Modifier.weight(1f),singleLine=true)
+           }
+           Text("LEFT EYE (OS)", style=MaterialTheme.typography.labelMedium, color=MaterialTheme.colorScheme.secondary)
+           Row(horizontalArrangement=Arrangement.spacedBy(6.dp), modifier=Modifier.fillMaxWidth()) {
+            OutlinedTextField(leftSphere,{leftSphere=it},label={Text("SPH")},modifier=Modifier.weight(1f),singleLine=true)
+            OutlinedTextField(leftCylinder,{leftCylinder=it},label={Text("CYL")},modifier=Modifier.weight(1f),singleLine=true)
+            OutlinedTextField(leftAxis,{leftAxis=it.filter(Char::isDigit).take(3)},label={Text("AXIS")},modifier=Modifier.weight(1f),singleLine=true,keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number))
+            OutlinedTextField(leftAdd,{leftAdd=it},label={Text("ADD")},modifier=Modifier.weight(1f),singleLine=true)
+           }
+           OutlinedTextField(pd,{pd=it},label={Text("PD (mm)")},modifier=Modifier.fillMaxWidth(),singleLine=true)
+           OutlinedTextField(prescriptionNotes,{prescriptionNotes=it},label={Text("Prescription notes")},modifier=Modifier.fillMaxWidth(),minLines=2)
+          }
+          if (billCustomerId.toLongOrNull()!=null && billInlinePrescriptionExpanded) {
            if (billPrescriptions.isNotEmpty()) {
             Box(Modifier.fillMaxWidth()) {
              OutlinedButton(onClick={ billPrescriptionExpanded=true }, modifier=Modifier.fillMaxWidth(), shape=androidx.compose.foundation.shape.RoundedCornerShape(12.dp)) {
@@ -940,7 +971,7 @@ class MainActivity : ComponentActivity() {
           .onFailure { toast(it.message ?: "Invalid item") }
         }, modifier=Modifier.fillMaxWidth(), shape=androidx.compose.foundation.shape.RoundedCornerShape(12.dp)) { Text("＋  Add more item") }
         Text("4 · BILL ITEMS (${billLines.size})", style=MaterialTheme.typography.labelLarge, color=MaterialTheme.colorScheme.primary)
-        Text("Items in cart · ₹${"%.2f".format(billLines.sumOf { it.total }/100.0)}", style=MaterialTheme.typography.titleSmall)
+        Text("Items + prescription charges · ₹${"%.2f".format((billLines.sumOf { it.total } + if(billInlinePrescriptionExpanded && (listOf(rightSphere,rightCylinder,rightAxis,rightAdd,leftSphere,leftCylinder,leftAxis,leftAdd,pd,prescriptionNotes).any { it.isNotBlank() } || selectedBillPrescription != null || billPrescriptionSummary.isNotBlank())) ((billPrescriptionCharge.toDoubleOrNull() ?: 0.0)*100).toLong() else 0L)/100.0)}", style=MaterialTheme.typography.titleSmall)
         billLines.forEachIndexed { index, line ->
          Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.SpaceBetween) {
           Text("${index+1}. ${line.description} × ${line.qty} · ₹${"%.2f".format(line.total/100.0)}", modifier=Modifier.weight(1f))
@@ -972,7 +1003,20 @@ class MainActivity : ComponentActivity() {
           runCatching { BillLine(pid,billDescription.trim(),qty,(rate*100).toLong(),(discount*100).toLong(),(tax*100).toLong()) }
            .getOrElse { toast(it.message ?: "Current item is invalid"); return@launch }
          }
-         val linesToSave = if(pendingLine==null) billLines else billLines + pendingLine
+         val baseLinesToSave = if(pendingLine==null) billLines else billLines + pendingLine
+         val prescriptionAmount = billPrescriptionCharge.toDoubleOrNull()
+         val hasInlinePrescription = listOf(rightSphere,rightCylinder,rightAxis,rightAdd,leftSphere,leftCylinder,leftAxis,leftAdd,pd,prescriptionNotes).any { it.isNotBlank() }
+         val hasSavedPrescription = selectedBillPrescription != null || billPrescriptionSummary.isNotBlank()
+         val prescriptionAdded = billInlinePrescriptionExpanded && (hasInlinePrescription || hasSavedPrescription)
+         if (billInlinePrescriptionExpanded && !prescriptionAdded) {
+          toast("Enter prescription details or select a saved prescription")
+          return@launch
+         }
+         if (prescriptionAdded && (prescriptionAmount == null || prescriptionAmount <= 0)) {
+          toast("Enter a prescription charge greater than ₹0")
+          return@launch
+         }
+         val linesToSave = if (prescriptionAdded && (prescriptionAmount ?: 0.0) > 0) baseLinesToSave + BillLine(null,"Prescription Charges",1,((prescriptionAmount ?: 0.0)*100).toLong(),0,0) else baseLinesToSave
          val paid=billPaid.toDoubleOrNull()
          val cid=billCustomerId.toLongOrNull()
          val existingCustomer=if(cid!=null) db.dao().customer(cid) else null
@@ -996,12 +1040,17 @@ class MainActivity : ComponentActivity() {
             db.dao().addCustomer(Customer(name=finalCustomerName, phone=billPhone.trim(), address=billCustomerAddress.trim(), age=age, email=billCustomerEmail.trim()))
            }
            val finalPhone = billPhone.trim().ifBlank { matchedCustomer?.phone.orEmpty() }
+           require(rightAxis.isBlank() || (rightAxis.toIntOrNull() ?: -1) in 0..180) { "Right eye axis must be between 0 and 180" }
+           require(leftAxis.isBlank() || (leftAxis.toIntOrNull() ?: -1) in 0..180) { "Left eye axis must be between 0 and 180" }
            val draft = NewBill(
             customerId=savedCustomerId, customerName=finalCustomerName, phone=finalPhone,
             lines=linesToSave, paidPaise=(paid*100).toLong(), method=billPaymentMethod,
             glassType=billGlassType.trim(), deliveryDate=billDeliveryDate.trim(),
-            prescriptionSummary=selectedBillPrescription?.let { rx -> listOf(
-             "Right eye (OD): SPH ${rx.rightSphere.ifBlank{"—"}}, CYL ${rx.rightCylinder.ifBlank{"—"}}, Axis ${rx.rightAxis.ifBlank{"—"}}, ADD ${rx.rightAdd.ifBlank{"—"}}",
+            prescriptionSummary=if(listOf(rightSphere,rightCylinder,rightAxis,rightAdd,leftSphere,leftCylinder,leftAxis,leftAdd,pd,prescriptionNotes).any { it.isNotBlank() }) listOf(
+             "Right eye (OD): SPH ${rightSphere.ifBlank{"—"}}, CYL ${rightCylinder.ifBlank{"—"}}, Axis ${rightAxis.ifBlank{"—"}}, ADD ${rightAdd.ifBlank{"—"}}",
+             "Left eye (OS): SPH ${leftSphere.ifBlank{"—"}}, CYL ${leftCylinder.ifBlank{"—"}}, Axis ${leftAxis.ifBlank{"—"}}, ADD ${leftAdd.ifBlank{"—"}}",
+             "PD: ${pd.ifBlank{"—"}}", prescriptionNotes.takeIf { it.isNotBlank() }?.let { "Notes: $it" }
+            ).filterNotNull().joinToString("\n") else selectedBillPrescription?.let { rx -> listOf(             "Right eye (OD): SPH ${rx.rightSphere.ifBlank{"—"}}, CYL ${rx.rightCylinder.ifBlank{"—"}}, Axis ${rx.rightAxis.ifBlank{"—"}}, ADD ${rx.rightAdd.ifBlank{"—"}}",
              "Left eye (OS): SPH ${rx.leftSphere.ifBlank{"—"}}, CYL ${rx.leftCylinder.ifBlank{"—"}}, Axis ${rx.leftAxis.ifBlank{"—"}}, ADD ${rx.leftAdd.ifBlank{"—"}}",
              "PD: ${rx.pd.ifBlank{"—"}}", rx.notes.takeIf { it.isNotBlank() }?.let { "Notes: $it" }
             ).filterNotNull().joinToString("\n") } ?: billPrescriptionSummary
@@ -1009,7 +1058,7 @@ class MainActivity : ComponentActivity() {
            if(editingInvoiceId==null) BillingRepository(db).createBill(draft)
            else { BillingRepository(db).updateBill(editingInvoiceId!!,draft); editingInvoiceId!! }
           }
-         }.onSuccess { id -> toast(if(editingInvoiceId==null) "Invoice created: #$id" else "Invoice updated"); section="Bills"; editingInvoiceId=null; billCustomer=""; billCustomerId=""; billPhone=""; billCustomerAddress=""; billCustomerAge=""; billCustomerSearch=""; billLines=emptyList(); billProductId=""; billDescription=""; billQty="1"; billRate=""; billDiscount="0"; billTax="0"; billPaid="0"; billPaymentMethod="Cash"; billPrescriptionId=""; billPrescriptionSummary=""; billGlassType=""; billDeliveryDate="" }
+         }.onSuccess { id -> toast(if(editingInvoiceId==null) "Invoice created: #$id" else "Invoice updated"); section="Bills"; editingInvoiceId=null; billCustomer=""; billCustomerId=""; billPhone=""; billCustomerAddress=""; billCustomerAge=""; billCustomerSearch=""; billLines=emptyList(); billProductId=""; billDescription=""; billQty="1"; billRate=""; billDiscount="0"; billTax="0"; billPaid="0"; billPaymentMethod="Cash"; billPrescriptionId=""; billPrescriptionSummary=""; rightSphere="";rightCylinder="";rightAxis="";rightAdd="";leftSphere="";leftCylinder="";leftAxis="";leftAdd="";pd="";prescriptionNotes="";billInlinePrescriptionExpanded=false; billPrescriptionCharge="0"; billGlassType=""; billDeliveryDate="" }
           .onFailure { toast(it.message ?: "Could not create invoice") }
         } }, modifier=Modifier.fillMaxWidth()) { Text(if(editingInvoiceId==null) "Create bill and deduct stock" else "Save bill changes") }
        }
@@ -1094,6 +1143,23 @@ class MainActivity : ComponentActivity() {
          Card(Modifier.fillMaxWidth()) {
           Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement=Arrangement.spacedBy(10.dp)) {
            Text("1. CUSTOMER", style=MaterialTheme.typography.labelLarge, color=MaterialTheme.colorScheme.primary)
+           OutlinedButton(onClick={ showPrescriptionCustomerForm=!showPrescriptionCustomerForm }, modifier=Modifier.fillMaxWidth()) { Text(if(showPrescriptionCustomerForm) "Close Add Customer" else "＋ Add Customer") }
+           if(showPrescriptionCustomerForm) {
+            OutlinedTextField(rxCustomerName,{rxCustomerName=it},label={Text("Customer name *")},modifier=Modifier.fillMaxWidth(),singleLine=true)
+            OutlinedTextField(rxCustomerPhone,{rxCustomerPhone=it.filter(Char::isDigit).take(10)},label={Text("Mobile number")},modifier=Modifier.fillMaxWidth(),singleLine=true,keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Phone))
+            OutlinedTextField(rxCustomerAddress,{rxCustomerAddress=it},label={Text("Address")},modifier=Modifier.fillMaxWidth(),minLines=2)
+            OutlinedTextField(rxCustomerAge,{rxCustomerAge=it.filter(Char::isDigit).take(3)},label={Text("Age")},modifier=Modifier.fillMaxWidth(),singleLine=true,keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number))
+            OutlinedTextField(rxCustomerEmail,{rxCustomerEmail=it},label={Text("Email (optional)")},modifier=Modifier.fillMaxWidth(),singleLine=true)
+            Button(onClick={ lifecycleScope.launch {
+             val name=rxCustomerName.trim()
+             val age=rxCustomerAge.toIntOrNull()
+             if(name.isBlank()) toast("Customer name is required")
+             else if(rxCustomerAge.isNotBlank() && (age==null || age !in 1..120)) toast("Enter a valid age")
+             else runCatching { db.dao().addCustomer(Customer(name=name,phone=rxCustomerPhone.trim(),address=rxCustomerAddress.trim(),age=age,email=rxCustomerEmail.trim())) }
+              .onSuccess { newId -> prescriptionCustomerId=newId.toString(); showPrescriptionCustomerForm=false; rxCustomerName="";rxCustomerPhone="";rxCustomerAddress="";rxCustomerAge="";rxCustomerEmail="";toast("Customer added and selected") }
+              .onFailure { toast(it.message ?: "Could not add customer") }
+            } },modifier=Modifier.fillMaxWidth(),enabled=rxCustomerName.isNotBlank()) { Text("Save & Select Customer") }
+           }
            OutlinedTextField(prescriptionCustomerId, { prescriptionCustomerId=it.filter(Char::isDigit) }, label={ Text("Customer ID") }, placeholder={ Text("Enter or select a customer below") }, modifier=Modifier.fillMaxWidth(), singleLine=true, keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number))
            val selectedPrescriptionCustomer = customers.firstOrNull { it.id.toString()==prescriptionCustomerId }
            if(selectedPrescriptionCustomer!=null) {
@@ -1128,7 +1194,15 @@ class MainActivity : ComponentActivity() {
            Row(verticalAlignment=Alignment.CenterVertically, horizontalArrangement=Arrangement.spacedBy(8.dp)) {
             Surface(shape=androidx.compose.foundation.shape.RoundedCornerShape(8.dp), color=MaterialTheme.colorScheme.primary, modifier=Modifier.size(36.dp)) { Box(contentAlignment=Alignment.Center) { Text("R", color=MaterialTheme.colorScheme.onPrimary, style=MaterialTheme.typography.titleMedium) } }
             Column(Modifier.weight(1f)) {
-             Text("RIGHT EYE", style=MaterialTheme.typography.titleMedium, color=MaterialTheme.colorScheme.primary)
+             Text("EYE TEST INVOICE & PAYMENT", style=MaterialTheme.typography.titleMedium, color=MaterialTheme.colorScheme.primary)
+           OutlinedTextField(rxServiceCharge,{rxServiceCharge=it.filter { ch -> ch.isDigit() || ch=='.' }},label={Text("Eye test & prescription fee ₹ *")},modifier=Modifier.fillMaxWidth(),singleLine=true,keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Decimal))
+           OutlinedTextField(rxAmountPaid,{rxAmountPaid=it.filter { ch -> ch.isDigit() || ch=='.' }},label={Text("Amount received ₹")},modifier=Modifier.fillMaxWidth(),singleLine=true,keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Decimal))
+           Text("Payment method",style=MaterialTheme.typography.labelMedium)
+           Row(horizontalArrangement=Arrangement.spacedBy(6.dp)) { listOf("Cash","UPI","Card","Bank").forEach { method -> FilterChip(selected=rxPaymentMethod==method,onClick={rxPaymentMethod=method},label={Text(method)}) } }
+           val rxTotalPreview=rxServiceCharge.toDoubleOrNull() ?: 0.0
+           val rxPaidPreview=rxAmountPaid.toDoubleOrNull() ?: 0.0
+           Text("Total ₹%.2f  ·  Due ₹%.2f".format(rxTotalPreview,(rxTotalPreview-rxPaidPreview).coerceAtLeast(0.0)),style=MaterialTheme.typography.titleMedium,color=MaterialTheme.colorScheme.primary)
+           Text("RIGHT EYE", style=MaterialTheme.typography.titleMedium, color=MaterialTheme.colorScheme.primary)
              Text("OD · Oculus Dexter", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSurfaceVariant)
             }
            }
@@ -1173,13 +1247,27 @@ class MainActivity : ComponentActivity() {
           val rightAxisValue=rightAxis.toIntOrNull()
           val leftAxisValue=leftAxis.toIntOrNull()
           val selectedCustomer = if(cid!=null) db.dao().customer(cid) else null
-          if(cid==null || selectedCustomer==null) toast("Select an existing customer")
+          if(cid==null || selectedCustomer==null) toast("Select or add a customer")
+          else if(editingPrescriptionId==null && !returnToBillAfterPrescription && (rxServiceCharge.toBigDecimalOrNull()==null || rxServiceCharge.toBigDecimalOrNull()!! <= java.math.BigDecimal.ZERO || (rxAmountPaid.toBigDecimalOrNull() ?: java.math.BigDecimal.ZERO) < java.math.BigDecimal.ZERO || (rxAmountPaid.toBigDecimalOrNull() ?: java.math.BigDecimal.ZERO) > rxServiceCharge.toBigDecimalOrNull()!!)) toast("Enter a valid fee and received amount")
           else if((rightAxis.isNotBlank() && (rightAxisValue==null || rightAxisValue !in 0..180)) || (leftAxis.isNotBlank() && (leftAxisValue==null || leftAxisValue !in 0..180))) toast("Axis must be a number from 0 to 180")
           else {
            val rx = Prescription(id=editingPrescriptionId ?: 0L, customerId=cid,rightSphere=rightSphere.trim(),rightCylinder=rightCylinder.trim(),rightAxis=rightAxis.trim(),rightAdd=rightAdd.trim(),leftSphere=leftSphere.trim(),leftCylinder=leftCylinder.trim(),leftAxis=leftAxis.trim(),leftAdd=leftAdd.trim(),pd=pd.trim(),notes=prescriptionNotes.trim())
            val savedPrescriptionId = if(editingPrescriptionId == null) db.dao().addPrescription(rx) else { db.dao().updatePrescription(rx); editingPrescriptionId!! }
+           if(editingPrescriptionId==null && !returnToBillAfterPrescription) {
+            val fee=rxServiceCharge.toBigDecimalOrNull()
+            val received=rxAmountPaid.toBigDecimalOrNull() ?: java.math.BigDecimal.ZERO
+            require(fee!=null && fee>java.math.BigDecimal.ZERO) { "Enter eye test fee" }
+            require(received>=java.math.BigDecimal.ZERO && received<=fee) { "Received amount must be between zero and fee" }
+            val feePaise=(fee*java.math.BigDecimal(100)).longValueExact()
+            val paidPaise=(received*java.math.BigDecimal(100)).longValueExact()
+            val summary="OD: SPH " + rx.rightSphere + ", CYL " + rx.rightCylinder + ", AXIS " + rx.rightAxis + ", ADD " + rx.rightAdd + "\\nOS: SPH " + rx.leftSphere + ", CYL " + rx.leftCylinder + ", AXIS " + rx.leftAxis + ", ADD " + rx.leftAdd + "\\nPD: " + rx.pd + "\\n" + rx.notes
+            val invoiceId=BillingRepository(db).createBill(NewBill(customerId=cid,customerName=selectedCustomer.name,phone=selectedCustomer.phone,lines=listOf(BillLine(null,"Eye test & prescription",1,feePaise,0,0)),paidPaise=paidPaise,method=rxPaymentMethod,glassType="Eye test / Prescription",prescriptionSummary=summary))
+            val invoice=db.dao().invoice(invoiceId) ?: error("Invoice saved but could not be loaded")
+            val pdf=InvoicePdf.generate(this@MainActivity,invoice,db.dao().items(invoiceId),db.dao().settings()?:ShopSettings(),selectedCustomer)
+            InvoiceSharing.share(this@MainActivity,pdf,selectedCustomer.phone,true)
+           }
            editingPrescriptionId=null
-           rightSphere="";rightCylinder="";rightAxis="";rightAdd="";leftSphere="";leftCylinder="";leftAxis="";leftAdd="";pd="";prescriptionNotes=""
+           rightSphere="";rightCylinder="";rightAxis="";rightAdd="";leftSphere="";leftCylinder="";leftAxis="";leftAdd="";pd="";prescriptionNotes="";rxServiceCharge="";rxAmountPaid="";rxPaymentMethod="Cash"
            if(returnToBillAfterPrescription) {
             billPrescriptionId=savedPrescriptionId.toString()
             billPrescriptionSummary=listOf(
@@ -1529,7 +1617,7 @@ class MainActivity : ComponentActivity() {
      )
     }
     if (showBillPreview) {
-     val previewTotal = billLines.sumOf { it.total }
+     val previewTotal = billLines.sumOf { it.total } + if(billInlinePrescriptionExpanded && (listOf(rightSphere,rightCylinder,rightAxis,rightAdd,leftSphere,leftCylinder,leftAxis,leftAdd,pd,prescriptionNotes).any { it.isNotBlank() } || selectedBillPrescription != null || billPrescriptionSummary.isNotBlank())) ((billPrescriptionCharge.toDoubleOrNull() ?: 0.0)*100).toLong() else 0L
      androidx.compose.ui.window.Dialog(onDismissRequest = { showBillPreview = false }) {
       Card(
        modifier = Modifier.fillMaxWidth().heightIn(max = 720.dp),
@@ -1558,6 +1646,12 @@ class MainActivity : ComponentActivity() {
          Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
           Text("Description / Qty", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
           Text("Amount", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+         }
+         if(billInlinePrescriptionExpanded && (listOf(rightSphere,rightCylinder,rightAxis,rightAdd,leftSphere,leftCylinder,leftAxis,leftAdd,pd,prescriptionNotes).any { it.isNotBlank() } || selectedBillPrescription != null || billPrescriptionSummary.isNotBlank())) {
+          Row(Modifier.fillMaxWidth().padding(vertical=5.dp), horizontalArrangement=Arrangement.SpaceBetween) {
+           Text("Prescription Charges", style=MaterialTheme.typography.bodyMedium)
+           Text("₹${"%.2f".format((billPrescriptionCharge.toDoubleOrNull() ?: 0.0))}", style=MaterialTheme.typography.titleSmall)
+          }
          }
          billLines.forEachIndexed { index, line ->
           Row(Modifier.fillMaxWidth().padding(vertical = 5.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
