@@ -201,3 +201,24 @@ object Validation {
         return if (n != null && n >= 0) null else "$label must be a whole number (0 or more)"
     }
 }
+
+
+/** Pure payment-ledger calculations shared by edit/delete operations and unit tests. */
+object PaymentAccounting {
+    fun revisedPaidTotal(currentPaidPaise: Long, oldPaymentPaise: Long, newPaymentPaise: Long, invoiceTotalPaise: Long): Long {
+        require(currentPaidPaise >= 0L && oldPaymentPaise > 0L && newPaymentPaise > 0L && invoiceTotalPaise >= 0L) {
+            "Payment amounts must be positive and valid"
+        }
+        require(oldPaymentPaise <= currentPaidPaise) { "Existing payment is not included in the invoice paid total" }
+        val revised = Math.addExact(Math.subtractExact(currentPaidPaise, oldPaymentPaise), newPaymentPaise)
+        require(revised <= invoiceTotalPaise) { "Updated payments cannot exceed the invoice total" }
+        return revised
+    }
+
+    fun paidTotalAfterDelete(currentPaidPaise: Long, paymentPaise: Long): Long {
+        require(currentPaidPaise >= 0L && paymentPaise > 0L && paymentPaise <= currentPaidPaise) {
+            "Payment cannot be removed from the current paid total"
+        }
+        return Math.subtractExact(currentPaidPaise, paymentPaise)
+    }
+}

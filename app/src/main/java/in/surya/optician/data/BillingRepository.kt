@@ -37,12 +37,39 @@ data class NewBill(
     val prescriptionSummary: String = "",
     val glassType: String = "",
     val deliveryDate: String = "",
+    val prescriptionId: Long? = null,
     val customer: CustomerInput? = null
 )
 
 class BillingRepository(private val db: OpticianDatabase) {
     /** Saves (or finds) a customer on its own, e.g. so a prescription can be chosen before the bill exists. */
     suspend fun saveCustomer(input: CustomerInput): Customer = db.withTransaction { upsertCustomer(input) }
+
+    suspend fun savePrescription(prescription: Prescription): Long = db.withTransaction {
+        val dao = db.dao()
+        require(dao.customer(prescription.customerId) != null) { "Customer not found" }
+        if (prescription.id == 0L) {
+            dao.addPrescription(prescription)
+        } else {
+            val existing = dao.prescription(prescription.id) ?: error("Prescription not found")
+            if (existing.customerId != prescription.customerId) {
+                require(dao.prescriptionInvoiceCount(existing.id) == 0) {
+                    "This prescription is linked to an invoice. Its customer cannot be changed."
+                }
+            }
+            dao.updatePrescription(prescription.copy(createdAt = existing.createdAt))
+            existing.id
+        }
+    }
+
+    suspend fun deletePrescription(prescriptionId: Long) = db.withTransaction {
+        val dao = db.dao()
+        val existing = dao.prescription(prescriptionId) ?: error("Prescription not found")
+        require(dao.prescriptionInvoiceCount(prescriptionId) == 0) {
+            "Cannot delete: this prescription is attached to an invoice"
+        }
+        dao.deletePrescription(existing)
+    }
 
     /** Must run inside a transaction: creates, matches or updates a customer without creating duplicates. */
     private suspend fun upsertCustomer(input: CustomerInput): Customer {
@@ -83,6 +110,10 @@ class BillingRepository(private val db: OpticianDatabase) {
         val resolvedCustomer = b.customer?.let { upsertCustomer(it) }
         val customerId = resolvedCustomer?.id ?: b.customerId
         customerId?.let { id -> require(dao.customer(id) != null) { "Customer not found" } }
+        b.prescriptionId?.let { prescriptionId ->
+            val prescription = dao.prescription(prescriptionId) ?: error("Prescription not found")
+            require(customerId == prescription.customerId) { "The selected prescription belongs to a different customer" }
+        }
         val productCosts = mutableMapOf<Long, Long>()
         b.lines.filter { it.productId != null }.groupBy { it.productId!! }.forEach { (id, lines) ->
             val product = dao.product(id) ?: error("Product not found")
@@ -109,7 +140,8 @@ class BillingRepository(private val db: OpticianDatabase) {
                 paidPaise = b.paidPaise,
                 prescriptionSummary = b.prescriptionSummary.trim(),
                 glassType = b.glassType.trim(),
-                deliveryDate = b.deliveryDate.trim()
+                deliveryDate = b.deliveryDate.trim(),
+                prescriptionId = b.prescriptionId
             )
         )
         dao.addItems(b.lines.map { line ->
@@ -155,6 +187,10 @@ class BillingRepository(private val db: OpticianDatabase) {
         val resolvedCustomer = b.customer?.let { upsertCustomer(it) }
         val customerId = resolvedCustomer?.id ?: b.customerId
         customerId?.let { require(dao.customer(it) != null) { "Customer not found" } }
+        b.prescriptionId?.let { prescriptionId ->
+            val prescription = dao.prescription(prescriptionId) ?: error("Prescription not found")
+            require(customerId == prescription.customerId) { "The selected prescription belongs to a different customer" }
+        }
 
         val oldItems = dao.items(invoiceId)
         oldItems.filter { it.productId != null }.groupBy { it.productId!! }.forEach { (id, lines) ->
@@ -178,7 +214,8 @@ class BillingRepository(private val db: OpticianDatabase) {
             paidPaise = b.paidPaise,
             prescriptionSummary = b.prescriptionSummary.trim(),
             glassType = b.glassType.trim(),
-            deliveryDate = b.deliveryDate.trim()
+            deliveryDate = b.deliveryDate.trim(),
+            prescriptionId = b.prescriptionId
         ))
         dao.deleteItemsForInvoice(invoiceId)
         dao.addItems(b.lines.map { line ->
@@ -215,6 +252,30 @@ class BillingRepository(private val db: OpticianDatabase) {
         dao.deletePaymentsForInvoice(invoiceId)
         dao.deleteItemsForInvoice(invoiceId)
         dao.deleteInvoice(invoiceId)
+    }
+
+    suspend fun updatePayment(paymentId: Long, amountPaise: Long, method: String, reference: String = "") = db.withTransaction {
+        require(amountPaise > 0) { "Payment must be greater than zero" }
+        val dao = db.dao()
+        val existing = dao.payment(paymentId) ?: error("Payment record not found")
+        val invoice = dao.invoice(existing.invoiceId) ?: error("Invoice not found")
+        val paidBefore = dao.paid(existing.invoiceId)
+        val revisedPaid = PaymentAccounting.revisedPaidTotal(paidBefore, existing.amountPaise, amountPaise, invoice.totalPaise)
+        dao.updatePayment(existing.copy(
+            amountPaise = amountPaise,
+            method = method.trim().ifBlank { "Cash" },
+            reference = reference.trim()
+        ))
+        dao.setPaid(existing.invoiceId, revisedPaid)
+    }
+
+    suspend fun deletePayment(paymentId: Long) = db.withTransaction {
+        val dao = db.dao()
+        val existing = dao.payment(paymentId) ?: error("Payment record not found")
+        val paidBefore = dao.paid(existing.invoiceId)
+        val revisedPaid = PaymentAccounting.paidTotalAfterDelete(paidBefore, existing.amountPaise)
+        dao.deletePayment(existing)
+        dao.setPaid(existing.invoiceId, revisedPaid)
     }
 
     suspend fun recordPayment(invoiceId: Long, amountPaise: Long, method: String, reference: String = "") =

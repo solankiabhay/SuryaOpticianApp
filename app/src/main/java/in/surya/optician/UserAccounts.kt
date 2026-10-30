@@ -38,6 +38,24 @@ class UserAccounts(context: Context) {
         save(users + user)
     }
 
+    fun update(username: String, role: String, newPassword: String = "") {
+        require(role in setOf("Manager", "Staff")) { "Only Manager or Staff accounts can be updated." }
+        if (newPassword.isNotBlank()) require(newPassword.length >= 8) { "New password must be at least 8 characters." }
+        val users = loadUsers()
+        val existing = users.firstOrNull { it.username.equals(username.trim(), ignoreCase = true) }
+            ?: error("User account not found.")
+        require(existing.role != "Owner") { "The owner account cannot be changed here." }
+        val updated = if (newPassword.isBlank()) existing.copy(role = role) else {
+            val salt = ByteArray(16).also { SecureRandom().nextBytes(it) }
+            existing.copy(
+                role = role,
+                salt = Base64.getEncoder().encodeToString(salt),
+                passwordHash = Base64.getEncoder().encodeToString(hash(newPassword, salt))
+            )
+        }
+        save(users.map { if (it.username.equals(username.trim(), ignoreCase = true)) updated else it })
+    }
+
     fun authenticate(username: String, password: String): LocalUser? {
         val user = loadUsers().firstOrNull { it.username.equals(username.trim(), ignoreCase = true) } ?: return null
         val salt = runCatching { Base64.getDecoder().decode(user.salt) }.getOrNull() ?: return null
