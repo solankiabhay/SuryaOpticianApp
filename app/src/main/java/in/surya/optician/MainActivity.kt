@@ -1002,8 +1002,11 @@ class MainActivity : ComponentActivity() {
             customerId=savedCustomerId, customerName=finalCustomerName, phone=finalPhone,
             lines=linesToSave, paidPaise=(paid*100).toLong(), method=billPaymentMethod,
             glassType=billGlassType.trim(), deliveryDate=billDeliveryDate.trim(),
-            prescriptionSummary=selectedBillPrescription?.let { rx -> listOf(
-             "Right eye (OD): SPH ${rx.rightSphere.ifBlank{"—"}}, CYL ${rx.rightCylinder.ifBlank{"—"}}, Axis ${rx.rightAxis.ifBlank{"—"}}, ADD ${rx.rightAdd.ifBlank{"—"}}",
+            prescriptionSummary=if(listOf(rightSphere,rightCylinder,rightAxis,rightAdd,leftSphere,leftCylinder,leftAxis,leftAdd,pd,prescriptionNotes).any { it.isNotBlank() }) listOf(
+             "Right eye (OD): SPH ${rightSphere.ifBlank{"—"}}, CYL ${rightCylinder.ifBlank{"—"}}, Axis ${rightAxis.ifBlank{"—"}}, ADD ${rightAdd.ifBlank{"—"}}",
+             "Left eye (OS): SPH ${leftSphere.ifBlank{"—"}}, CYL ${leftCylinder.ifBlank{"—"}}, Axis ${leftAxis.ifBlank{"—"}}, ADD ${leftAdd.ifBlank{"—"}}",
+             "PD: ${pd.ifBlank{"—"}}", prescriptionNotes.takeIf { it.isNotBlank() }?.let { "Notes: $it" }
+            ).filterNotNull().joinToString("\n") else selectedBillPrescription?.let { rx -> listOf(             "Right eye (OD): SPH ${rx.rightSphere.ifBlank{"—"}}, CYL ${rx.rightCylinder.ifBlank{"—"}}, Axis ${rx.rightAxis.ifBlank{"—"}}, ADD ${rx.rightAdd.ifBlank{"—"}}",
              "Left eye (OS): SPH ${rx.leftSphere.ifBlank{"—"}}, CYL ${rx.leftCylinder.ifBlank{"—"}}, Axis ${rx.leftAxis.ifBlank{"—"}}, ADD ${rx.leftAdd.ifBlank{"—"}}",
              "PD: ${rx.pd.ifBlank{"—"}}", rx.notes.takeIf { it.isNotBlank() }?.let { "Notes: $it" }
             ).filterNotNull().joinToString("\n") } ?: billPrescriptionSummary
