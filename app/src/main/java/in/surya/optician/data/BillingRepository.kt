@@ -220,6 +220,29 @@ class BillingRepository(private val db: OpticianDatabase) {
         dao.deleteInvoice(invoiceId)
     }
 
+    suspend fun updatePayment(paymentId: Long, amountPaise: Long, method: String, reference: String = "") = db.withTransaction {
+        require(amountPaise > 0) { "Payment must be greater than zero" }
+        val dao = db.dao()
+        val existing = dao.payment(paymentId) ?: error("Payment record not found")
+        val invoice = dao.invoice(existing.invoiceId) ?: error("Invoice not found")
+        val paidBefore = dao.paid(existing.invoiceId)
+        val revisedPaid = Math.addExact(Math.subtractExact(paidBefore, existing.amountPaise), amountPaise)
+        require(revisedPaid <= invoice.totalPaise) { "Updated payments cannot exceed the invoice total" }
+        dao.updatePayment(existing.copy(
+            amountPaise = amountPaise,
+            method = method.trim().ifBlank { "Cash" },
+            reference = reference.trim()
+        ))
+        dao.setPaid(existing.invoiceId, revisedPaid)
+    }
+
+    suspend fun deletePayment(paymentId: Long) = db.withTransaction {
+        val dao = db.dao()
+        val existing = dao.payment(paymentId) ?: error("Payment record not found")
+        dao.deletePayment(existing)
+        dao.setPaid(existing.invoiceId, dao.paid(existing.invoiceId))
+    }
+
     suspend fun recordPayment(invoiceId: Long, amountPaise: Long, method: String, reference: String = "") =
         db.withTransaction {
             require(amountPaise > 0) { "Payment must be greater than zero" }
