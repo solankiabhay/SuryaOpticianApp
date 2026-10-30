@@ -1425,8 +1425,10 @@ class MainActivity : ComponentActivity() {
          Text("PD: ${rx.pd.ifBlank{"—"}}")
         }
        }
-      }
-     }
+      },
+      confirmButton = { TextButton(onClick={ showBillPreview=false }) { Text("Back to edit") } },
+      dismissButton = { TextButton(onClick={ showBillPreview=false }) { Text("Close preview") } }
+     )
     }
     if (loggedInUser != null && !unlocked) {
      AlertDialog(
