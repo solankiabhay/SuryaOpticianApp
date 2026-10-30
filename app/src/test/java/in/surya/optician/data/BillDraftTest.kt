@@ -54,6 +54,36 @@ class BillDraftTest {
         assertEquals(0L, (result as PendingItem.Ready).line.discountPaise)
     }
 
+    @Test fun eyeTestChargeBecomesNonStockInvoiceLine() {
+        val line = PrescriptionBilling.chargeLine("250", prescriptionAttached = false)
+        assertNotNull(line)
+        assertNull(line!!.productId)
+        assertEquals("Eye test fee", line.description)
+        assertEquals(25000L, line.total)
+    }
+
+    @Test fun prescriptionOnlyInvoiceCanHaveZeroValueNonStockLine() {
+        val line = PrescriptionBilling.chargeLine("", prescriptionAttached = true)
+        assertNotNull(line)
+        assertNull(line!!.productId)
+        assertEquals("Eye prescription", line.description)
+        assertEquals(0L, line.total)
+    }
+
+    @Test fun prescriptionFeeIsIncludedInBillTotalAndDoesNotRequireStock() {
+        val frame = BillLine(productId = 7L, description = "Frame", qty = 1, ratePaise = 100000L)
+        val fee = PrescriptionBilling.chargeLine("200", prescriptionAttached = true)!!
+        val lines = listOf(frame, fee)
+        assertEquals(120000L, lines.sumOf { it.total })
+        assertNull(fee.productId)
+    }
+
+    @Test fun eyeTestChargeRejectsInvalidAndNegativeAmounts() {
+        assertTrue(runCatching { PrescriptionBilling.chargeLine("abc", false) }.isFailure)
+        assertTrue(runCatching { PrescriptionBilling.chargeLine("-50", true) }.isFailure)
+        assertNull(PrescriptionBilling.chargeLine("", prescriptionAttached = false))
+    }
+
     private val rahul = Customer(id = 1, name = "Rahul Sharma", phone = "98765 43210")
     private val noPhone = Customer(id = 2, name = "Walk In", phone = "")
 
