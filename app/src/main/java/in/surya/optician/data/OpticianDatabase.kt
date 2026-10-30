@@ -38,6 +38,9 @@ interface OpticianDao {
  @Query("SELECT * FROM invoices WHERE id=:id") suspend fun invoice(id: Long): Invoice?
  @Query("SELECT * FROM invoices WHERE number=:n LIMIT 1") suspend fun byNumber(n: String): Invoice?
  @Insert suspend fun addPayment(p: Payment): Long
+ @Query("SELECT * FROM payments WHERE id=:id") suspend fun payment(id: Long): Payment?
+ @Update suspend fun updatePayment(p: Payment)
+ @Delete suspend fun deletePayment(p: Payment)
  @Query("SELECT COALESCE(SUM(amountPaise),0) FROM payments WHERE invoiceId=:id") suspend fun paid(id: Long): Long
  @Query("UPDATE invoices SET paidPaise=:amount WHERE id=:id") suspend fun setPaid(id: Long, amount: Long)
  @Query("SELECT * FROM payments WHERE invoiceId=:id ORDER BY paidAt DESC") fun payments(id: Long): Flow<List<Payment>>
