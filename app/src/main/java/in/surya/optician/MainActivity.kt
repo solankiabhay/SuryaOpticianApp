@@ -279,6 +279,9 @@ class MainActivity : ComponentActivity() {
     var billPaymentMethod by remember { mutableStateOf("Cash") }
     var billPrescriptionId by remember { mutableStateOf("") }
     var billPrescriptionSummary by remember { mutableStateOf("") }
+    var billEyeTestFee by remember { mutableStateOf("") }
+    var savingCustomerForPrescription by remember { mutableStateOf(false) }
+    var showPrescriptionCustomerForm by remember { mutableStateOf(false) }
     var billPrescriptionExpanded by remember { mutableStateOf(false) }
     var billGlassType by remember { mutableStateOf("") }
     var billDeliveryDate by remember { mutableStateOf("") }
@@ -327,7 +330,11 @@ class MainActivity : ComponentActivity() {
     val customers by db.dao().customers().collectAsState(initial = emptyList())
     val selectedBillCustomer = customers.firstOrNull { it.id.toString() == billCustomerId }
     val pendingItem = BillDraft.parsePending(billProductId, billDescription, billQty, billRate, billDiscount, billTax)
-    val effectiveBillLines = billLines + listOfNotNull((pendingItem as? PendingItem.Ready)?.line)
+    val eyeTestFeePaise = Money.parseRupeesToPaise(billEyeTestFee)
+    val hasSaleLines = billLines.isNotEmpty() || pendingItem is PendingItem.Ready
+    val hasPrescription = billPrescriptionId.isNotBlank() || billPrescriptionSummary.isNotBlank()
+    val eyeTestFeeLine = runCatching { PrescriptionBilling.chargeLine(billEyeTestFee, hasPrescription && !hasSaleLines) }.getOrNull()?.let(::listOf) ?: emptyList()
+    val effectiveBillLines = billLines + listOfNotNull((pendingItem as? PendingItem.Ready)?.line) + eyeTestFeeLine
     val products by db.dao().products().collectAsState(initial = emptyList())
     val due by db.dao().outstanding().collectAsState(initial = 0L)
     val lowStock by db.dao().lowStock().collectAsState(initial = emptyList())
@@ -774,7 +781,36 @@ class MainActivity : ComponentActivity() {
           AppField(value=billCustomerAge, onValueChange={ billCustomerAge=it.filter(Char::isDigit).take(3) }, label="Age", modifier=Modifier.weight(1f), keyboardType=KeyboardType.Number)
          }
          AppField(value=billCustomerEmail, onValueChange={ billCustomerEmail=it }, label="Email (optional)", keyboardType=KeyboardType.Email, icon=Icons.Rounded.Email)
-         if(billCustomerId.isNotBlank()) StatusPill("Saved customer selected · details update when the bill is saved", Brand.SuccessBg, Brand.Success)
+         if(billCustomerId.isNotBlank()) StatusPill("Saved customer selected", Brand.SuccessBg, Brand.Success)
+         OutlinedButton(onClick={
+          if (savingCustomerForPrescription) Unit
+          else if (!canManageRecords()) denyPermission("save customer and create prescription")
+          else {
+           val ageValue = billCustomerAge.toIntOrNull()
+           val phoneError = Validation.phoneError(billPhone)
+           when {
+            billCustomer.isBlank() -> toast("Enter the customer name first")
+            phoneError != null -> toast(phoneError)
+            billCustomerAge.isNotBlank() && (ageValue == null || ageValue !in 0..120) -> toast("Age must be between 0 and 120")
+            else -> {
+             savingCustomerForPrescription = true
+             lifecycleScope.launch {
+              try {
+               val saved = BillingRepository(db).saveCustomer(CustomerInput(id=billCustomerId.toLongOrNull(), name=billCustomer.trim(), phone=billPhone.trim(), address=billCustomerAddress.trim(), age=ageValue, email=billCustomerEmail.trim()))
+               billCustomerId=saved.id.toString(); billCustomer=saved.name; billPhone=saved.phone
+               prescriptionCustomerId=saved.id.toString(); returnToBillAfterPrescription=true; editingPrescriptionId=null
+               rightSphere="";rightCylinder="";rightAxis="";rightAdd="";leftSphere="";leftCylinder="";leftAxis="";leftAdd="";pd="";prescriptionNotes=""
+               section="Prescription"; toast("Customer saved. Enter the eye prescription.")
+              } catch (e: kotlinx.coroutines.CancellationException) { throw e }
+              catch (e: Exception) { toast(e.message ?: "Could not save customer") }
+              finally { savingCustomerForPrescription=false }
+             }
+            }
+           }
+          }
+         }, modifier=Modifier.fillMaxWidth(), enabled=!savingCustomerForPrescription) {
+          Text(if(savingCustomerForPrescription) "Saving customer…" else "Save customer & add prescription")
+         }
         }
         Spacer(Modifier.height(12.dp))
         SectionCard(title="Order details", step=2, subtitle="Lens type, delivery date and prescription") {
@@ -782,6 +818,7 @@ class MainActivity : ComponentActivity() {
          ChoiceChips(options=listOf("Single Vision","Bifocal","Progressive","Photochromic","Blue Cut","Sunglasses","Frame Only","Contact Lens"), selected=billGlassType, onSelect={ billGlassType=it })
          AppField(value=billGlassType, onValueChange={ billGlassType=it }, label="Glass type (or type your own)")
          DateInputField(value=billDeliveryDate, onValueChange={ billDeliveryDate=it }, label="Expected delivery date", displayFormat="dd/MM/yyyy", placeholder="e.g. 05/11/2026", supportingText="Optional for walk-in sales; fill for orders awaiting lens fitting.", modifier=Modifier.fillMaxWidth())
+         AppField(value=billEyeTestFee, onValueChange={ billEyeTestFee=it }, label="Eye test / prescription charge (₹)", placeholder="e.g. 200", keyboardType=KeyboardType.Decimal, supportingText="Optional. Added as a non-stock invoice item; works even when no product is sold.")
          if (billCustomerId.toLongOrNull() != null) {
           Text("Eye prescription (optional)", style=MaterialTheme.typography.labelLarge)
           if (billPrescriptions.isEmpty()) Text("No saved prescription for this customer. You can still bill sunglasses or other products.", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSurfaceVariant)
@@ -798,11 +835,14 @@ class MainActivity : ComponentActivity() {
            Surface(shape=RoundedCornerShape(14.dp), color=MaterialTheme.colorScheme.secondaryContainer, modifier=Modifier.fillMaxWidth()) {
             Column(Modifier.padding(12.dp), verticalArrangement=Arrangement.spacedBy(2.dp)) {
              Text("Prescription attached to this bill", style=MaterialTheme.typography.titleSmall, color=MaterialTheme.colorScheme.onSecondaryContainer)
-             Text("Right eye (OD): SPH ${rx.rightSphere.ifBlank{"—"}} · CYL ${rx.rightCylinder.ifBlank{"—"}} · Axis ${rx.rightAxis.ifBlank{"—"}} · ADD ${rx.rightAdd.ifBlank{"—"}}", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSecondaryContainer)
-             Text("Left eye (OS): SPH ${rx.leftSphere.ifBlank{"—"}} · CYL ${rx.leftCylinder.ifBlank{"—"}} · Axis ${rx.leftAxis.ifBlank{"—"}} · ADD ${rx.leftAdd.ifBlank{"—"}}", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSecondaryContainer)
-             Text("PD: ${rx.pd.ifBlank{"—"}}", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSecondaryContainer)
-             if(rx.notes.isNotBlank()) Text("Notes: ${rx.notes}", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSecondaryContainer)
-             TextButton(onClick={ billPrescriptionId="" }) { Text("Remove prescription") }
+             TextButton(onClick={ billPrescriptionExpanded=!billPrescriptionExpanded }) { Text(if(billPrescriptionExpanded) "Hide Prescription" else "See Prescription") }
+             if(billPrescriptionExpanded) {
+              Text("Right eye (OD): SPH ${rx.rightSphere.ifBlank{"—"}} · CYL ${rx.rightCylinder.ifBlank{"—"}} · Axis ${rx.rightAxis.ifBlank{"—"}} · ADD ${rx.rightAdd.ifBlank{"—"}}", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSecondaryContainer)
+              Text("Left eye (OS): SPH ${rx.leftSphere.ifBlank{"—"}} · CYL ${rx.leftCylinder.ifBlank{"—"}} · Axis ${rx.leftAxis.ifBlank{"—"}} · ADD ${rx.leftAdd.ifBlank{"—"}}", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSecondaryContainer)
+              Text("PD: ${rx.pd.ifBlank{"—"}}", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSecondaryContainer)
+              if(rx.notes.isNotBlank()) Text("Notes: ${rx.notes}", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSecondaryContainer)
+             }
+             TextButton(onClick={ billPrescriptionId=""; billPrescriptionExpanded=false }) { Text("Remove prescription") }
             }
            }
           }
@@ -886,6 +926,7 @@ class MainActivity : ComponentActivity() {
            typedName.isBlank() && selectedBillCustomer==null -> toast("Enter the customer name")
            phoneProblem!=null -> toast(phoneProblem)
            billCustomerAge.isNotBlank() && (age==null || age !in 0..120) -> toast("Age must be between 0 and 120")
+           billEyeTestFee.isNotBlank() && (eyeTestFeePaise == null || eyeTestFeePaise < 0L) -> toast("Eye test charge is not a valid amount")
            pending is PendingItem.Invalid -> toast(pending.message)
            effectiveBillLines.isEmpty() -> toast("Add an item: enter the description and rate")
            paidPaise==null -> toast("Amount received is not a valid amount")
@@ -908,7 +949,7 @@ class MainActivity : ComponentActivity() {
               )
               val id=if(editingInvoiceId==null) BillingRepository(db).createBill(draft) else { BillingRepository(db).updateBill(editingInvoiceId!!,draft); editingInvoiceId!! }
               toast(if(editingInvoiceId==null) "Invoice created: #$id" else "Invoice updated")
-              section="Bills"; editingInvoiceId=null; billCustomer=""; billCustomerId=""; billPhone=""; billCustomerAddress=""; billCustomerAge=""; billCustomerEmail=""; billCustomerSearch=""; billLines=emptyList(); billProductId=""; billDescription=""; billQty="1"; billRate=""; billDiscount="0"; billTax="0"; billPaid="0"; billPaymentMethod="Cash"; billPrescriptionId=""; billPrescriptionSummary=""; billGlassType=""; billDeliveryDate=""; billTouched=false
+              section="Bills"; editingInvoiceId=null; billCustomer=""; billCustomerId=""; billPhone=""; billCustomerAddress=""; billCustomerAge=""; billCustomerEmail=""; billCustomerSearch=""; billLines=emptyList(); billProductId=""; billDescription=""; billQty="1"; billRate=""; billDiscount="0"; billTax="0"; billPaid="0"; billPaymentMethod="Cash"; billPrescriptionId=""; billPrescriptionSummary=""; billEyeTestFee=""; billGlassType=""; billDeliveryDate=""; billTouched=false
              } catch(e: kotlinx.coroutines.CancellationException) {
               throw e
              } catch(e: Exception) {
@@ -1015,6 +1056,38 @@ class MainActivity : ComponentActivity() {
             }
            }
            if(customers.isEmpty()) Text("No customers added yet. Add a customer first.", style=MaterialTheme.typography.bodyMedium)
+           OutlinedButton(onClick={ showPrescriptionCustomerForm=!showPrescriptionCustomerForm; if(showPrescriptionCustomerForm) { customerName="";customerPhone="";customerAddress="";customerAge="";customerEmail="" } }, modifier=Modifier.fillMaxWidth()) {
+            Text(if(showPrescriptionCustomerForm) "Cancel Add Customer" else "Add Customer")
+           }
+           if(showPrescriptionCustomerForm) {
+            AppField(value=customerName, onValueChange={ customerName=it }, label="Customer name *", icon=Icons.Rounded.Person)
+            AppField(value=customerPhone, onValueChange={ customerPhone=it }, label="Phone (WhatsApp)", keyboardType=KeyboardType.Phone, icon=Icons.Rounded.Phone)
+            AppField(value=customerAddress, onValueChange={ customerAddress=it }, label="Address (optional)", icon=Icons.Rounded.LocationOn)
+            AppField(value=customerAge, onValueChange={ customerAge=it.filter(Char::isDigit).take(3) }, label="Age", keyboardType=KeyboardType.Number)
+            AppField(value=customerEmail, onValueChange={ customerEmail=it }, label="Email (optional)", keyboardType=KeyboardType.Email, icon=Icons.Rounded.Email)
+            PrimaryAction(text=if(savingCustomerForPrescription) "Saving customer…" else "Save customer", enabled=!savingCustomerForPrescription, onClick={
+             val ageValue=customerAge.toIntOrNull()
+             val phoneError=Validation.phoneError(customerPhone)
+             when {
+              customerName.isBlank() -> toast("Enter the customer name")
+              phoneError!=null -> toast(phoneError)
+              customerAge.isNotBlank() && (ageValue==null || ageValue !in 0..120) -> toast("Age must be between 0 and 120")
+              !canManageRecords() -> denyPermission("add customer")
+              else -> {
+               savingCustomerForPrescription=true
+               lifecycleScope.launch {
+                try {
+                 val saved=BillingRepository(db).saveCustomer(CustomerInput(id=null,name=customerName.trim(),phone=customerPhone.trim(),address=customerAddress.trim(),age=ageValue,email=customerEmail.trim()))
+                 prescriptionCustomerId=saved.id.toString(); customerName="";customerPhone="";customerAddress="";customerAge="";customerEmail="";showPrescriptionCustomerForm=false
+                 toast("Customer saved. You can now enter the prescription.")
+                } catch(e: kotlinx.coroutines.CancellationException) { throw e }
+                catch(e: Exception) { toast(e.message ?: "Could not save customer") }
+                finally { savingCustomerForPrescription=false }
+               }
+              }
+             }
+            }, icon=Icons.Rounded.PersonAdd)
+           }
            customers.forEach { customer ->
             Surface(
              modifier=Modifier.fillMaxWidth().clickable { prescriptionCustomerId=customer.id.toString() },
