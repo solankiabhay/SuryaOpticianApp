@@ -1360,12 +1360,15 @@ class MainActivity : ComponentActivity() {
          Text("Role", style=MaterialTheme.typography.labelLarge)
          ChoiceChips(options=listOf("Staff","Manager"), selected=newStaffRole, onSelect={ newStaffRole=it })
          PrimaryAction(text=if(editingStaffUsername==null) "Create staff account" else "Save account changes", onClick={
-          if(!isOwner()) denyPermission("manage user accounts") else runCatching {
-           if(editingStaffUsername==null) accountStore.create(newStaffName.trim(),newStaffPassword,newStaffRole)
-           else accountStore.update(editingStaffUsername!!,newStaffRole,newStaffPassword)
-           accountVersion++
-           newStaffName="";newStaffPassword="";newStaffRole="Staff";editingStaffUsername=null
-          }.onSuccess { toast(if(editingStaffUsername==null) "User account created" else "User account updated") }.onFailure { toast(it.message ?: "Could not save user account") }
+          if(!isOwner()) denyPermission("manage user accounts") else {
+           val wasEditing=editingStaffUsername!=null
+           runCatching {
+            if(editingStaffUsername==null) accountStore.create(newStaffName.trim(),newStaffPassword,newStaffRole)
+            else accountStore.update(editingStaffUsername!!,newStaffRole,newStaffPassword)
+            accountVersion++
+            newStaffName="";newStaffPassword="";newStaffRole="Staff";editingStaffUsername=null
+           }.onSuccess { toast(if(wasEditing) "User account updated" else "User account created") }.onFailure { toast(it.message ?: "Could not save user account") }
+          }
          }, icon=Icons.Rounded.Check, enabled=if(editingStaffUsername==null) newStaffName.trim().length>=3&&newStaffPassword.length>=8 else newStaffPassword.isBlank()||newStaffPassword.length>=8)
          if(editingStaffUsername!=null) SecondaryAction(text="Cancel account edit", onClick={ editingStaffUsername=null;newStaffName="";newStaffPassword="";newStaffRole="Staff" })
         }
