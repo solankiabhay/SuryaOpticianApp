@@ -1125,6 +1125,23 @@ class MainActivity : ComponentActivity() {
          Card(Modifier.fillMaxWidth()) {
           Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement=Arrangement.spacedBy(10.dp)) {
            Text("1. CUSTOMER", style=MaterialTheme.typography.labelLarge, color=MaterialTheme.colorScheme.primary)
+           OutlinedButton(onClick={ showPrescriptionCustomerForm=!showPrescriptionCustomerForm }, modifier=Modifier.fillMaxWidth()) { Text(if(showPrescriptionCustomerForm) "Close Add Customer" else "＋ Add Customer") }
+           if(showPrescriptionCustomerForm) {
+            OutlinedTextField(rxCustomerName,{rxCustomerName=it},label={Text("Customer name *")},modifier=Modifier.fillMaxWidth(),singleLine=true)
+            OutlinedTextField(rxCustomerPhone,{rxCustomerPhone=it.filter(Char::isDigit).take(10)},label={Text("Mobile number")},modifier=Modifier.fillMaxWidth(),singleLine=true,keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Phone))
+            OutlinedTextField(rxCustomerAddress,{rxCustomerAddress=it},label={Text("Address")},modifier=Modifier.fillMaxWidth(),minLines=2)
+            OutlinedTextField(rxCustomerAge,{rxCustomerAge=it.filter(Char::isDigit).take(3)},label={Text("Age")},modifier=Modifier.fillMaxWidth(),singleLine=true,keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number))
+            OutlinedTextField(rxCustomerEmail,{rxCustomerEmail=it},label={Text("Email (optional)")},modifier=Modifier.fillMaxWidth(),singleLine=true)
+            Button(onClick={ lifecycleScope.launch {
+             val name=rxCustomerName.trim()
+             val age=rxCustomerAge.toIntOrNull()
+             if(name.isBlank()) toast("Customer name is required")
+             else if(rxCustomerAge.isNotBlank() && (age==null || age !in 1..120)) toast("Enter a valid age")
+             else runCatching { db.dao().addCustomer(Customer(name=name,phone=rxCustomerPhone.trim(),address=rxCustomerAddress.trim(),age=age,email=rxCustomerEmail.trim())) }
+              .onSuccess { newId -> prescriptionCustomerId=newId.toString(); showPrescriptionCustomerForm=false; rxCustomerName="";rxCustomerPhone="";rxCustomerAddress="";rxCustomerAge="";rxCustomerEmail="";toast("Customer added and selected") }
+              .onFailure { toast(it.message ?: "Could not add customer") }
+            } },modifier=Modifier.fillMaxWidth(),enabled=rxCustomerName.isNotBlank()) { Text("Save & Select Customer") }
+           }
            OutlinedTextField(prescriptionCustomerId, { prescriptionCustomerId=it.filter(Char::isDigit) }, label={ Text("Customer ID") }, placeholder={ Text("Enter or select a customer below") }, modifier=Modifier.fillMaxWidth(), singleLine=true, keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number))
            val selectedPrescriptionCustomer = customers.firstOrNull { it.id.toString()==prescriptionCustomerId }
            if(selectedPrescriptionCustomer!=null) {
