@@ -310,6 +310,15 @@ class MainActivity : ComponentActivity() {
     var paymentAmount by remember { mutableStateOf("") }
     var paymentMethod by remember { mutableStateOf("Cash") }
     var prescriptionCustomerId by remember { mutableStateOf("") }
+    var showPrescriptionCustomerForm by remember { mutableStateOf(false) }
+    var rxCustomerName by remember { mutableStateOf("") }
+    var rxCustomerPhone by remember { mutableStateOf("") }
+    var rxCustomerAddress by remember { mutableStateOf("") }
+    var rxCustomerAge by remember { mutableStateOf("") }
+    var rxCustomerEmail by remember { mutableStateOf("") }
+    var rxServiceCharge by remember { mutableStateOf("") }
+    var rxAmountPaid by remember { mutableStateOf("") }
+    var rxPaymentMethod by remember { mutableStateOf("Cash") }
     var rightSphere by remember { mutableStateOf("") }
     var rightCylinder by remember { mutableStateOf("") }
     var rightAxis by remember { mutableStateOf("") }
