@@ -1161,7 +1161,13 @@ class MainActivity : ComponentActivity() {
           else if((rightAxis.isNotBlank() && (rightAxisValue==null || rightAxisValue !in 0..180)) || (leftAxis.isNotBlank() && (leftAxisValue==null || leftAxisValue !in 0..180))) toast("Axis must be a number from 0 to 180")
           else if(prescriptionProblem!=null) toast(prescriptionProblem)
           else {
-           val rx = Prescription(id=editingPrescriptionId ?: 0L, customerId=cid,rightSphere=rightSphere.trim(),rightCylinder=rightCylinder.trim(),rightAxis=rightAxis.trim(),rightAdd=rightAdd.trim(),leftSphere=leftSphere.trim(),leftCylinder=leftCylinder.trim(),leftAxis=leftAxis.trim(),leftAdd=leftAdd.trim(),pd=pd.trim(),notes=prescriptionNotes.trim())
+           try {
+           val rx = if (editingPrescriptionId == null) {
+            Prescription(customerId=cid,rightSphere=rightSphere.trim(),rightCylinder=rightCylinder.trim(),rightAxis=rightAxis.trim(),rightAdd=rightAdd.trim(),leftSphere=leftSphere.trim(),leftCylinder=leftCylinder.trim(),leftAxis=leftAxis.trim(),leftAdd=leftAdd.trim(),pd=pd.trim(),notes=prescriptionNotes.trim())
+           } else {
+            val existing = db.dao().prescription(editingPrescriptionId!!) ?: error("This prescription no longer exists. Refresh the history and try again.")
+            existing.copy(customerId=cid,rightSphere=rightSphere.trim(),rightCylinder=rightCylinder.trim(),rightAxis=rightAxis.trim(),rightAdd=rightAdd.trim(),leftSphere=leftSphere.trim(),leftCylinder=leftCylinder.trim(),leftAxis=leftAxis.trim(),leftAdd=leftAdd.trim(),pd=pd.trim(),notes=prescriptionNotes.trim())
+           }
            val savedPrescriptionId = if(editingPrescriptionId == null) db.dao().addPrescription(rx) else { db.dao().updatePrescription(rx); editingPrescriptionId!! }
            editingPrescriptionId=null
            rightSphere="";rightCylinder="";rightAxis="";rightAdd="";leftSphere="";leftCylinder="";leftAxis="";leftAdd="";pd="";prescriptionNotes=""
@@ -1176,6 +1182,11 @@ class MainActivity : ComponentActivity() {
             section="New Bill"
             toast("Prescription saved and attached to this bill")
            } else toast("Prescription saved")
+           } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+           } catch (e: Exception) {
+            toast(e.message ?: "Could not save prescription")
+           }
           }
          } }, modifier=Modifier.fillMaxWidth().height(52.dp), shape=androidx.compose.foundation.shape.RoundedCornerShape(14.dp)) { Text(if(editingPrescriptionId == null) "Save prescription" else "Update prescription", style=MaterialTheme.typography.titleMedium) }
          if(editingPrescriptionId != null) OutlinedButton(onClick={ editingPrescriptionId=null; rightSphere="";rightCylinder="";rightAxis="";rightAdd="";leftSphere="";leftCylinder="";leftAxis="";leftAdd="";pd="";prescriptionNotes="" }, modifier=Modifier.fillMaxWidth().height(48.dp)) { Text("Cancel editing") }
@@ -1356,7 +1367,7 @@ class MainActivity : ComponentActivity() {
          AppField(value=shopPhone, onValueChange={ shopPhone=it }, label="Shop phone", keyboardType=KeyboardType.Phone)
          AppField(value=shopGstin, onValueChange={ shopGstin=it }, label="GSTIN")
          AppField(value=shopFooter, onValueChange={ shopFooter=it }, label="Invoice footer")
-         PrimaryAction(text="Save settings", onClick={ lifecycleScope.launch { db.dao().saveSettings(ShopSettings(name=shopName,address=shopAddress,phone=shopPhone,gstin=shopGstin,footer=shopFooter)); toast("Shop settings saved") } }, icon=Icons.Rounded.Check)
+         PrimaryAction(text="Save settings", onClick={ lifecycleScope.launch { runCatching { require(shopName.isNotBlank()) { "Shop name is required" }; db.dao().saveSettings(ShopSettings(name=shopName.trim(),address=shopAddress.trim(),phone=shopPhone.trim(),gstin=shopGstin.trim(),footer=shopFooter.trim())) }.onSuccess { toast("Shop settings saved") }.onFailure { toast(it.message ?: "Could not update shop settings") } } }, icon=Icons.Rounded.Check)
         }
         if(isOwner()) {
          Spacer(Modifier.height(12.dp))
