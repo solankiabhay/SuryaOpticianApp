@@ -300,6 +300,7 @@ class MainActivity : ComponentActivity() {
     var billPrescriptionSummary by remember { mutableStateOf("") }
     var billPrescriptionExpanded by remember { mutableStateOf(false) }
     var billInlinePrescriptionExpanded by remember { mutableStateOf(false) }
+    var billPrescriptionCharge by remember { mutableStateOf("0") }
     var billGlassType by remember { mutableStateOf("") }
     var billDeliveryDate by remember { mutableStateOf("") }
     var showBillPreview by remember { mutableStateOf(false) }
@@ -852,7 +853,7 @@ class MainActivity : ComponentActivity() {
            Column(Modifier.weight(1f)) {
             Text("Prescription", style=MaterialTheme.typography.titleSmall)
             Text("Optional · attach an existing eye prescription", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSurfaceVariant)
-            TextButton(onClick={ billInlinePrescriptionExpanded=!billInlinePrescriptionExpanded }) { Text(if(billInlinePrescriptionExpanded) "Hide prescription fields" else "＋ Enter prescription here") }
+            Button(onClick={ billInlinePrescriptionExpanded=!billInlinePrescriptionExpanded }, modifier=Modifier.fillMaxWidth()) { Text(if(billInlinePrescriptionExpanded) "Remove Prescription" else "＋ Add Prescription") }
            }
            OutlinedButton(onClick={
             val cid=billCustomerId.toLongOrNull()
@@ -881,6 +882,7 @@ class MainActivity : ComponentActivity() {
            }) { Text("＋ Add") }
           }
           if (billInlinePrescriptionExpanded) {
+           OutlinedTextField(billPrescriptionCharge, { billPrescriptionCharge=it.filter { ch -> ch.isDigit() || ch=='.' }.let { v -> if(v.count { ch -> ch=='.' }<=1) v else v.dropLast(1) } }, label={Text("Prescription charges ₹ *")}, supportingText={Text("This amount will be added to the bill total.")}, modifier=Modifier.fillMaxWidth(), singleLine=true, keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Decimal))
            Text("RIGHT EYE (OD)", style=MaterialTheme.typography.labelMedium, color=MaterialTheme.colorScheme.primary)
            Row(horizontalArrangement=Arrangement.spacedBy(6.dp), modifier=Modifier.fillMaxWidth()) {
             OutlinedTextField(rightSphere,{rightSphere=it},label={Text("SPH")},modifier=Modifier.weight(1f),singleLine=true)
@@ -898,7 +900,7 @@ class MainActivity : ComponentActivity() {
            OutlinedTextField(pd,{pd=it},label={Text("PD (mm)")},modifier=Modifier.fillMaxWidth(),singleLine=true)
            OutlinedTextField(prescriptionNotes,{prescriptionNotes=it},label={Text("Prescription notes")},modifier=Modifier.fillMaxWidth(),minLines=2)
           }
-          if (billCustomerId.toLongOrNull()!=null) {
+          if (billCustomerId.toLongOrNull()!=null && billInlinePrescriptionExpanded) {
            if (billPrescriptions.isNotEmpty()) {
             Box(Modifier.fillMaxWidth()) {
              OutlinedButton(onClick={ billPrescriptionExpanded=true }, modifier=Modifier.fillMaxWidth(), shape=androidx.compose.foundation.shape.RoundedCornerShape(12.dp)) {
@@ -974,7 +976,20 @@ class MainActivity : ComponentActivity() {
           runCatching { BillLine(pid,billDescription.trim(),qty,(rate*100).toLong(),(discount*100).toLong(),(tax*100).toLong()) }
            .getOrElse { toast(it.message ?: "Current item is invalid"); return@launch }
          }
-         val linesToSave = if(pendingLine==null) billLines else billLines + pendingLine
+         val baseLinesToSave = if(pendingLine==null) billLines else billLines + pendingLine
+         val prescriptionAmount = billPrescriptionCharge.toDoubleOrNull()
+         val hasInlinePrescription = listOf(rightSphere,rightCylinder,rightAxis,rightAdd,leftSphere,leftCylinder,leftAxis,leftAdd,pd,prescriptionNotes).any { it.isNotBlank() }
+         val hasSavedPrescription = selectedBillPrescription != null || billPrescriptionSummary.isNotBlank()
+         val prescriptionAdded = billInlinePrescriptionExpanded && (hasInlinePrescription || hasSavedPrescription)
+         if (billInlinePrescriptionExpanded && !prescriptionAdded) {
+          toast("Enter prescription details or select a saved prescription")
+          return@launch
+         }
+         if (prescriptionAdded && (prescriptionAmount == null || prescriptionAmount < 0)) {
+          toast("Enter a valid prescription charge")
+          return@launch
+         }
+         val linesToSave = if (prescriptionAdded && (prescriptionAmount ?: 0.0) > 0) baseLinesToSave + BillLine(null,"Prescription Charges",1,((prescriptionAmount ?: 0.0)*100).toLong(),0,0) else baseLinesToSave
          val paid=billPaid.toDoubleOrNull()
          val cid=billCustomerId.toLongOrNull()
          val existingCustomer=if(cid!=null) db.dao().customer(cid) else null
@@ -1016,7 +1031,7 @@ class MainActivity : ComponentActivity() {
            if(editingInvoiceId==null) BillingRepository(db).createBill(draft)
            else { BillingRepository(db).updateBill(editingInvoiceId!!,draft); editingInvoiceId!! }
           }
-         }.onSuccess { id -> toast(if(editingInvoiceId==null) "Invoice created: #$id" else "Invoice updated"); section="Bills"; editingInvoiceId=null; billCustomer=""; billCustomerId=""; billPhone=""; billCustomerAddress=""; billCustomerAge=""; billCustomerSearch=""; billLines=emptyList(); billProductId=""; billDescription=""; billQty="1"; billRate=""; billDiscount="0"; billTax="0"; billPaid="0"; billPaymentMethod="Cash"; billPrescriptionId=""; billPrescriptionSummary=""; rightSphere="";rightCylinder="";rightAxis="";rightAdd="";leftSphere="";leftCylinder="";leftAxis="";leftAdd="";pd="";prescriptionNotes="";billInlinePrescriptionExpanded=false; billGlassType=""; billDeliveryDate="" }
+         }.onSuccess { id -> toast(if(editingInvoiceId==null) "Invoice created: #$id" else "Invoice updated"); section="Bills"; editingInvoiceId=null; billCustomer=""; billCustomerId=""; billPhone=""; billCustomerAddress=""; billCustomerAge=""; billCustomerSearch=""; billLines=emptyList(); billProductId=""; billDescription=""; billQty="1"; billRate=""; billDiscount="0"; billTax="0"; billPaid="0"; billPaymentMethod="Cash"; billPrescriptionId=""; billPrescriptionSummary=""; rightSphere="";rightCylinder="";rightAxis="";rightAdd="";leftSphere="";leftCylinder="";leftAxis="";leftAdd="";pd="";prescriptionNotes="";billInlinePrescriptionExpanded=false; billPrescriptionCharge="0"; billGlassType=""; billDeliveryDate="" }
           .onFailure { toast(it.message ?: "Could not create invoice") }
         } }, modifier=Modifier.fillMaxWidth()) { Text(if(editingInvoiceId==null) "Create bill and deduct stock" else "Save bill changes") }
        }
@@ -1536,7 +1551,7 @@ class MainActivity : ComponentActivity() {
      )
     }
     if (showBillPreview) {
-     val previewTotal = billLines.sumOf { it.total }
+     val previewTotal = billLines.sumOf { it.total } + if(billInlinePrescriptionExpanded && (listOf(rightSphere,rightCylinder,rightAxis,rightAdd,leftSphere,leftCylinder,leftAxis,leftAdd,pd,prescriptionNotes).any { it.isNotBlank() } || selectedBillPrescription != null || billPrescriptionSummary.isNotBlank())) ((billPrescriptionCharge.toDoubleOrNull() ?: 0.0)*100).toLong() else 0L
      androidx.compose.ui.window.Dialog(onDismissRequest = { showBillPreview = false }) {
       Card(
        modifier = Modifier.fillMaxWidth().heightIn(max = 720.dp),
