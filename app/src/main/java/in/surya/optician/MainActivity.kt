@@ -1359,7 +1359,8 @@ class MainActivity : ComponentActivity() {
         ScreenHeader("Users", "Local accounts for shop staff. Only the owner can manage accounts.")
         Spacer(Modifier.height(12.dp))
         SectionCard(title=if(editingStaffUsername==null) "Create staff account" else "Update staff account", icon=Icons.Rounded.PersonAdd) {
-         AppField(value=newStaffName, onValueChange={ newStaffName=it }, label="Staff username", icon=Icons.Rounded.Person, enabled=editingStaffUsername==null)
+         if(editingStaffUsername==null) AppField(value=newStaffName, onValueChange={ newStaffName=it }, label="Staff username", icon=Icons.Rounded.Person)
+         else Text("Username: $newStaffName", style=MaterialTheme.typography.titleSmall)
          AppField(value=newStaffPassword, onValueChange={ newStaffPassword=it }, label=if(editingStaffUsername==null) "Temporary password (8+ characters)" else "New password (leave blank to keep current)", icon=Icons.Rounded.Lock)
          Text("Role", style=MaterialTheme.typography.labelLarge)
          ChoiceChips(options=listOf("Staff","Manager"), selected=newStaffRole, onSelect={ newStaffRole=it })
