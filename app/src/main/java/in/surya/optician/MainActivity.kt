@@ -1176,7 +1176,15 @@ class MainActivity : ComponentActivity() {
            Row(verticalAlignment=Alignment.CenterVertically, horizontalArrangement=Arrangement.spacedBy(8.dp)) {
             Surface(shape=androidx.compose.foundation.shape.RoundedCornerShape(8.dp), color=MaterialTheme.colorScheme.primary, modifier=Modifier.size(36.dp)) { Box(contentAlignment=Alignment.Center) { Text("R", color=MaterialTheme.colorScheme.onPrimary, style=MaterialTheme.typography.titleMedium) } }
             Column(Modifier.weight(1f)) {
-             Text("RIGHT EYE", style=MaterialTheme.typography.titleMedium, color=MaterialTheme.colorScheme.primary)
+             Text("EYE TEST INVOICE & PAYMENT", style=MaterialTheme.typography.titleMedium, color=MaterialTheme.colorScheme.primary)
+           OutlinedTextField(rxServiceCharge,{rxServiceCharge=it.filter { ch -> ch.isDigit() || ch=='.' }},label={Text("Eye test & prescription fee ₹ *")},modifier=Modifier.fillMaxWidth(),singleLine=true,keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Decimal))
+           OutlinedTextField(rxAmountPaid,{rxAmountPaid=it.filter { ch -> ch.isDigit() || ch=='.' }},label={Text("Amount received ₹")},modifier=Modifier.fillMaxWidth(),singleLine=true,keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Decimal))
+           Text("Payment method",style=MaterialTheme.typography.labelMedium)
+           Row(horizontalArrangement=Arrangement.spacedBy(6.dp)) { listOf("Cash","UPI","Card","Bank").forEach { method -> FilterChip(selected=rxPaymentMethod==method,onClick={rxPaymentMethod=method},label={Text(method)}) } }
+           val rxTotalPreview=rxServiceCharge.toDoubleOrNull() ?: 0.0
+           val rxPaidPreview=rxAmountPaid.toDoubleOrNull() ?: 0.0
+           Text("Total ₹%.2f  ·  Due ₹%.2f".format(rxTotalPreview,(rxTotalPreview-rxPaidPreview).coerceAtLeast(0.0)),style=MaterialTheme.typography.titleMedium,color=MaterialTheme.colorScheme.primary)
+           Text("RIGHT EYE", style=MaterialTheme.typography.titleMedium, color=MaterialTheme.colorScheme.primary)
              Text("OD · Oculus Dexter", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSurfaceVariant)
             }
            }
