@@ -84,6 +84,10 @@ class BillingRepository(private val db: OpticianDatabase) {
         val resolvedCustomer = b.customer?.let { upsertCustomer(it) }
         val customerId = resolvedCustomer?.id ?: b.customerId
         customerId?.let { id -> require(dao.customer(id) != null) { "Customer not found" } }
+        b.prescriptionId?.let { prescriptionId ->
+            val prescription = dao.prescription(prescriptionId) ?: error("Prescription not found")
+            require(customerId == prescription.customerId) { "The selected prescription belongs to a different customer" }
+        }
         val productCosts = mutableMapOf<Long, Long>()
         b.lines.filter { it.productId != null }.groupBy { it.productId!! }.forEach { (id, lines) ->
             val product = dao.product(id) ?: error("Product not found")
@@ -157,6 +161,10 @@ class BillingRepository(private val db: OpticianDatabase) {
         val resolvedCustomer = b.customer?.let { upsertCustomer(it) }
         val customerId = resolvedCustomer?.id ?: b.customerId
         customerId?.let { require(dao.customer(it) != null) { "Customer not found" } }
+        b.prescriptionId?.let { prescriptionId ->
+            val prescription = dao.prescription(prescriptionId) ?: error("Prescription not found")
+            require(customerId == prescription.customerId) { "The selected prescription belongs to a different customer" }
+        }
 
         val oldItems = dao.items(invoiceId)
         oldItems.filter { it.productId != null }.groupBy { it.productId!! }.forEach { (id, lines) ->
