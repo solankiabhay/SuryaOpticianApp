@@ -777,7 +777,7 @@ class MainActivity : ComponentActivity() {
          Column(Modifier.padding(14.dp)) {
           Text(if(billLines.isEmpty()) "BILL SUMMARY" else "${billLines.size} ${if(billLines.size==1) "item" else "items"} added", style=MaterialTheme.typography.labelLarge)
           Spacer(Modifier.height(4.dp))
-          Text("₹${"%.2f".format(billLines.sumOf { it.total }/100.0)}", style=MaterialTheme.typography.headlineMedium, color=MaterialTheme.colorScheme.primary)
+          Text("₹${"%.2f".format((billLines.sumOf { it.total } + if(billInlinePrescriptionExpanded && (listOf(rightSphere,rightCylinder,rightAxis,rightAdd,leftSphere,leftCylinder,leftAxis,leftAdd,pd,prescriptionNotes).any { it.isNotBlank() } || selectedBillPrescription != null || billPrescriptionSummary.isNotBlank())) ((billPrescriptionCharge.toDoubleOrNull() ?: 0.0)*100).toLong() else 0L)/100.0)}", style=MaterialTheme.typography.headlineMedium, color=MaterialTheme.colorScheme.primary)
          }
         }
         Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(12.dp), verticalArrangement=Arrangement.spacedBy(8.dp)) {
@@ -944,7 +944,7 @@ class MainActivity : ComponentActivity() {
           .onFailure { toast(it.message ?: "Invalid item") }
         }, modifier=Modifier.fillMaxWidth(), shape=androidx.compose.foundation.shape.RoundedCornerShape(12.dp)) { Text("＋  Add more item") }
         Text("4 · BILL ITEMS (${billLines.size})", style=MaterialTheme.typography.labelLarge, color=MaterialTheme.colorScheme.primary)
-        Text("Items in cart · ₹${"%.2f".format(billLines.sumOf { it.total }/100.0)}", style=MaterialTheme.typography.titleSmall)
+        Text("Items + prescription charges · ₹${"%.2f".format((billLines.sumOf { it.total } + if(billInlinePrescriptionExpanded && (listOf(rightSphere,rightCylinder,rightAxis,rightAdd,leftSphere,leftCylinder,leftAxis,leftAdd,pd,prescriptionNotes).any { it.isNotBlank() } || selectedBillPrescription != null || billPrescriptionSummary.isNotBlank())) ((billPrescriptionCharge.toDoubleOrNull() ?: 0.0)*100).toLong() else 0L)/100.0)}", style=MaterialTheme.typography.titleSmall)
         billLines.forEachIndexed { index, line ->
          Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.SpaceBetween) {
           Text("${index+1}. ${line.description} × ${line.qty} · ₹${"%.2f".format(line.total/100.0)}", modifier=Modifier.weight(1f))
@@ -985,8 +985,8 @@ class MainActivity : ComponentActivity() {
           toast("Enter prescription details or select a saved prescription")
           return@launch
          }
-         if (prescriptionAdded && (prescriptionAmount == null || prescriptionAmount < 0)) {
-          toast("Enter a valid prescription charge")
+         if (prescriptionAdded && (prescriptionAmount == null || prescriptionAmount <= 0)) {
+          toast("Enter a prescription charge greater than ₹0")
           return@launch
          }
          val linesToSave = if (prescriptionAdded && (prescriptionAmount ?: 0.0) > 0) baseLinesToSave + BillLine(null,"Prescription Charges",1,((prescriptionAmount ?: 0.0)*100).toLong(),0,0) else baseLinesToSave
@@ -1580,6 +1580,12 @@ class MainActivity : ComponentActivity() {
          Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
           Text("Description / Qty", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
           Text("Amount", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+         }
+         if(billInlinePrescriptionExpanded && (listOf(rightSphere,rightCylinder,rightAxis,rightAdd,leftSphere,leftCylinder,leftAxis,leftAdd,pd,prescriptionNotes).any { it.isNotBlank() } || selectedBillPrescription != null || billPrescriptionSummary.isNotBlank())) {
+          Row(Modifier.fillMaxWidth().padding(vertical=5.dp), horizontalArrangement=Arrangement.SpaceBetween) {
+           Text("Prescription Charges", style=MaterialTheme.typography.bodyMedium)
+           Text("₹${"%.2f".format((billPrescriptionCharge.toDoubleOrNull() ?: 0.0))}", style=MaterialTheme.typography.titleSmall)
+          }
          }
          billLines.forEachIndexed { index, line ->
           Row(Modifier.fillMaxWidth().padding(vertical = 5.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
