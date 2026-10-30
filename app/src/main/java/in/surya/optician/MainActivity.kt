@@ -1054,7 +1054,7 @@ class MainActivity : ComponentActivity() {
             }
            }
            if(customers.isEmpty()) Text("No customers added yet. Add a customer first.", style=MaterialTheme.typography.bodyMedium)
-           OutlinedButton(onClick={ showPrescriptionCustomerForm=!showPrescriptionCustomerForm }, modifier=Modifier.fillMaxWidth()) {
+           OutlinedButton(onClick={ showPrescriptionCustomerForm=!showPrescriptionCustomerForm; if(showPrescriptionCustomerForm) { customerName="";customerPhone="";customerAddress="";customerAge="";customerEmail="" } }, modifier=Modifier.fillMaxWidth()) {
             Text(if(showPrescriptionCustomerForm) "Cancel Add Customer" else "Add Customer")
            }
            if(showPrescriptionCustomerForm) {
