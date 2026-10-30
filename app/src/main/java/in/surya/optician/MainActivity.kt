@@ -1234,6 +1234,19 @@ class MainActivity : ComponentActivity() {
           else {
            val rx = Prescription(id=editingPrescriptionId ?: 0L, customerId=cid,rightSphere=rightSphere.trim(),rightCylinder=rightCylinder.trim(),rightAxis=rightAxis.trim(),rightAdd=rightAdd.trim(),leftSphere=leftSphere.trim(),leftCylinder=leftCylinder.trim(),leftAxis=leftAxis.trim(),leftAdd=leftAdd.trim(),pd=pd.trim(),notes=prescriptionNotes.trim())
            val savedPrescriptionId = if(editingPrescriptionId == null) db.dao().addPrescription(rx) else { db.dao().updatePrescription(rx); editingPrescriptionId!! }
+           if(editingPrescriptionId==null && !returnToBillAfterPrescription) {
+            val fee=rxServiceCharge.toBigDecimalOrNull()
+            val received=rxAmountPaid.toBigDecimalOrNull() ?: java.math.BigDecimal.ZERO
+            require(fee!=null && fee>java.math.BigDecimal.ZERO) { "Enter eye test fee" }
+            require(received>=java.math.BigDecimal.ZERO && received<=fee) { "Received amount must be between zero and fee" }
+            val feePaise=(fee*java.math.BigDecimal(100)).longValueExact()
+            val paidPaise=(received*java.math.BigDecimal(100)).longValueExact()
+            val summary="OD: SPH " + rx.rightSphere + ", CYL " + rx.rightCylinder + ", AXIS " + rx.rightAxis + ", ADD " + rx.rightAdd + "\\nOS: SPH " + rx.leftSphere + ", CYL " + rx.leftCylinder + ", AXIS " + rx.leftAxis + ", ADD " + rx.leftAdd + "\\nPD: " + rx.pd + "\\n" + rx.notes
+            val invoiceId=BillingRepository(db).createBill(NewBill(customerId=cid,customerName=selectedCustomer.name,phone=selectedCustomer.phone,lines=listOf(BillLine(null,"Eye test & prescription",1,feePaise,0,0)),paidPaise=paidPaise,method=rxPaymentMethod,glassType="Eye test / Prescription",prescriptionSummary=summary))
+            val invoice=db.dao().invoice(invoiceId) ?: error("Invoice saved but could not be loaded")
+            val pdf=InvoicePdf.generate(this@MainActivity,invoice,db.dao().items(invoiceId),db.dao().settings()?:ShopSettings(),selectedCustomer)
+            InvoiceSharing.share(this@MainActivity,pdf,selectedCustomer.phone,true)
+           }
            editingPrescriptionId=null
            rightSphere="";rightCylinder="";rightAxis="";rightAdd="";leftSphere="";leftCylinder="";leftAxis="";leftAdd="";pd="";prescriptionNotes=""
            if(returnToBillAfterPrescription) {
