@@ -48,6 +48,9 @@ import androidx.compose.material.icons.rounded.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Logout
 import androidx.compose.material.icons.rounded.Menu
@@ -69,6 +72,24 @@ private fun OpticianLogo(
  color: androidx.compose.ui.graphics.Color = androidx.compose.ui.graphics.Color(0xFF123A63)
 ) {
  SuryaLogo(modifier=modifier, eyeColor=color)
+}
+
+@Composable
+private fun ReportBarChart(values: List<Pair<String, Long>>, modifier: Modifier = Modifier) {
+ val color = MaterialTheme.colorScheme.primary
+ val maxValue = (values.maxOfOrNull { it.second } ?: 0L).coerceAtLeast(1L)
+ Column(modifier.fillMaxWidth(), verticalArrangement=Arrangement.spacedBy(6.dp)) {
+  Canvas(Modifier.fillMaxWidth().height(142.dp)) {
+   val count=values.size.coerceAtLeast(1); val slot=size.width/count; val barWidth=(slot*0.48f).coerceAtLeast(8f)
+   values.forEachIndexed { index,item ->
+    val h=(size.height*item.second.toFloat()/maxValue.toFloat()).coerceAtLeast(3f)
+    drawRoundRect(color,Offset(index*slot+(slot-barWidth)/2f,size.height-h),Size(barWidth,h),CornerRadius(8.dp.toPx()))
+   }
+  }
+  Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceEvenly) {
+   values.forEach { (label,_) -> Text(label,style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant,maxLines=1) }
+  }
+ }
 }
 
 private fun parseReportDate(value: String): Long? {
@@ -1252,107 +1273,75 @@ class MainActivity : ComponentActivity() {
         }
        }
        "Reports" -> {
-        ScreenHeader("Reports", "Sales, collections, profit and inventory")
-        val fromMillis = remember(reportFrom) { if (reportFrom.isBlank()) null else parseReportDate(reportFrom) }
-        val toMillisExclusive = remember(reportTo) {
-         if (reportTo.isBlank()) null else parseReportDate(reportTo)?.let { start ->
-          Calendar.getInstance().apply { timeInMillis = start; add(Calendar.DAY_OF_MONTH, 1) }.timeInMillis
-         }
-        }
-        val invalidDateRange = (reportFrom.isNotBlank() && fromMillis == null) || (reportTo.isNotBlank() && toMillisExclusive == null) || (fromMillis != null && toMillisExclusive != null && fromMillis >= toMillisExclusive)
-        val reportInvoices = if (invalidDateRange) emptyList() else allInvoices.filter { invoice -> (fromMillis == null || invoice.createdAt >= fromMillis) && (toMillisExclusive == null || invoice.createdAt < toMillisExclusive) }
-        Text("Filter sales and collection totals by invoice date (YYYY-MM-DD). Leave blank to include all dates.", style=MaterialTheme.typography.bodyMedium)
-        DateInputField(value=reportFrom, onValueChange={ reportFrom = it }, label="From date", displayFormat="yyyy-MM-dd", placeholder="2026-10-01", modifier=Modifier.fillMaxWidth())
-        DateInputField(value=reportTo, onValueChange={ reportTo = it }, label="To date", displayFormat="yyyy-MM-dd", placeholder="2026-10-31", modifier=Modifier.fillMaxWidth())
-        if (invalidDateRange) Text("Enter valid dates in YYYY-MM-DD format and ensure From is not after To.", color = MaterialTheme.colorScheme.error)
-        TextButton(onClick = { reportFrom = ""; reportTo = "" }) { Text("Clear date filters") }
-        Text("Invoice summary · ${reportInvoices.size} invoices in selected date range", style=MaterialTheme.typography.bodyMedium)
-        val totalSales = reportInvoices.sumOf { it.totalPaise }
-        val totalPaid = reportInvoices.sumOf { it.paidPaise }
-        val totalDue = reportInvoices.sumOf { it.duePaise }
-        val profitFrom = fromMillis ?: Long.MIN_VALUE
-        val profitTo = toMillisExclusive ?: Long.MAX_VALUE
-        val estimatedProfit by remember(profitFrom, profitTo) { db.dao().estimatedProfit(profitFrom, profitTo) }.collectAsState(initial = 0L)
-        Spacer(Modifier.height(8.dp))
-        Row(horizontalArrangement=Arrangement.spacedBy(10.dp), modifier=Modifier.fillMaxWidth()) {
-         StatTile("Invoices", "${reportInvoices.size}", Icons.Rounded.Receipt, MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primaryContainer, Modifier.weight(1f))
-         StatTile("Sales", formatRupees(totalSales), Icons.Rounded.Assessment, MaterialTheme.colorScheme.secondary, MaterialTheme.colorScheme.secondaryContainer, Modifier.weight(1f))
-        }
-        Spacer(Modifier.height(10.dp))
-        Row(horizontalArrangement=Arrangement.spacedBy(10.dp), modifier=Modifier.fillMaxWidth()) {
-         StatTile("Collected", formatRupees(totalPaid), Icons.Rounded.Payments, Brand.Success, Brand.SuccessBg, Modifier.weight(1f))
-         StatTile("Outstanding", formatRupees(totalDue), Icons.Rounded.AccountBalanceWallet, Brand.Warning, Brand.WarningBg, Modifier.weight(1f))
-        }
-        Spacer(Modifier.height(10.dp))
-        SectionCard(title="Estimated gross profit", icon=Icons.Rounded.Savings, subtitle="Excluding tax") {
-         Text(formatRupees(estimatedProfit), style=MaterialTheme.typography.headlineSmall, color=MaterialTheme.colorScheme.primary)
-         Text("Uses the purchase cost saved at invoice time. Invoices migrated from v1 have no recorded cost, so their profit is not reliable.", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        Spacer(Modifier.height(16.dp))
-        Text("Current inventory", style=MaterialTheme.typography.titleLarge)
-        val stockUnits = products.sumOf { it.stock.toLong() }
-        val inventoryCost = products.sumOf { it.stock.toLong() * it.costPaise }
-        val inventoryRetail = products.sumOf { it.stock.toLong() * it.pricePaise }
-        Spacer(Modifier.height(8.dp))
-        Row(horizontalArrangement=Arrangement.spacedBy(10.dp), modifier=Modifier.fillMaxWidth()) {
-         StatTile("Stock units", "$stockUnits", Icons.Rounded.Inventory2, MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primaryContainer, Modifier.weight(1f))
-         StatTile("Cost value", formatRupees(inventoryCost), Icons.Rounded.Payments, MaterialTheme.colorScheme.secondary, MaterialTheme.colorScheme.secondaryContainer, Modifier.weight(1f))
-        }
-        Spacer(Modifier.height(10.dp))
-        StatTile("Retail value at current prices", formatRupees(inventoryRetail), Icons.Rounded.Savings, Brand.Success, Brand.SuccessBg, Modifier.fillMaxWidth())
-        Spacer(Modifier.height(16.dp))
-        Text("Stock by category", style=MaterialTheme.typography.titleMedium)
-        products.groupBy { it.category.trim().ifBlank { "Uncategorised" } }.toSortedMap().forEach { (category, entries) ->
-         val units = entries.sumOf { it.stock.toLong() }
-         val costValue = entries.sumOf { it.stock.toLong() * it.costPaise }
-         RecordCard(modifier=Modifier.padding(vertical=3.dp)) {
-          Row(verticalAlignment=Alignment.CenterVertically) {
-           Column(Modifier.weight(1f)) {
-            Text(category, style=MaterialTheme.typography.titleSmall)
-            Text("${entries.size} products · $units units", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSurfaceVariant)
-           }
-           Text(formatRupees(costValue), style=MaterialTheme.typography.titleSmall)
-          }
-         }
-        }
-        Spacer(Modifier.height(12.dp))
-        Text("Stock levels", style=MaterialTheme.typography.titleMedium)
-        products.sortedBy { it.stock }.forEach { product ->
-         RecordCard(modifier=Modifier.padding(vertical=3.dp)) {
-          Row(verticalAlignment=Alignment.CenterVertically, horizontalArrangement=Arrangement.spacedBy(10.dp)) {
-           Column(Modifier.weight(1f)) {
-            Text(product.name, style=MaterialTheme.typography.titleSmall)
-            Text("Cost ${formatRupees(product.costPaise)} · Sell ${formatRupees(product.pricePaise)}", style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSurfaceVariant)
-           }
-           if(product.stock<=product.lowStock) StatusPill("LOW · ${product.stock}", Brand.WarningBg, Brand.Warning) else StatusPill("${product.stock} in stock", Brand.SuccessBg, Brand.Success)
-          }
-         }
-        }
-        Spacer(Modifier.height(16.dp))
-        PrimaryAction(text="Export date-filtered invoices to CSV", onClick={ if (invalidDateRange) toast("Correct the date range before exporting") else InvoiceCsv.share(this@MainActivity, reportInvoices) }, icon=Icons.Rounded.FileDownload, enabled=!invalidDateRange)
-        Spacer(Modifier.height(16.dp))
-        Text("Customer invoice report", style=MaterialTheme.typography.titleLarge)
-        Spacer(Modifier.height(8.dp))
-        AppField(value=query, onValueChange={ query=it }, label="Filter by invoice number, customer or phone", icon=Icons.Rounded.Search)
-        val visibleReportInvoices = reportInvoices.filter { invoice -> query.isBlank() || invoice.number.contains(query, true) || invoice.customerName.contains(query, true) || invoice.phone.contains(query, true) }
-        Text("${visibleReportInvoices.size} invoices match the date and search filters.", style = MaterialTheme.typography.bodySmall)
-        visibleReportInvoices.forEach { invoice ->
-         RecordCard(modifier=Modifier.padding(vertical=3.dp)) {
-          Row(verticalAlignment=Alignment.CenterVertically) {
-           Column(Modifier.weight(1f)) {
-            Text(invoice.customerName, style=MaterialTheme.typography.titleSmall)
-            Text(invoice.number + "  ·  " + java.text.SimpleDateFormat("dd MMM yyyy", java.util.Locale.getDefault()).format(java.util.Date(invoice.createdAt)), style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSurfaceVariant)
-           }
-           PaymentBadge(invoice.duePaise, invoice.paidPaise)
-          }
-          AmountRow("Sales", formatRupees(invoice.totalPaise))
-          AmountRow("Paid", formatRupees(invoice.paidPaise))
-          if(invoice.duePaise>0) AmountRow("Due", formatRupees(invoice.duePaise), valueColor=Brand.Warning)
-         }
-        }
-        Text("Profit is an estimate: invoice tax is excluded and recorded item cost is deducted. It is not net profit and excludes rent, wages and other operating expenses. Dates use the device local time zone.", style=MaterialTheme.typography.bodySmall)
-       }
-       "Users" -> {
+ ScreenHeader("Reports","Collection aur sales ka financial overview")
+ ChoiceChips(options=listOf("Collection","Sales"),selected=reportType,onSelect={reportType=it})
+ SectionCard(title="Date range",icon=Icons.Rounded.DateRange,subtitle="YYYY-MM-DD · Search se report update hogi") {
+  DateInputField(value=reportFrom,onValueChange={reportFrom=it},label="From date",displayFormat="yyyy-MM-dd",placeholder="2026-10-01",modifier=Modifier.fillMaxWidth())
+  DateInputField(value=reportTo,onValueChange={reportTo=it},label="To date",displayFormat="yyyy-MM-dd",placeholder="2026-10-30",modifier=Modifier.fillMaxWidth())
+  val df=if(reportFrom.isBlank()) null else parseReportDate(reportFrom)
+  val dt=if(reportTo.isBlank()) null else parseReportDate(reportTo)?.let { Calendar.getInstance().apply { timeInMillis=it; add(Calendar.DAY_OF_MONTH,1) }.timeInMillis }
+  val bad=(reportFrom.isNotBlank()&&df==null)||(reportTo.isNotBlank()&&dt==null)||(df!=null&&dt!=null&&df>=dt)
+  if(bad) Text("Valid date range enter karein; From date, To date se pehle honi chahiye.",color=MaterialTheme.colorScheme.error)
+  Row(horizontalArrangement=Arrangement.spacedBy(8.dp),modifier=Modifier.fillMaxWidth()) {
+   PrimaryAction("Search Report",{if(bad) toast("Please correct date range") else {reportAppliedFrom=reportFrom;reportAppliedTo=reportTo}},icon=Icons.Rounded.Search,modifier=Modifier.weight(1f),enabled=!bad)
+   SecondaryAction("Clear",{reportFrom="";reportTo="";reportAppliedFrom="";reportAppliedTo=""},modifier=Modifier.weight(0.7f))
+  }
+ }
+ val from=remember(reportAppliedFrom){if(reportAppliedFrom.isBlank()) null else parseReportDate(reportAppliedFrom)}
+ val to=remember(reportAppliedTo){if(reportAppliedTo.isBlank()) null else parseReportDate(reportAppliedTo)?.let { Calendar.getInstance().apply { timeInMillis=it; add(Calendar.DAY_OF_MONTH,1) }.timeInMillis }}
+ val selectedInvoices=allInvoices.filter{(from==null||it.createdAt>=from)&&(to==null||it.createdAt<to)}
+ val selectedPayments=allPayments.filter{(from==null||it.paidAt>=from)&&(to==null||it.paidAt<to)}
+ val cash=selectedPayments.filter{it.method.equals("Cash",true)}.sumOf{it.amountPaise}
+ val online=selectedPayments.filter{it.method.equals("Online",true)}.sumOf{it.amountPaise}
+ val collected=selectedPayments.sumOf{it.amountPaise}
+ val sales=selectedInvoices.sumOf{it.totalPaise}
+ val dueTotal=selectedInvoices.sumOf{it.duePaise}
+ val advance=selectedPayments.filter{p->selectedInvoices.firstOrNull{it.id==p.invoiceId}?.deliveryDate?.isNotBlank()==true}.sumOf{it.amountPaise}
+ val search=reportQuery.trim()
+ val shownInvoices=selectedInvoices.filter{search.isBlank()||it.number.contains(search,true)||it.customerName.contains(search,true)||it.phone.contains(search,true)}
+ val shownPayments=selectedPayments.filter{p->val inv=selectedInvoices.firstOrNull{it.id==p.invoiceId};search.isBlank()||inv?.number?.contains(search,true)==true||inv?.customerName?.contains(search,true)==true||inv?.phone?.contains(search,true)==true}
+ val dateFmt=java.text.SimpleDateFormat("dd MMM",java.util.Locale.getDefault())
+ val collectionBars=selectedPayments.groupBy{dateFmt.format(java.util.Date(it.paidAt))}.entries.takeLast(7).map{it.key to it.value.sumOf(Payment::amountPaise)}
+ val salesBars=selectedInvoices.groupBy{dateFmt.format(java.util.Date(it.createdAt))}.entries.takeLast(7).map{it.key to it.value.sumOf(Invoice::totalPaise)}
+ if(reportType=="Collection") {
+  SectionCard(title="Collection Summary",icon=Icons.Rounded.Payments,subtitle="${selectedPayments.size} payment entries") {
+   Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){StatTile("Cash",formatRupees(cash),Icons.Rounded.Payments,Brand.Success,Brand.SuccessBg,Modifier.weight(1f));StatTile("Online",formatRupees(online),Icons.Rounded.CreditCard,MaterialTheme.colorScheme.primary,MaterialTheme.colorScheme.primaryContainer,Modifier.weight(1f))}
+   Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){StatTile("Total Collection",formatRupees(collected),Icons.Rounded.AccountBalanceWallet,MaterialTheme.colorScheme.primary,MaterialTheme.colorScheme.primaryContainer,Modifier.weight(1f));StatTile("Advance",formatRupees(advance),Icons.Rounded.Savings,Brand.Warning,Brand.WarningBg,Modifier.weight(1f))}
+   StatTile("Balance / Due",formatRupees(dueTotal),Icons.Rounded.HourglassBottom,Brand.Danger,Brand.DangerBg,Modifier.fillMaxWidth())
+  }
+  SectionCard(title="Collection Bar Chart",icon=Icons.Rounded.BarChart,subtitle="Date-wise payments received"){if(collectionBars.isEmpty()) EmptyState(Icons.Rounded.BarChart,"No collection data","Selected period mein payment nahi hai.") else ReportBarChart(collectionBars)}
+  SectionCard(title="Collection Details",icon=Icons.Rounded.Receipt) {
+   AppField(value=reportQuery,onValueChange={reportQuery=it},label="Search customer, bill number or phone",icon=Icons.Rounded.Search)
+   if(shownPayments.isEmpty()) EmptyState(Icons.Rounded.Payments,"No collections found","Date range ya search change karein.")
+   shownPayments.forEach{p->val inv=selectedInvoices.firstOrNull{it.id==p.invoiceId};RecordCard(Modifier.padding(vertical=3.dp)){
+    Row(verticalAlignment=Alignment.CenterVertically){Column(Modifier.weight(1f)){Text(inv?.customerName?: "Invoice #${p.invoiceId}",style=MaterialTheme.typography.titleSmall);Text("${inv?.number?: "Bill"} · "+java.text.SimpleDateFormat("dd MMM yyyy, hh:mm a",java.util.Locale.getDefault()).format(java.util.Date(p.paidAt)),style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)};StatusPill(p.method,if(p.method.equals("Cash",true)) Brand.SuccessBg else MaterialTheme.colorScheme.primaryContainer,if(p.method.equals("Cash",true)) Brand.Success else MaterialTheme.colorScheme.primary)}
+    AmountRow("Received",formatRupees(p.amountPaise),emphasize=true)
+   }}
+   Text("Advance is included in Total Collection, not added again. It represents payments against invoices with an expected delivery date.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+  }
+ } else {
+  val todayStart=Calendar.getInstance().apply{set(Calendar.HOUR_OF_DAY,0);set(Calendar.MINUTE,0);set(Calendar.SECOND,0);set(Calendar.MILLISECOND,0)}.timeInMillis
+  val todayEnd=Calendar.getInstance().apply{add(Calendar.DAY_OF_MONTH,1);set(Calendar.HOUR_OF_DAY,0);set(Calendar.MINUTE,0);set(Calendar.SECOND,0);set(Calendar.MILLISECOND,0)}.timeInMillis
+  val todaySale=allInvoices.filter{it.createdAt>=todayStart&&it.createdAt<todayEnd}.sumOf{it.totalPaise}
+  SectionCard(title="Sales Summary",icon=Icons.Rounded.Assessment,subtitle="Invoice date ke hisaab se") {
+   Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){StatTile("Total Sales",formatRupees(sales),Icons.Rounded.Assessment,MaterialTheme.colorScheme.primary,MaterialTheme.colorScheme.primaryContainer,Modifier.weight(1f));StatTile("Total Bills","${selectedInvoices.size}",Icons.Rounded.Receipt,MaterialTheme.colorScheme.secondary,MaterialTheme.colorScheme.secondaryContainer,Modifier.weight(1f))}
+   Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){StatTile("Average Bill",formatRupees(if(selectedInvoices.isEmpty())0 else sales/selectedInvoices.size),Icons.Rounded.Calculate,Brand.Success,Brand.SuccessBg,Modifier.weight(1f));StatTile("Paid Amount",formatRupees(selectedInvoices.sumOf{it.paidPaise}),Icons.Rounded.Payments,Brand.Success,Brand.SuccessBg,Modifier.weight(1f))}
+   StatTile("Outstanding Amount",formatRupees(dueTotal),Icons.Rounded.AccountBalanceWallet,Brand.Warning,Brand.WarningBg,Modifier.fillMaxWidth())
+   StatTile("Today's Sale",formatRupees(todaySale),Icons.Rounded.Today,MaterialTheme.colorScheme.primary,MaterialTheme.colorScheme.primaryContainer,Modifier.fillMaxWidth())
+  }
+  SectionCard(title="Sales Bar Chart",icon=Icons.Rounded.BarChart,subtitle="Date-wise invoice sales"){if(salesBars.isEmpty()) EmptyState(Icons.Rounded.BarChart,"No sales data","Selected period mein invoices nahi hain.") else ReportBarChart(salesBars)}
+  SectionCard(title="Sales Details",icon=Icons.Rounded.Receipt,subtitle="${shownInvoices.size} invoices") {
+   AppField(value=reportQuery,onValueChange={reportQuery=it},label="Search customer, bill number or phone",icon=Icons.Rounded.Search)
+   if(shownInvoices.isEmpty()) EmptyState(Icons.Rounded.Receipt,"No sales found","Date range ya search change karein.")
+   shownInvoices.forEach{inv->RecordCard(Modifier.padding(vertical=3.dp)){
+    Row(verticalAlignment=Alignment.CenterVertically){Column(Modifier.weight(1f)){Text(inv.customerName,style=MaterialTheme.typography.titleSmall);Text(inv.number+" · "+java.text.SimpleDateFormat("dd MMM yyyy",java.util.Locale.getDefault()).format(java.util.Date(inv.createdAt)),style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)};PaymentBadge(inv.duePaise,inv.paidPaise)}
+    AmountRow("Total Sale",formatRupees(inv.totalPaise));AmountRow("Paid",formatRupees(inv.paidPaise));AmountRow("Balance",formatRupees(inv.duePaise),valueColor=if(inv.duePaise>0) Brand.Warning else Brand.Success)
+   }}
+   PrimaryAction("Export sales to CSV",{InvoiceCsv.share(this@MainActivity,shownInvoices)},icon=Icons.Rounded.FileDownload)
+  }
+ }
+}
+"Users" -> {
         ScreenHeader("Users", "Local accounts for shop staff. Only the owner can manage accounts.")
         Spacer(Modifier.height(12.dp))
         SectionCard(title=if(editingStaffUsername==null) "Create staff account" else "Update staff account", icon=Icons.Rounded.PersonAdd) {
