@@ -22,6 +22,7 @@ interface OpticianDao {
  @Delete suspend fun deleteProduct(p: Product)
  @Query("SELECT COUNT(*) FROM invoice_items WHERE productId=:id") suspend fun productInvoiceItemCount(id: Long): Int
  @Insert suspend fun addPrescription(p: Prescription): Long
+ @Query("SELECT * FROM prescriptions WHERE id=:id") suspend fun prescription(id: Long): Prescription?
  @Update suspend fun updatePrescription(p: Prescription)
  @Delete suspend fun deletePrescription(p: Prescription)
  @Query("SELECT * FROM prescriptions WHERE customerId=:customerId ORDER BY createdAt DESC") fun prescriptions(customerId: Long): Flow<List<Prescription>>
