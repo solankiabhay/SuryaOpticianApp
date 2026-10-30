@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.Flow
 interface OpticianDao {
  @Query("SELECT * FROM customers ORDER BY name") fun customers(): Flow<List<Customer>>
  @Query("SELECT * FROM customers WHERE id=:id") suspend fun customer(id: Long): Customer?
+ @Query("SELECT * FROM customers ORDER BY name") suspend fun allCustomers(): List<Customer>
  @Insert suspend fun addCustomer(c: Customer): Long
  @Update suspend fun updateCustomer(c: Customer)
  @Delete suspend fun deleteCustomer(c: Customer)

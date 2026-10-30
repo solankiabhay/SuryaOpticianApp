@@ -20,6 +20,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AddCircle
+import androidx.compose.material.icons.rounded.ChevronRight
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Schedule
+import androidx.compose.material.icons.rounded.VisibilityOff
+import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.AdminPanelSettings
 import androidx.compose.material.icons.rounded.Assessment
 import androidx.compose.material.icons.rounded.Check
@@ -49,6 +54,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import java.text.NumberFormat
 import java.util.Locale
@@ -60,7 +67,7 @@ fun formatRupees(paise: Long): String =
 /** One icon per app section, shared by the bottom bar, menu and headers. */
 fun sectionIcon(tab: String): ImageVector = when (tab) {
     "Dashboard" -> Icons.Rounded.Home
-    "Bills" -> Icons.Rounded.Receipt
+    "Bills" -> Icons.Rounded.Schedule
     "New Bill" -> Icons.Rounded.AddCircle
     "Customers" -> Icons.Rounded.People
     "Products" -> Icons.Rounded.Inventory2
@@ -142,7 +149,8 @@ fun AppField(
     prefix: String? = null,
     singleLine: Boolean = true,
     minLines: Int = 1,
-    isError: Boolean = false
+    isError: Boolean = false,
+    onClear: (() -> Unit)? = null
 ) {
     OutlinedTextField(
         value = value,
@@ -151,6 +159,9 @@ fun AppField(
         label = { Text(label) },
         placeholder = placeholder?.let { { Text(it) } },
         leadingIcon = icon?.let { { Icon(it, contentDescription = null) } },
+        trailingIcon = if (onClear != null && value.isNotBlank()) {
+            { androidx.compose.material3.IconButton(onClick = onClear) { Icon(Icons.Rounded.Close, contentDescription = "Clear") } }
+        } else null,
         prefix = prefix?.let { { Text(it) } },
         supportingText = supportingText?.let { { Text(it) } },
         isError = isError,
@@ -363,4 +374,141 @@ fun AvatarBadge(text: String, modifier: Modifier = Modifier) {
             )
         }
     }
+}
+
+/** Compact horizontal stat: icon, label and value on one line. */
+@Composable
+fun MiniStat(
+    label: String,
+    value: String,
+    icon: ImageVector,
+    tint: Color,
+    tintBg: Color,
+    modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null
+) {
+    val clickModifier = if (onClick != null) Modifier.clickable { onClick() } else Modifier
+    Card(
+        modifier = modifier.then(clickModifier),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 11.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Surface(shape = CircleShape, color = tintBg, modifier = Modifier.size(34.dp)) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(19.dp))
+                }
+            }
+            Column(Modifier.weight(1f)) {
+                Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                Text(value, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface, maxLines = 1)
+            }
+        }
+    }
+}
+
+/** One tappable row of a menu list: icon, title, optional badge and chevron. */
+@Composable
+fun MenuRow(
+    icon: ImageVector,
+    title: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    badge: String? = null,
+    badgeContainer: Color = Brand.WarningBg,
+    badgeContent: Color = Brand.Warning
+) {
+    Row(
+        modifier.fillMaxWidth().clickable { onClick() }.padding(horizontal = 14.dp, vertical = 13.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
+        Text(title, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+        if (badge != null) StatusPill(badge, badgeContainer, badgeContent)
+        Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.outline)
+    }
+}
+
+/** Password field with show/hide toggle. */
+@Composable
+fun PasswordField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    modifier: Modifier = Modifier,
+    isError: Boolean = false,
+    supportingText: String? = null
+) {
+    var visible by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        modifier = modifier.fillMaxWidth(),
+        label = { Text(label) },
+        leadingIcon = { Icon(Icons.Rounded.Lock, contentDescription = null) },
+        trailingIcon = {
+            androidx.compose.material3.IconButton(onClick = { visible = !visible }) {
+                Icon(
+                    if (visible) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
+                    contentDescription = if (visible) "Hide password" else "Show password"
+                )
+            }
+        },
+        supportingText = supportingText?.let { { Text(it) } },
+        isError = isError,
+        singleLine = true,
+        visualTransformation = if (visible) androidx.compose.ui.text.input.VisualTransformation.None
+        else androidx.compose.ui.text.input.PasswordVisualTransformation(),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+        shape = RoundedCornerShape(14.dp),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedContainerColor = MaterialTheme.colorScheme.surface,
+            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+            focusedBorderColor = MaterialTheme.colorScheme.primary,
+            unfocusedBorderColor = MaterialTheme.colorScheme.outline
+        )
+    )
+}
+
+/** Decimal field for prescription powers with a +/- button (many number keypads have no minus key). */
+@Composable
+fun SignedDecimalField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    modifier: Modifier = Modifier,
+    placeholder: String? = null,
+    supportingText: String? = null,
+    isError: Boolean = false
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        modifier = modifier.fillMaxWidth(),
+        label = { Text(label) },
+        placeholder = placeholder?.let { { Text(it) } },
+        supportingText = supportingText?.let { { Text(it) } },
+        trailingIcon = {
+            androidx.compose.material3.IconButton(
+                onClick = { onValueChange(`in`.surya.optician.data.PrescriptionRules.toggleSign(value)) },
+                modifier = Modifier.semantics { contentDescription = "Switch between plus and minus" }
+            ) { Text("±", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary) }
+        },
+        isError = isError,
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+        shape = RoundedCornerShape(14.dp),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedContainerColor = MaterialTheme.colorScheme.surface,
+            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+            focusedBorderColor = MaterialTheme.colorScheme.primary,
+            unfocusedBorderColor = MaterialTheme.colorScheme.outline
+        )
+    )
 }
