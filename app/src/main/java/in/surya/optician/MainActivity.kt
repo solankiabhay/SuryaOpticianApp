@@ -618,8 +618,9 @@ class MainActivity : ComponentActivity() {
          if (customerName.isBlank()) toast("Customer name is required")
          else if (!ageValidation.isValid) toast("Enter a valid age between 0 and 120")
          else if (selectedCustomerId == null) {
-          db.dao().addCustomer(Customer(name=customerName.trim(), phone=customerPhone.trim(), address=customerAddress.trim(), age=ageValue, email=customerEmail.trim()))
-          customerName=""; customerPhone=""; customerAddress=""; customerAge=""; customerEmail=""; toast("Customer saved")
+          runCatching { db.dao().addCustomer(Customer(name=customerName.trim(), phone=customerPhone.trim(), address=customerAddress.trim(), age=ageValue, email=customerEmail.trim())) }
+           .onSuccess { customerName=""; customerPhone=""; customerAddress=""; customerAge=""; customerEmail=""; toast("Customer saved") }
+           .onFailure { toast(it.message ?: "Could not save customer") }
          } else {
           val customerId = selectedCustomerId
           if (customerId == null) {
@@ -693,8 +694,17 @@ class MainActivity : ComponentActivity() {
          val stock = productStock.toIntOrNull()
          val low = productLowStock.toIntOrNull()
          if (productName.isBlank() || price == null || price < 0 || cost == null || cost < 0 || stock == null || stock < 0 || low == null || low < 0) toast("Enter valid product, selling/purchase price and stock")
-         else if (selectedProductId == null) { db.dao().addProduct(Product(name=productName.trim(), sku=productSku.trim(), pricePaise=(price*100).toLong(), stock=stock, lowStock=low, costPaise=(cost*100).toLong(), category=productCategory.trim())); productName=""; productSku=""; productPrice=""; productCost="0"; productCategory=""; productStock="1"; productLowStock="3"; toast("Product saved") }
-         else { db.dao().updateProduct(Product(id=selectedProductId!!, name=productName.trim(), sku=productSku.trim(), pricePaise=(price*100).toLong(), stock=stock, lowStock=low, costPaise=(cost*100).toLong(), category=productCategory.trim())); selectedProductId=null; productName=""; productSku=""; productPrice=""; productCost="0"; productCategory=""; productStock="1"; productLowStock="3"; toast("Product and stock updated") }
+         else if (selectedProductId == null) {
+          runCatching { db.dao().addProduct(Product(name=productName.trim(), sku=productSku.trim(), pricePaise=(price*100).toLong(), stock=stock, lowStock=low, costPaise=(cost*100).toLong(), category=productCategory.trim())) }
+           .onSuccess { productName=""; productSku=""; productPrice=""; productCost="0"; productCategory=""; productStock="1"; productLowStock="3"; toast("Product saved") }
+           .onFailure { toast(it.message ?: "Could not save product") }
+         } else {
+          val id=selectedProductId
+          if(id==null) toast("Product selection expired. Select the product again.")
+          else runCatching { db.dao().updateProduct(Product(id=id, name=productName.trim(), sku=productSku.trim(), pricePaise=(price*100).toLong(), stock=stock, lowStock=low, costPaise=(cost*100).toLong(), category=productCategory.trim())) }
+           .onSuccess { selectedProductId=null; productName=""; productSku=""; productPrice=""; productCost="0"; productCategory=""; productStock="1"; productLowStock="3"; toast("Product and stock updated") }
+           .onFailure { toast(it.message ?: "Could not update product") }
+         }
         } }
          PrimaryAction(text=if(selectedProductId==null) "Save product" else "Update product / stock", onClick={
           productTouched=true
