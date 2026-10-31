@@ -255,7 +255,6 @@ class MainActivity : ComponentActivity() {
     var section by remember { mutableStateOf("Dashboard") }
     val mainScroll = rememberScrollState()
     LaunchedEffect(section) { mainScroll.scrollTo(0) }
-    LaunchedEffect(selectedCustomerId) { if (selectedCustomerId != null) mainScroll.animateScrollTo(0) }
     var showMoreMenu by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
      var legacyDownloadFile by remember { mutableStateOf<File?>(null) }
@@ -275,6 +274,7 @@ class MainActivity : ComponentActivity() {
     var reportAppliedTo by remember { mutableStateOf("") }
     var reportType by remember { mutableStateOf("Collection") }
     var selectedCustomerId by remember { mutableStateOf<Long?>(null) }
+    LaunchedEffect(selectedCustomerId) { if (selectedCustomerId != null) mainScroll.animateScrollTo(0) }
     var customerName by remember { mutableStateOf("") }
     var customerPhone by remember { mutableStateOf("") }
     var customerAddress by remember { mutableStateOf("") }
