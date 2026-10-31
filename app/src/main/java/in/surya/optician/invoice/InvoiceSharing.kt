@@ -21,35 +21,36 @@ object InvoiceSharing {
     }
 
     fun share(context: Context, file: File, phone: String, whatsApp: Boolean) {
-        val uri: Uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
-        val normalized = normalizeIndianPhone(phone)
-        val intent = Intent(Intent.ACTION_SEND).apply {
-            type = "application/pdf"
-            putExtra(Intent.EXTRA_STREAM, uri)
-            putExtra(Intent.EXTRA_TEXT, "Thank you for visiting our optical shop. Please find your bill attached.")
-            clipData = ClipData.newUri(context.contentResolver, "Invoice PDF", uri)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        }
-
-        if (whatsApp && normalized.isNotBlank()) {
-            try {
-                intent.setPackage("com.whatsapp")
-                // WhatsApp may ignore recipient extras on some versions; always verify the chat before sending.
-                intent.putExtra("jid", "$normalized@s.whatsapp.net")
-                intent.putExtra("phone", normalized)
-                context.startActivity(intent)
-                return
-            } catch (_: Exception) {
-                Toast.makeText(context, "Could not open a targeted WhatsApp share. Choose the correct recipient manually.", Toast.LENGTH_LONG).show()
+        runCatching {
+            check(file.exists() && file.length() > 0L) { "Invoice PDF is empty or missing" }
+            val uri: Uri = FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.fileprovider",
+                file
+            )
+            val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                type = "application/pdf"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                putExtra(
+                    Intent.EXTRA_TEXT,
+                    "Thank you for visiting our optical shop. Please find your bill attached."
+                )
+                clipData = ClipData.newUri(context.contentResolver, "Invoice PDF", uri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
-        } else if (whatsApp) {
-            Toast.makeText(context, "Customer phone is missing or invalid; choose the recipient manually.", Toast.LENGTH_LONG).show()
-        }
 
-        try {
-            context.startActivity(Intent.createChooser(intent, "Share invoice PDF"))
-        } catch (_: Exception) {
-            Toast.makeText(context, "No PDF sharing app is available.", Toast.LENGTH_LONG).show()
+            // Always show Android's Sharesheet. Do not pin the intent to WhatsApp:
+            // that bypasses the app chooser and can make the button appear unresponsive
+            // when WhatsApp cannot handle the targeted PDF intent.
+            context.startActivity(
+                Intent.createChooser(sendIntent, "Share invoice PDF")
+            )
+        }.onFailure { error ->
+            Toast.makeText(
+                context,
+                error.message ?: "Could not open invoice sharing",
+                Toast.LENGTH_LONG
+            ).show()
         }
     }
 }
