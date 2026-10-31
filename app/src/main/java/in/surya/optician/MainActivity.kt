@@ -345,7 +345,6 @@ class MainActivity : ComponentActivity() {
     var billGlassType by remember { mutableStateOf("") }
     var billDeliveryDate by remember { mutableStateOf("") }
     var showBillPreview by remember { mutableStateOf(false) }
-    var showVoiceSaveConfirmation by remember { mutableStateOf(false) }
     var editingInvoiceId by remember { mutableStateOf<Long?>(null) }
     var invoiceDeleteTarget by remember { mutableStateOf<Invoice?>(null) }
     var paymentInvoiceId by remember { mutableStateOf("") }
