@@ -6,7 +6,7 @@ import java.util.Calendar
  * Maps the free Android speech-to-text transcript to the existing bill draft.
  * Parsing is deliberately local: no bill is saved by this class.
  */
-data class VoiceBillItem(val description: String, val quantity: Int, val amount: String)
+data class VoiceBillItem(val description: String, val quantity: Int, val amount: String, val discount: String? = null, val tax: String? = null)
 
 data class VoiceBillCommand(
     val customerName: String? = null,
@@ -83,16 +83,17 @@ object VoiceBillCommandParser {
         text.split(',', ';', '\\n').forEach { raw ->
             val segment = raw.trim().trimEnd('.')
             val match = Regex(
-                "(?i)^(?:add\\s+item|item|product|frame|lens|.+\\b(?:frame|lens))\\s+(.+?)\\s+(?:rs\\.?|rupees?\\s*)?(\\d+(?:\\.\\d{1,2})?)\\s*(?:rs\\.?|rupees?)?$"
+                "(?i)^(?:(?:add\\s+item|item|product)\\s+)?(.+?)\\s+(?:rs\\.?|rupees?\\s*)?(\\d+(?:\\.\\d{1,2})?)\\s*(?:rs\\.?|rupees?)?$"
             ).matchEntire(segment) ?: return@forEach
             var description = match.groupValues[1].trim()
+            if (!Regex("(?i)\\b(frame|lens|item|product)\\b").containsMatchIn(description)) return@forEach
             var qty = 1
             val qtyMatch = Regex("(?i)\\bqty\\s*(\\d+)\\b").find(description)
             if (qtyMatch != null) {
                 qty = qtyMatch.groupValues[1].toIntOrNull()?.coerceIn(1, 999) ?: 1
                 description = description.replace(qtyMatch.value, "").trim()
             }
-            if (description.isNotBlank()) result += VoiceBillItem(description, qty, match.groupValues[2])
+            if (description.isNotBlank()) result += VoiceBillItem(description, qty, match.groupValues[2], discount, tax)
         }
         return result
     }
@@ -119,17 +120,18 @@ object VoiceBillCommandParser {
             Regex("(?i)\\b(other)\\b").containsMatchIn(text) -> "Other"
             else -> null
         }
-        fun eye(side: String, field: String): String? {
+        val rightText = Regex("(?i)(?:right(?:\\s+eye)?|od)\\s*(.*?)(?=(?:left(?:\\s+eye)?|os)\\b|$)").find(text)?.groupValues?.getOrNull(1).orEmpty()
+        val leftText = Regex("(?i)(?:left(?:\\s+eye)?|os)\\s*(.*)$").find(text)?.groupValues?.getOrNull(1).orEmpty()
+        fun eye(segment: String, field: String): String? {
             val aliases = when (field) {
                 "sphere" -> "(?:sph|sphere)"
                 "cylinder" -> "(?:cyl|cylinder)"
                 "axis" -> "axis"
                 else -> "add"
             }
-            val sidePattern = if (side == "right") "(?:right(?:\\s+eye)?|od)" else "(?:left(?:\\s+eye)?|os)"
-            val value = capture(text, "$sidePattern\\s*$aliases\\s*($number)")
-                ?: capture(text, "$aliases\\s*($number)\\s*$sidePattern")
-            return if (field == "sphere" || field == "cylinder" || field == "add") signed(value) else value?.filter(Char::isDigit)?.takeIf { it.toIntOrNull() in 0..180 }
+            val value = capture(segment, "$aliases\\s*($number)")
+            return if (field == "axis") value?.filter(Char::isDigit)?.takeIf { it.toIntOrNull() in 0..180 }
+            else signed(value)
         }
         val pdValue = capture(text, "(?:pd|p\\.?d\\.?|pupillary\\s+distance)\\s*(\\d{1,3}(?:\\.\\d+)?)")
             ?.toDoubleOrNull()?.takeIf { it in 20.0..80.0 }?.let { if (it % 1.0 == 0.0) it.toInt().toString() else it.toString() }
@@ -147,14 +149,14 @@ object VoiceBillCommandParser {
             tax = tax,
             advanceAmount = advance,
             paymentMethod = method,
-            rightSphere = eye("right", "sphere"),
-            rightCylinder = eye("right", "cylinder"),
-            rightAxis = eye("right", "axis"),
-            rightAdd = eye("right", "add"),
-            leftSphere = eye("left", "sphere"),
-            leftCylinder = eye("left", "cylinder"),
-            leftAxis = eye("left", "axis"),
-            leftAdd = eye("left", "add"),
+            rightSphere = eye(rightText, "sphere"),
+            rightCylinder = eye(rightText, "cylinder"),
+            rightAxis = eye(rightText, "axis"),
+            rightAdd = eye(rightText, "add"),
+            leftSphere = eye(leftText, "sphere"),
+            leftCylinder = eye(leftText, "cylinder"),
+            leftAxis = eye(leftText, "axis"),
+            leftAdd = eye(leftText, "add"),
             pd = pdValue
         )
     }
