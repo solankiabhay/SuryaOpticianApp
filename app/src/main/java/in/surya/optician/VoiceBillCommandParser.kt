@@ -80,8 +80,9 @@ object VoiceBillCommandParser {
         val result = mutableListOf<VoiceBillItem>()
         // Spoken item groups are separated by commas/semicolons. Only segments naming an
         // item/frame/lens are accepted, so age, dates and prescription numbers aren't bills.
-        text.split(',', ';', '\\n').forEach { raw ->
-            val segment = raw.trim().trimEnd('.')
+        text.split(',', ';', '\n').forEach { raw ->
+            val original = raw.trim().trimEnd('.')
+            val segment = Regex("(?i)^(.*?\\d+(?:\\.\\d{1,2})?\\s*(?:rs\\.?|rupees?)?)(?=\\s+(?:advance|paid|cash|online|upi|other|discount|tax|glass|delivery|right|left|pd)\\b)").find(original)?.groupValues?.get(1) ?: original
             val match = Regex(
                 "(?i)^(?:(?:add\\s+item|item|product)\\s+)?(.+?)\\s+(?:rs\\.?|rupees?\\s*)?(\\d+(?:\\.\\d{1,2})?)\\s*(?:rs\\.?|rupees?)?$"
             ).matchEntire(segment) ?: return@forEach
