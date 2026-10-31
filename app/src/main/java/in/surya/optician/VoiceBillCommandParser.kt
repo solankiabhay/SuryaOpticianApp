@@ -131,7 +131,7 @@ object VoiceBillCommandParser {
                 else -> "add"
             }
             val value = capture(segment, "$aliases\\s*($number)")
-            return if (field == "axis") value?.filter(Char::isDigit)?.takeIf { it.toIntOrNull() in 0..180 }
+            return if (field == "axis") value?.filter(Char::isDigit)?.let { digits -> digits.toIntOrNull()?.takeIf { it in 0..180 }?.toString() }
             else signed(value)
         }
         val pdValue = capture(text, "(?:pd|p\\.?d\\.?|pupillary\\s+distance)\\s*(\\d{1,3}(?:\\.\\d+)?)")
