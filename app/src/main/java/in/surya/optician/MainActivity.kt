@@ -307,6 +307,12 @@ class MainActivity : ComponentActivity() {
     var billTax by remember { mutableStateOf("0") }
     var billPaid by remember { mutableStateOf("0") }
     var billPaymentMethod by remember { mutableStateOf("Cash") }
+    var billPrescriptionId by remember { mutableStateOf("") }
+    var billPrescriptionSummary by remember { mutableStateOf("") }
+    var billEyeTestFee by remember { mutableStateOf("") }
+    var billPrescriptionExpanded by remember { mutableStateOf(false) }
+    var billGlassType by remember { mutableStateOf("") }
+    var billDeliveryDate by remember { mutableStateOf("") }
     val voiceBillingLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
      androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -321,9 +327,9 @@ class MainActivity : ComponentActivity() {
       command.email?.let { billCustomerEmail=it; applied=true }
       command.items.forEach { item ->
        val amount = Money.parseRupeesToPaise(item.amount)
-       val itemDiscount = Money.parseRupeesToPaise(item.discount, blankAs=0L)
-       val itemTax = Money.parseRupeesToPaise(item.tax, blankAs=0L)
-       if (amount != null && amount >= 0L && itemDiscount != null && itemTax != null) {
+       val itemDiscount = Money.parseRupeesToPaise(item.discount, blankAs=0L) ?: 0L
+       val itemTax = Money.parseRupeesToPaise(item.tax, blankAs=0L) ?: 0L
+       if (amount != null && amount >= 0L) {
         billLines = billLines + BillLine(null, item.description, item.quantity, amount, itemDiscount, itemTax)
         applied=true
        }
@@ -359,14 +365,8 @@ class MainActivity : ComponentActivity() {
       }
      }
     }
-    var billPrescriptionId by remember { mutableStateOf("") }
-    var billPrescriptionSummary by remember { mutableStateOf("") }
-    var billEyeTestFee by remember { mutableStateOf("") }
     var savingCustomerForPrescription by remember { mutableStateOf(false) }
     var showPrescriptionCustomerForm by remember { mutableStateOf(false) }
-    var billPrescriptionExpanded by remember { mutableStateOf(false) }
-    var billGlassType by remember { mutableStateOf("") }
-    var billDeliveryDate by remember { mutableStateOf("") }
     var showBillPreview by remember { mutableStateOf(false) }
     var editingInvoiceId by remember { mutableStateOf<Long?>(null) }
     var invoiceDeleteTarget by remember { mutableStateOf<Invoice?>(null) }
