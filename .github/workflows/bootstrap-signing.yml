@@ -1,0 +1,78 @@
+name: Initialize Surya signing key
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: surya-signing-bootstrap-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  initialize:
+    name: Generate and preserve encrypted signing key
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout selected branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Generate and encrypt signing key
+        shell: bash
+        env:
+          SURYA_BOOTSTRAP_PASSWORD: ${{ secrets.SURYA_BOOTSTRAP_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${SURYA_BOOTSTRAP_PASSWORD:-}" ]]; then
+            echo "::error::First add the SURYA_BOOTSTRAP_PASSWORD repository secret."
+            exit 1
+          fi
+
+          ENCRYPTED_KEYSTORE=".github/signing/surya-upload-key.jks.enc"
+          if [[ -e "$ENCRYPTED_KEYSTORE" ]]; then
+            echo "::error::A signing key already exists. Refusing to replace it."
+            exit 1
+          fi
+
+          mkdir -p .github/signing
+          KEYSTORE_PATH="$RUNNER_TEMP/surya-upload-key.jks"
+          DECRYPTED_CHECK="$RUNNER_TEMP/surya-upload-key-check.jks"
+
+          keytool -genkeypair -v \
+            -keystore "$KEYSTORE_PATH" \
+            -storetype JKS \
+            -storepass "$SURYA_BOOTSTRAP_PASSWORD" \
+            -keypass "$SURYA_BOOTSTRAP_PASSWORD" \
+            -alias surya-upload \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=Surya Optician, OU=Android, O=Surya Optician, L=Pune, ST=Maharashtra, C=IN"
+
+          openssl enc -aes-256-cbc -salt -pbkdf2 -iter 600000 \
+            -in "$KEYSTORE_PATH" -out "$ENCRYPTED_KEYSTORE" \
+            -pass env:SURYA_BOOTSTRAP_PASSWORD
+
+          openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 \
+            -in "$ENCRYPTED_KEYSTORE" -out "$DECRYPTED_CHECK" \
+            -pass env:SURYA_BOOTSTRAP_PASSWORD
+          keytool -list -keystore "$DECRYPTED_CHECK" \
+            -storepass "$SURYA_BOOTSTRAP_PASSWORD" -alias surya-upload >/dev/null
+          echo "Encrypted keystore created and verified. Plaintext key stays only on the temporary runner."
+
+      - name: Commit encrypted key to this branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/signing/surya-upload-key.jks.enc
+          git commit -m "chore: preserve encrypted Android signing key"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
