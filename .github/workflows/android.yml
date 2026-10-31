@@ -28,7 +28,7 @@ jobs:
     timeout-minutes: 30
     env:
       ANDROID_HOME: /usr/local/lib/android/sdk
-      SURYA_VERSION_CODE: ${{ github.run_number + 1 }}
+      SURYA_VERSION_CODE: ${{ github.run_number }}
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
