@@ -122,14 +122,12 @@ class BillingRepository(private val db: OpticianDatabase) {
             productCosts[id] = product.costPaise
         }
 
-        val stamp = SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(Date())
-        var number = "SO-$stamp"
-        var suffix = 1
-        while (dao.byNumber(number) != null) number = "SO-$stamp-${suffix++}"
-
+        // Insert first to obtain Room's monotonically increasing invoice ID.
+        // Formatting the ID as a minimum two-digit string gives 01, 02, ... 99, 100...
+        val temporaryNumber = "TEMP-${System.nanoTime()}"
         val invoiceId = dao.addInvoice(
             Invoice(
-                number = number,
+                number = temporaryNumber,
                 customerId = customerId,
                 customerName = (resolvedCustomer?.name ?: b.customerName).trim(),
                 phone = (resolvedCustomer?.phone ?: b.phone).trim(),
@@ -144,6 +142,11 @@ class BillingRepository(private val db: OpticianDatabase) {
                 prescriptionId = b.prescriptionId
             )
         )
+        val invoiceNumber = String.format(Locale.US, "%02d", invoiceId)
+        require(dao.byNumber(invoiceNumber) == null) { "Bill number $invoiceNumber already exists" }
+        val savedInvoice = dao.invoice(invoiceId) ?: error("Invoice could not be created")
+        dao.updateInvoice(savedInvoice.copy(number = invoiceNumber))
+
         dao.addItems(b.lines.map { line ->
             InvoiceItem(
                 invoiceId = invoiceId,
