@@ -23,11 +23,12 @@ concurrency:
 
 jobs:
   android:
-    name: Unit tests and debug APK
+    name: Unit tests and installable APK
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
       ANDROID_HOME: /usr/local/lib/android/sdk
+      SURYA_VERSION_CODE: ${{ github.run_number + 1 }}
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -37,6 +38,29 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
+
+      - name: Configure persistent APK signing
+        shell: bash
+        env:
+          SURYA_KEYSTORE_BASE64: ${{ secrets.SURYA_KEYSTORE_BASE64 }}
+          SURYA_KEYSTORE_PASSWORD: ${{ secrets.SURYA_KEYSTORE_PASSWORD }}
+          SURYA_KEY_ALIAS: ${{ secrets.SURYA_KEY_ALIAS }}
+          SURYA_KEY_PASSWORD: ${{ secrets.SURYA_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          for name in SURYA_KEYSTORE_BASE64 SURYA_KEYSTORE_PASSWORD SURYA_KEY_ALIAS SURYA_KEY_PASSWORD; do
+            if [[ -z "${!name:-}" ]]; then
+              echo "::error::Missing GitHub Actions secret: $name"
+              exit 1
+            fi
+          done
+          KEYSTORE_PATH="$RUNNER_TEMP/surya-upload-key.jks"
+          printf '%s' "$SURYA_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE_PATH"
+          test -s "$KEYSTORE_PATH"
+          echo "SURYA_KEYSTORE_FILE=$KEYSTORE_PATH" >> "$GITHUB_ENV"
+          echo "SURYA_KEYSTORE_PASSWORD=$SURYA_KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
+          echo "SURYA_KEY_ALIAS=$SURYA_KEY_ALIAS" >> "$GITHUB_ENV"
+          echo "SURYA_KEY_PASSWORD=$SURYA_KEY_PASSWORD" >> "$GITHUB_ENV"
 
       - name: Locate Android SDK manager
         shell: bash
@@ -81,13 +105,15 @@ jobs:
       - name: Run Android lint
         run: gradle --no-daemon --stacktrace lintDebug
 
-      - name: Build debug APK
-        run: gradle --no-daemon --stacktrace assembleDebug
+      - name: Build installable APK
+        run: |
+          gradle --no-daemon --stacktrace assembleDebug
+          cp app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/surya.apk
 
-      - name: Upload debug APK
+      - name: Upload Surya APK
         uses: actions/upload-artifact@v4
         with:
-          name: surya-optician-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: surya-apk
+          path: app/build/outputs/apk/debug/surya.apk
           if-no-files-found: error
           retention-days: 14
