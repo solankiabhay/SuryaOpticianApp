@@ -255,6 +255,7 @@ class MainActivity : ComponentActivity() {
     var section by remember { mutableStateOf("Dashboard") }
     val mainScroll = rememberScrollState()
     LaunchedEffect(section) { mainScroll.scrollTo(0) }
+    LaunchedEffect(selectedCustomerId) { if (selectedCustomerId != null) mainScroll.animateScrollTo(0) }
     var showMoreMenu by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
      var legacyDownloadFile by remember { mutableStateOf<File?>(null) }
@@ -630,7 +631,6 @@ class MainActivity : ComponentActivity() {
         Spacer(Modifier.height(24.dp))
        }
        "Customers" -> {
-        var customerTouched by remember { mutableStateOf(false) }
         ScreenHeader(if(selectedCustomerId==null) "Customers" else "Edit customer", "Contact details and age for better service")
         Spacer(Modifier.height(12.dp))
         SectionCard(title=if(selectedCustomerId==null) "Add a customer" else "Update customer details", icon=Icons.Rounded.PersonAdd) {
@@ -689,17 +689,15 @@ class MainActivity : ComponentActivity() {
             Text(listOfNotNull(customer.phone.takeIf { it.isNotBlank() }, customer.age?.let { "Age $it" }, customer.address.takeIf { it.isNotBlank() }, customer.email.takeIf { it.isNotBlank() }).joinToString("  ·  ").ifBlank { "No additional details" }, style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSurfaceVariant)
            }
            if(canManageRecords()) IconButton(onClick={
-             runCatching {
-              val form=customer.toEditForm()
-              selectedCustomerId=form.customerId
-              customerName=form.name
-              customerPhone=form.phone
-              customerAddress=form.address
-              customerAge=form.age
-              customerEmail=form.email
-              customerTouched=false
-             }.onSuccess { lifecycleScope.launch { runCatching { mainScroll.scrollTo(0) } } }
-              .onFailure { error -> toast("Could not open customer for editing: ${error.message ?: "Please try again"}") }
+             // Keep this click handler synchronous and side-effect-light: only copy the
+             // selected record into stable screen state. Scrolling is handled by LaunchedEffect.
+             selectedCustomerId = customer.id
+             customerName = customer.name
+             customerPhone = customer.phone
+             customerAddress = customer.address
+             customerAge = customer.age?.toString().orEmpty()
+             customerEmail = customer.email
+             customerTouched = false
             }) { Icon(Icons.Rounded.Edit, contentDescription="Edit customer", tint=MaterialTheme.colorScheme.primary) }
            if(canDeleteRecords()) IconButton(onClick={ if(!canDeleteRecords()) denyPermission("delete customers") else lifecycleScope.launch {
             val hasInvoices=db.dao().customerInvoiceCount(customer.id)>0
