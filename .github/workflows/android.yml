@@ -39,28 +39,31 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Configure persistent APK signing
+      - name: Restore persistent APK signing key
         shell: bash
         env:
-          SURYA_KEYSTORE_BASE64: ${{ secrets.SURYA_KEYSTORE_BASE64 }}
-          SURYA_KEYSTORE_PASSWORD: ${{ secrets.SURYA_KEYSTORE_PASSWORD }}
-          SURYA_KEY_ALIAS: ${{ secrets.SURYA_KEY_ALIAS }}
-          SURYA_KEY_PASSWORD: ${{ secrets.SURYA_KEY_PASSWORD }}
+          SURYA_BOOTSTRAP_PASSWORD: ${{ secrets.SURYA_BOOTSTRAP_PASSWORD }}
         run: |
           set -euo pipefail
-          for name in SURYA_KEYSTORE_BASE64 SURYA_KEYSTORE_PASSWORD SURYA_KEY_ALIAS SURYA_KEY_PASSWORD; do
-            if [[ -z "${!name:-}" ]]; then
-              echo "::error::Missing GitHub Actions secret: $name"
-              exit 1
-            fi
-          done
+          if [[ -z "${SURYA_BOOTSTRAP_PASSWORD:-}" ]]; then
+            echo "::error::Add the SURYA_BOOTSTRAP_PASSWORD repository secret before building."
+            exit 1
+          fi
+          ENCRYPTED_KEYSTORE=".github/signing/surya-upload-key.jks.enc"
+          if [[ ! -s "$ENCRYPTED_KEYSTORE" ]]; then
+            echo "::error::Encrypted signing key is missing. Run the 'Initialize Surya signing key' workflow once."
+            exit 1
+          fi
           KEYSTORE_PATH="$RUNNER_TEMP/surya-upload-key.jks"
-          printf '%s' "$SURYA_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE_PATH"
-          test -s "$KEYSTORE_PATH"
+          openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 \
+            -in "$ENCRYPTED_KEYSTORE" -out "$KEYSTORE_PATH" \
+            -pass env:SURYA_BOOTSTRAP_PASSWORD
+          keytool -list -keystore "$KEYSTORE_PATH" \
+            -storepass "$SURYA_BOOTSTRAP_PASSWORD" -alias surya-upload >/dev/null
           echo "SURYA_KEYSTORE_FILE=$KEYSTORE_PATH" >> "$GITHUB_ENV"
-          echo "SURYA_KEYSTORE_PASSWORD=$SURYA_KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
-          echo "SURYA_KEY_ALIAS=$SURYA_KEY_ALIAS" >> "$GITHUB_ENV"
-          echo "SURYA_KEY_PASSWORD=$SURYA_KEY_PASSWORD" >> "$GITHUB_ENV"
+          echo "SURYA_KEYSTORE_PASSWORD=$SURYA_BOOTSTRAP_PASSWORD" >> "$GITHUB_ENV"
+          echo "SURYA_KEY_ALIAS=surya-upload" >> "$GITHUB_ENV"
+          echo "SURYA_KEY_PASSWORD=$SURYA_BOOTSTRAP_PASSWORD" >> "$GITHUB_ENV"
 
       - name: Locate Android SDK manager
         shell: bash
