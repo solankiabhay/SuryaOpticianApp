@@ -262,6 +262,7 @@ class MainActivity : ComponentActivity() {
     var billHistoryPage by remember { mutableIntStateOf(0) }
     var historyFilter by remember { mutableStateOf("All") }
     var savingBill by remember { mutableStateOf(false) }
+    var showVoiceSaveConfirmation by remember { mutableStateOf(false) }
     var billTouched by remember { mutableStateOf(false) }
     var customerSearch by remember { mutableStateOf("") }
     var customerTouched by remember { mutableStateOf(false) }
