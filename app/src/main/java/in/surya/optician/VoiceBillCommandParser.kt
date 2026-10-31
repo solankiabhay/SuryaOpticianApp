@@ -25,7 +25,7 @@ object VoiceBillCommandParser {
         val name = capture(Regex("(?i)(?:customer(?:\\s+name)?|naam)\\s+(.+?)(?=\\s+(?:phone|mobile|number|age|umar|item|advance|payment)\\b|$)"))
         val phone = capture(Regex("(?i)(?:phone|mobile|number)\\s*(?:number)?\\s*([0-9][0-9\\s-]{8,14})"))
             ?.filter(Char::isDigit)?.takeIf { it.length in 10..12 }
-        val age = capture(Regex("(?i)(?:age|umar)\\s*(\\d{1,3})"))?.takeIf { it.toIntOrNull() in 0..120 }
+        val age = capture(Regex("(?i)(?:age|umar)\\s*(\\d{1,3})"))?.let { value -> value.toIntOrNull()?.takeIf { it in 0..120 }?.toString() }
         val itemMatch = Regex("(?i)(?:add\\s+item|item|product)\\s+(.+?)\\s+(?:rupees?\\s*)?(\\d+(?:\\.\\d{1,2})?)\\s*(?:rupees?|rs)?\\b").find(text)
         val advance = capture(Regex("(?i)(?:advance|paid)\\s*(?:rupees?\\s*)?(\\d+(?:\\.\\d{1,2})?)"))
         val method = when {
