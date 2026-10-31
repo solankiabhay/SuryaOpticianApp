@@ -326,7 +326,13 @@ class MainActivity : ComponentActivity() {
       }
       command.advanceAmount?.let { billPaid=it; applied=true }
       command.paymentMethod?.let { billPaymentMethod=it; applied=true }
-      Toast.makeText(this@MainActivity, if(applied) "Voice details added. Please review the bill." else "Command not recognized. Try: customer name Rahul, add item frame 1500, advance 500 cash.", Toast.LENGTH_LONG).show()
+      val asksToSave = Regex("(?i)\\b(save|save it|save bill|bill save|bill ko save|save kar do|save karo)\\b").containsMatchIn(spoken)
+      if (asksToSave) {
+       showVoiceSaveConfirmation = true
+       Toast.makeText(this@MainActivity, "Please confirm the bill details before saving.", Toast.LENGTH_LONG).show()
+      } else {
+       Toast.makeText(this@MainActivity, if(applied) "Voice details added. Please review the bill." else "Command not recognized. Try: customer name Rahul, add item frame 1500, advance 500 cash.", Toast.LENGTH_LONG).show()
+      }
      }
     }
     var billPrescriptionId by remember { mutableStateOf("") }
@@ -338,6 +344,7 @@ class MainActivity : ComponentActivity() {
     var billGlassType by remember { mutableStateOf("") }
     var billDeliveryDate by remember { mutableStateOf("") }
     var showBillPreview by remember { mutableStateOf(false) }
+    var showVoiceSaveConfirmation by remember { mutableStateOf(false) }
     var editingInvoiceId by remember { mutableStateOf<Long?>(null) }
     var invoiceDeleteTarget by remember { mutableStateOf<Invoice?>(null) }
     var paymentInvoiceId by remember { mutableStateOf("") }
@@ -1002,7 +1009,7 @@ class MainActivity : ComponentActivity() {
         Spacer(Modifier.height(16.dp))
         SecondaryAction(text="Preview bill before saving", onClick={ showBillPreview=true }, icon=Icons.Rounded.Visibility, enabled=effectiveBillLines.isNotEmpty())
         Spacer(Modifier.height(8.dp))
-        PrimaryAction(text=if(savingBill) "Saving…" else if(editingInvoiceId==null) "Create bill and deduct stock" else "Save bill changes", enabled=!savingBill, onClick={
+        val saveBillAction: () -> Unit = {
          if(!savingBill) {
           billTouched=true
           val pending=pendingItem
@@ -1050,7 +1057,29 @@ class MainActivity : ComponentActivity() {
            }
           }
          }
-        }, icon=Icons.Rounded.Check)
+        }
+        PrimaryAction(text=if(savingBill) "Saving…" else if(editingInvoiceId==null) "Create bill and deduct stock" else "Save bill changes", enabled=!savingBill, onClick=saveBillAction, icon=Icons.Rounded.Check)
+        if (showVoiceSaveConfirmation) {
+         AlertDialog(
+          onDismissRequest={ showVoiceSaveConfirmation=false },
+          title={ Text("Confirm bill save") },
+          text={
+           Column {
+            Text("Customer: " + billCustomer.ifBlank { selectedBillCustomer?.name ?: "Not selected" })
+            Text("Total: ${formatRupees(draftTotal)}")
+            Text("Advance received: ${formatRupees(draftPaid)}")
+            Text("Pending balance: ${formatRupees(draftBalance)}")
+            Spacer(Modifier.height(8.dp))
+            Text("Save this bill now?")
+           }
+          },
+          confirmButton={ TextButton(onClick={
+           showVoiceSaveConfirmation=false
+           saveBillAction()
+          }, enabled=!savingBill) { Text("Confirm & save") } },
+          dismissButton={ TextButton(onClick={ showVoiceSaveConfirmation=false }) { Text("Cancel") } }
+         )
+        }
         Spacer(Modifier.height(24.dp))
        }
         "Payment" -> {
