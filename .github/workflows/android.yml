@@ -23,11 +23,12 @@ concurrency:
 
 jobs:
   android:
-    name: Unit tests and debug APK
+    name: Unit tests and installable APK
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
       ANDROID_HOME: /usr/local/lib/android/sdk
+      SURYA_VERSION_CODE: ${{ github.run_number + 1 }}
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -37,6 +38,32 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
+
+      - name: Restore persistent APK signing key
+        shell: bash
+        env:
+          SURYA_BOOTSTRAP_PASSWORD: ${{ secrets.SURYA_BOOTSTRAP_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${SURYA_BOOTSTRAP_PASSWORD:-}" ]]; then
+            echo "::error::Add the SURYA_BOOTSTRAP_PASSWORD repository secret before building."
+            exit 1
+          fi
+          ENCRYPTED_KEYSTORE=".github/signing/surya-upload-key.jks.enc"
+          if [[ ! -s "$ENCRYPTED_KEYSTORE" ]]; then
+            echo "::error::Encrypted signing key is missing. Run the 'Initialize Surya signing key' workflow once."
+            exit 1
+          fi
+          KEYSTORE_PATH="$RUNNER_TEMP/surya-upload-key.jks"
+          openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 \
+            -in "$ENCRYPTED_KEYSTORE" -out "$KEYSTORE_PATH" \
+            -pass env:SURYA_BOOTSTRAP_PASSWORD
+          keytool -list -keystore "$KEYSTORE_PATH" \
+            -storepass "$SURYA_BOOTSTRAP_PASSWORD" -alias surya-upload >/dev/null
+          echo "SURYA_KEYSTORE_FILE=$KEYSTORE_PATH" >> "$GITHUB_ENV"
+          echo "SURYA_KEYSTORE_PASSWORD=$SURYA_BOOTSTRAP_PASSWORD" >> "$GITHUB_ENV"
+          echo "SURYA_KEY_ALIAS=surya-upload" >> "$GITHUB_ENV"
+          echo "SURYA_KEY_PASSWORD=$SURYA_BOOTSTRAP_PASSWORD" >> "$GITHUB_ENV"
 
       - name: Locate Android SDK manager
         shell: bash
@@ -81,13 +108,15 @@ jobs:
       - name: Run Android lint
         run: gradle --no-daemon --stacktrace lintDebug
 
-      - name: Build debug APK
-        run: gradle --no-daemon --stacktrace assembleDebug
+      - name: Build installable APK
+        run: |
+          gradle --no-daemon --stacktrace assembleDebug
+          cp app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/surya.apk
 
-      - name: Upload debug APK
+      - name: Upload Surya APK
         uses: actions/upload-artifact@v4
         with:
-          name: surya-optician-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: surya-apk
+          path: app/build/outputs/apk/debug/surya.apk
           if-no-files-found: error
           retention-days: 14

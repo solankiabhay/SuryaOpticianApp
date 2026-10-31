@@ -262,6 +262,7 @@ class MainActivity : ComponentActivity() {
     var billHistoryPage by remember { mutableIntStateOf(0) }
     var historyFilter by remember { mutableStateOf("All") }
     var savingBill by remember { mutableStateOf(false) }
+    var showVoiceSaveConfirmation by remember { mutableStateOf(false) }
     var billTouched by remember { mutableStateOf(false) }
     var customerSearch by remember { mutableStateOf("") }
     var customerTouched by remember { mutableStateOf(false) }
@@ -306,6 +307,35 @@ class MainActivity : ComponentActivity() {
     var billTax by remember { mutableStateOf("0") }
     var billPaid by remember { mutableStateOf("0") }
     var billPaymentMethod by remember { mutableStateOf("Cash") }
+    val voiceBillingLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+     androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+     if (result.resultCode == android.app.Activity.RESULT_OK) {
+      val spoken = result.data?.getStringArrayListExtra(android.speech.RecognizerIntent.EXTRA_RESULTS)?.firstOrNull().orEmpty()
+      val command = VoiceBillCommandParser.parse(spoken)
+      var applied = false
+      command.customerName?.let { billCustomer=it; billCustomerSearch=it; billCustomerId=""; applied=true }
+      command.phone?.let { billPhone=it; applied=true }
+      command.age?.let { billCustomerAge=it; applied=true }
+      command.itemDescription?.let { description ->
+       val amount = command.itemAmount?.let { Money.parseRupeesToPaise(it) }
+       if (amount != null && amount >= 0L) {
+        billLines = billLines + BillLine(null, description, 1, amount)
+        billDescription=""; billRate=""
+        applied=true
+       }
+      }
+      command.advanceAmount?.let { billPaid=it; applied=true }
+      command.paymentMethod?.let { billPaymentMethod=it; applied=true }
+      val asksToSave = Regex("(?i)\\b(save|save it|save bill|bill save|bill ko save|save kar do|save karo)\\b").containsMatchIn(spoken)
+      if (asksToSave) {
+       showVoiceSaveConfirmation = true
+       Toast.makeText(this@MainActivity, "Please confirm the bill details before saving.", Toast.LENGTH_LONG).show()
+      } else {
+       Toast.makeText(this@MainActivity, if(applied) "Voice details added. Please review the bill." else "Command not recognized. Try: customer name Rahul, add item frame 1500, advance 500 cash.", Toast.LENGTH_LONG).show()
+      }
+     }
+    }
     var billPrescriptionId by remember { mutableStateOf("") }
     var billPrescriptionSummary by remember { mutableStateOf("") }
     var billEyeTestFee by remember { mutableStateOf("") }
@@ -799,6 +829,15 @@ class MainActivity : ComponentActivity() {
         val draftBalance = (draftTotal - draftPaid).coerceAtLeast(0)
         Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.spacedBy(12.dp), verticalAlignment=Alignment.CenterVertically) {
          ScreenHeader(if(editingInvoiceId==null) "New bill" else "Edit bill", "Customer · order · items · payment", Modifier.weight(1f))
+         IconButton(onClick={
+          val voiceIntent=Intent(android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+           putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE_MODEL, android.speech.RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+           putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, "hi-IN")
+           putExtra(android.speech.RecognizerIntent.EXTRA_PROMPT, "Customer, item, amount ya advance boliye")
+          }
+          runCatching { voiceBillingLauncher.launch(voiceIntent) }
+           .onFailure { Toast.makeText(this@MainActivity, "Voice input is not available on this device.", Toast.LENGTH_LONG).show() }
+         }) { Icon(Icons.Rounded.Mic, contentDescription="Fill bill using voice") }
          FilledTonalButton(onClick={ showBillPreview=true }, enabled=effectiveBillLines.isNotEmpty()) {
           Icon(Icons.Rounded.Visibility, contentDescription=null, modifier=Modifier.size(18.dp))
           Spacer(Modifier.width(6.dp))
@@ -970,7 +1009,7 @@ class MainActivity : ComponentActivity() {
         Spacer(Modifier.height(16.dp))
         SecondaryAction(text="Preview bill before saving", onClick={ showBillPreview=true }, icon=Icons.Rounded.Visibility, enabled=effectiveBillLines.isNotEmpty())
         Spacer(Modifier.height(8.dp))
-        PrimaryAction(text=if(savingBill) "Saving…" else if(editingInvoiceId==null) "Create bill and deduct stock" else "Save bill changes", enabled=!savingBill, onClick={
+        val saveBillAction: () -> Unit = {
          if(!savingBill) {
           billTouched=true
           val pending=pendingItem
@@ -1018,7 +1057,29 @@ class MainActivity : ComponentActivity() {
            }
           }
          }
-        }, icon=Icons.Rounded.Check)
+        }
+        PrimaryAction(text=if(savingBill) "Saving…" else if(editingInvoiceId==null) "Create bill and deduct stock" else "Save bill changes", enabled=!savingBill, onClick=saveBillAction, icon=Icons.Rounded.Check)
+        if (showVoiceSaveConfirmation) {
+         AlertDialog(
+          onDismissRequest={ showVoiceSaveConfirmation=false },
+          title={ Text("Confirm bill save") },
+          text={
+           Column {
+            Text("Customer: " + billCustomer.ifBlank { selectedBillCustomer?.name ?: "Not selected" })
+            Text("Total: ${formatRupees(draftTotal)}")
+            Text("Advance received: ${formatRupees(draftPaid)}")
+            Text("Pending balance: ${formatRupees(draftBalance)}")
+            Spacer(Modifier.height(8.dp))
+            Text("Save this bill now?")
+           }
+          },
+          confirmButton={ TextButton(onClick={
+           showVoiceSaveConfirmation=false
+           saveBillAction()
+          }, enabled=!savingBill) { Text("Confirm & save") } },
+          dismissButton={ TextButton(onClick={ showVoiceSaveConfirmation=false }) { Text("Cancel") } }
+         )
+        }
         Spacer(Modifier.height(24.dp))
        }
         "Payment" -> {
