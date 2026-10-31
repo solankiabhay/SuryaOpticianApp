@@ -307,6 +307,12 @@ class MainActivity : ComponentActivity() {
     var billTax by remember { mutableStateOf("0") }
     var billPaid by remember { mutableStateOf("0") }
     var billPaymentMethod by remember { mutableStateOf("Cash") }
+    var billPrescriptionId by remember { mutableStateOf("") }
+    var billPrescriptionSummary by remember { mutableStateOf("") }
+    var billEyeTestFee by remember { mutableStateOf("") }
+    var billPrescriptionExpanded by remember { mutableStateOf(false) }
+    var billGlassType by remember { mutableStateOf("") }
+    var billDeliveryDate by remember { mutableStateOf("") }
     val voiceBillingLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
      androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -317,16 +323,39 @@ class MainActivity : ComponentActivity() {
       command.customerName?.let { billCustomer=it; billCustomerSearch=it; billCustomerId=""; applied=true }
       command.phone?.let { billPhone=it; applied=true }
       command.age?.let { billCustomerAge=it; applied=true }
-      command.itemDescription?.let { description ->
-       val amount = command.itemAmount?.let { Money.parseRupeesToPaise(it) }
+      command.address?.let { billCustomerAddress=it; applied=true }
+      command.email?.let { billCustomerEmail=it; applied=true }
+      command.items.forEach { item ->
+       val amount = Money.parseRupeesToPaise(item.amount)
+       val itemDiscount = Money.parseRupeesToPaise(item.discount.orEmpty(), blankAs=0L) ?: 0L
+       val itemTax = Money.parseRupeesToPaise(item.tax.orEmpty(), blankAs=0L) ?: 0L
        if (amount != null && amount >= 0L) {
-        billLines = billLines + BillLine(null, description, 1, amount)
-        billDescription=""; billRate=""
+        billLines = billLines + BillLine(null, item.description, item.quantity, amount, itemDiscount, itemTax)
         applied=true
        }
       }
+      if(command.items.isNotEmpty()) { billProductId=""; billDescription=""; billQty="1"; billRate="" }
+      command.glassType?.let { billGlassType=it.replaceFirstChar { ch -> ch.uppercase() }; applied=true }
+      command.deliveryDate?.let { billDeliveryDate=it; applied=true }
+      command.eyeTestFee?.let { billEyeTestFee=it; applied=true }
+      if(command.items.isEmpty()) {
+       command.discount?.let { billDiscount=it; applied=true }
+       command.tax?.let { billTax=it; applied=true }
+      } else if(command.discount!=null || command.tax!=null) applied=true
       command.advanceAmount?.let { billPaid=it; applied=true }
       command.paymentMethod?.let { billPaymentMethod=it; applied=true }
+      val rxParts = listOfNotNull(
+       command.rightSphere?.let { "OD SPH $it" }, command.rightCylinder?.let { "OD CYL $it" },
+       command.rightAxis?.let { "OD Axis $it" }, command.rightAdd?.let { "OD ADD $it" },
+       command.leftSphere?.let { "OS SPH $it" }, command.leftCylinder?.let { "OS CYL $it" },
+       command.leftAxis?.let { "OS Axis $it" }, command.leftAdd?.let { "OS ADD $it" },
+       command.pd?.let { "PD $it" }
+      )
+      if(rxParts.isNotEmpty()) {
+       billPrescriptionSummary = (listOf(billPrescriptionSummary).filter { it.isNotBlank() } + rxParts.joinToString(" · ")).joinToString("\\n")
+       billPrescriptionId=""
+       applied=true
+      }
       val asksToSave = Regex("(?i)\\b(save|save it|save bill|bill save|bill ko save|save kar do|save karo)\\b").containsMatchIn(spoken)
       if (asksToSave) {
        showVoiceSaveConfirmation = true
@@ -336,14 +365,8 @@ class MainActivity : ComponentActivity() {
       }
      }
     }
-    var billPrescriptionId by remember { mutableStateOf("") }
-    var billPrescriptionSummary by remember { mutableStateOf("") }
-    var billEyeTestFee by remember { mutableStateOf("") }
     var savingCustomerForPrescription by remember { mutableStateOf(false) }
     var showPrescriptionCustomerForm by remember { mutableStateOf(false) }
-    var billPrescriptionExpanded by remember { mutableStateOf(false) }
-    var billGlassType by remember { mutableStateOf("") }
-    var billDeliveryDate by remember { mutableStateOf("") }
     var showBillPreview by remember { mutableStateOf(false) }
     var editingInvoiceId by remember { mutableStateOf<Long?>(null) }
     var invoiceDeleteTarget by remember { mutableStateOf<Invoice?>(null) }
@@ -833,7 +856,7 @@ class MainActivity : ComponentActivity() {
           val voiceIntent=Intent(android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
            putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE_MODEL, android.speech.RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
            putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, "hi-IN")
-           putExtra(android.speech.RecognizerIntent.EXTRA_PROMPT, "Customer, item, amount ya advance boliye")
+           putExtra(android.speech.RecognizerIntent.EXTRA_PROMPT, "Complete bill details: customer, address, items, lens, prescription and payment boliye")
           }
           runCatching { voiceBillingLauncher.launch(voiceIntent) }
            .onFailure { Toast.makeText(this@MainActivity, "Voice input is not available on this device.", Toast.LENGTH_LONG).show() }
@@ -1629,6 +1652,11 @@ class MainActivity : ComponentActivity() {
         val previewPaidPaise = Money.parseRupeesToPaise(billPaid, blankAs=0L) ?: 0L
         Text("Paid: ${formatRupees(previewPaidPaise)}")
         Text("Balance: ${formatRupees((previewTotal-previewPaidPaise).coerceAtLeast(0))}")
+        if(billPrescriptionSummary.isNotBlank() && selectedBillPrescription==null) {
+         Spacer(Modifier.height(8.dp))
+         Text("EYE PRESCRIPTION", style=MaterialTheme.typography.titleSmall)
+         Text(billPrescriptionSummary, style=MaterialTheme.typography.bodySmall)
+        }
         selectedBillPrescription?.let { rx ->
          Spacer(Modifier.height(8.dp))
          Text("EYE PRESCRIPTION", style=MaterialTheme.typography.titleSmall)
