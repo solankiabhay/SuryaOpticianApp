@@ -327,8 +327,8 @@ class MainActivity : ComponentActivity() {
       command.email?.let { billCustomerEmail=it; applied=true }
       command.items.forEach { item ->
        val amount = Money.parseRupeesToPaise(item.amount)
-       val itemDiscount = Money.parseRupeesToPaise(item.discount, blankAs=0L) ?: 0L
-       val itemTax = Money.parseRupeesToPaise(item.tax, blankAs=0L) ?: 0L
+       val itemDiscount = Money.parseRupeesToPaise(item.discount.orEmpty(), blankAs=0L) ?: 0L
+       val itemTax = Money.parseRupeesToPaise(item.tax.orEmpty(), blankAs=0L) ?: 0L
        if (amount != null && amount >= 0L) {
         billLines = billLines + BillLine(null, item.description, item.quantity, amount, itemDiscount, itemTax)
         applied=true
