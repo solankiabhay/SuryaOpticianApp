@@ -67,6 +67,26 @@ import java.util.Calendar
 
 
 @Composable
+private fun WhatsAppMark(modifier: Modifier = Modifier) {
+ Canvas(modifier.size(20.dp)) {
+  val green = Color(0xFF25D366)
+  drawCircle(color=green)
+  val phone = androidx.compose.ui.graphics.Path().apply {
+   moveTo(size.width*0.34f,size.height*0.27f)
+   cubicTo(size.width*0.29f,size.height*0.33f,size.width*0.30f,size.height*0.43f,size.width*0.39f,size.height*0.54f)
+   cubicTo(size.width*0.49f,size.height*0.67f,size.width*0.62f,size.height*0.74f,size.width*0.70f,size.height*0.68f)
+   lineTo(size.width*0.77f,size.height*0.59f)
+   lineTo(size.width*0.62f,size.height*0.50f)
+   lineTo(size.width*0.54f,size.height*0.59f)
+   cubicTo(size.width*0.46f,size.height*0.55f,size.width*0.42f,size.height*0.49f,size.width*0.40f,size.height*0.42f)
+   lineTo(size.width*0.48f,size.height*0.34f)
+   close()
+  }
+  drawPath(phone,color=Color.White)
+ }
+}
+
+@Composable
 private fun OpticianLogo(
  modifier: Modifier = Modifier,
  color: androidx.compose.ui.graphics.Color = androidx.compose.ui.graphics.Color(0xFF123A63)
@@ -1577,7 +1597,7 @@ class MainActivity : ComponentActivity() {
              TextButton(onClick={lifecycleScope.launch{runCatching{val file=InvoicePdf.generate(this@MainActivity,invoice,db.dao().items(invoice.id),db.dao().settings()?:ShopSettings(),invoice.customerId?.let { db.dao().customer(it) });val uri=FileProvider.getUriForFile(this@MainActivity,"${packageName}.fileprovider",file);startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(uri,"application/pdf").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION))}.onFailure{toast("PDF preview failed. Install a PDF viewer.")}}}){ Icon(Icons.Rounded.Description, contentDescription=null, modifier=Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("PDF") }
              TextButton(onClick={lifecycleScope.launch{runCatching{val file=InvoicePdf.generate(this@MainActivity,invoice,db.dao().items(invoice.id),db.dao().settings()?:ShopSettings(),invoice.customerId?.let { db.dao().customer(it) });printPdf(file,"Invoice ${invoice.number}")}.onFailure{toast("Could not start system print")}}}){ Icon(Icons.Rounded.Print, contentDescription=null, modifier=Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("Print") }
               TextButton(onClick={lifecycleScope.launch{runCatching{val file=InvoicePdf.generate(this@MainActivity,invoice,db.dao().items(invoice.id),db.dao().settings()?:ShopSettings(),invoice.customerId?.let { db.dao().customer(it) });legacyDownloadFile=file;legacyPdfDownloadLauncher.launch("Invoice-${invoice.number}.pdf")}.onFailure{toast(it.message ?: "Invoice download failed")}}}){ Icon(Icons.Rounded.FileDownload, contentDescription=null, modifier=Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("Download") }
-             Button(onClick={lifecycleScope.launch{runCatching{val file=InvoicePdf.generate(this@MainActivity,invoice,db.dao().items(invoice.id),db.dao().settings()?:ShopSettings(),invoice.customerId?.let { db.dao().customer(it) });InvoiceSharing.share(this@MainActivity,file,invoice.phone,true)}.onFailure{toast("Invoice share failed")}}}){ Icon(Icons.Rounded.Share, contentDescription=null, modifier=Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("WhatsApp") }
+             Button(onClick={lifecycleScope.launch{runCatching{val file=InvoicePdf.generate(this@MainActivity,invoice,db.dao().items(invoice.id),db.dao().settings()?:ShopSettings(),invoice.customerId?.let { db.dao().customer(it) });InvoiceSharing.share(this@MainActivity,file,invoice.phone,true)}.onFailure{toast("Invoice share failed")}}}){ WhatsAppMark(); Spacer(Modifier.width(6.dp)); Text("WhatsApp") }
             }
             if(invoice.duePaise>0) TextButton(onClick={reminderInvoice=invoice}){ Icon(Icons.Rounded.NotificationsActive, contentDescription=null, modifier=Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("Reminder") }
            }
