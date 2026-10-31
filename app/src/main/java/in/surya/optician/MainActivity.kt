@@ -321,8 +321,10 @@ class MainActivity : ComponentActivity() {
       command.email?.let { billCustomerEmail=it; applied=true }
       command.items.forEach { item ->
        val amount = Money.parseRupeesToPaise(item.amount)
-       if (amount != null && amount >= 0L) {
-        billLines = billLines + BillLine(null, item.description, item.quantity, amount)
+       val itemDiscount = Money.parseRupeesToPaise(item.discount, blankAs=0L)
+       val itemTax = Money.parseRupeesToPaise(item.tax, blankAs=0L)
+       if (amount != null && amount >= 0L && itemDiscount != null && itemTax != null) {
+        billLines = billLines + BillLine(null, item.description, item.quantity, amount, itemDiscount, itemTax)
         applied=true
        }
       }
@@ -330,8 +332,10 @@ class MainActivity : ComponentActivity() {
       command.glassType?.let { billGlassType=it.replaceFirstChar { ch -> ch.uppercase() }; applied=true }
       command.deliveryDate?.let { billDeliveryDate=it; applied=true }
       command.eyeTestFee?.let { billEyeTestFee=it; applied=true }
-      command.discount?.let { billDiscount=it; applied=true }
-      command.tax?.let { billTax=it; applied=true }
+      if(command.items.isEmpty()) {
+       command.discount?.let { billDiscount=it; applied=true }
+       command.tax?.let { billTax=it; applied=true }
+      } else if(command.discount!=null || command.tax!=null) applied=true
       command.advanceAmount?.let { billPaid=it; applied=true }
       command.paymentMethod?.let { billPaymentMethod=it; applied=true }
       val rxParts = listOfNotNull(
@@ -1648,6 +1652,11 @@ class MainActivity : ComponentActivity() {
         val previewPaidPaise = Money.parseRupeesToPaise(billPaid, blankAs=0L) ?: 0L
         Text("Paid: ${formatRupees(previewPaidPaise)}")
         Text("Balance: ${formatRupees((previewTotal-previewPaidPaise).coerceAtLeast(0))}")
+        if(billPrescriptionSummary.isNotBlank() && selectedBillPrescription==null) {
+         Spacer(Modifier.height(8.dp))
+         Text("EYE PRESCRIPTION", style=MaterialTheme.typography.titleSmall)
+         Text(billPrescriptionSummary, style=MaterialTheme.typography.bodySmall)
+        }
         selectedBillPrescription?.let { rx ->
          Spacer(Modifier.height(8.dp))
          Text("EYE PRESCRIPTION", style=MaterialTheme.typography.titleSmall)
