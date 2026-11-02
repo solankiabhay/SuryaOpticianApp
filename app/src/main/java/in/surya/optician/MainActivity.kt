@@ -674,7 +674,7 @@ class MainActivity : ComponentActivity() {
             Box(contentAlignment=Alignment.Center) { Icon(Icons.Rounded.Person, contentDescription=null, tint=Color.White, modifier=Modifier.size(27.dp)) }
            }
            Column(Modifier.weight(1f), verticalArrangement=Arrangement.spacedBy(3.dp)) {
-            Text("Welcome, §{loggedInUser?.username ?: "there"}", style=MaterialTheme.typography.titleMedium, color=Color(0xFF101B3D), maxLines=1)
+            Text("Welcome, ${loggedInUser?.username ?: "there"}", style=MaterialTheme.typography.titleMedium, color=Color(0xFF101B3D), maxLines=1)
             Text("Your shop at a glance", style=MaterialTheme.typography.bodyMedium, color=Color(0xFF425777))
            }
            Icon(Icons.Rounded.Visibility, contentDescription=null, tint=Color(0xFF123A63), modifier=Modifier.size(34.dp))
