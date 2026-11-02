@@ -274,6 +274,7 @@ class MainActivity : ComponentActivity() {
     var confirmPin by remember { mutableStateOf("") }
     var section by remember { mutableStateOf("Dashboard") }
     val mainScroll = rememberScrollState()
+     LaunchedEffect(editingStaffUsername) { if (editingStaffUsername != null) mainScroll.animateScrollTo(0) }
     LaunchedEffect(section) { mainScroll.scrollTo(0) }
     var showMoreMenu by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
@@ -1497,7 +1498,7 @@ class MainActivity : ComponentActivity() {
            Column(Modifier.weight(1f)) { Text(user.username, style=MaterialTheme.typography.titleMedium) }
            StatusPill(user.role.uppercase(), MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.primary)
            if(isOwner() && user.role!="Owner" && user.username!=loggedInUser?.username) {
-            IconButton(onClick={ newStaffName=user.username;newStaffRole=user.role;newStaffPassword="";editingStaffUsername=user.username;lifecycleScope.launch { mainScroll.animateScrollTo(0) } }) { Icon(Icons.Rounded.Edit, contentDescription="Edit account", tint=MaterialTheme.colorScheme.primary) }
+            IconButton(onClick={ newStaffName=user.username;newStaffRole=user.role;newStaffPassword="";editingStaffUsername=user.username }) { Icon(Icons.Rounded.Edit, contentDescription="Edit account", tint=MaterialTheme.colorScheme.primary) }
             IconButton(onClick={ if(isOwner()) { accountStore.remove(user.username);accountVersion++;toast("Account removed") } else denyPermission("manage user accounts") }) { Icon(Icons.Rounded.Delete, contentDescription="Remove account", tint=MaterialTheme.colorScheme.error) }
            }
           }
