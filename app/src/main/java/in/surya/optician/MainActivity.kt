@@ -631,77 +631,211 @@ class MainActivity : ComponentActivity() {
       Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(mainScroll)) {
       when (section) {
        "Dashboard" -> {
-        val collected = allInvoices.sumOf { it.paidPaise }
-        Card(Modifier.fillMaxWidth(), shape=androidx.compose.foundation.shape.RoundedCornerShape(24.dp), colors=CardDefaults.cardColors(containerColor=androidx.compose.ui.graphics.Color.Transparent)) {
-         Box(Modifier.fillMaxWidth().background(androidx.compose.ui.graphics.Brush.linearGradient(listOf(androidx.compose.ui.graphics.Color(0xFF0E2F52), androidx.compose.ui.graphics.Color(0xFF1D5A8E))))) {
-          Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement=Arrangement.spacedBy(12.dp)) {
-           Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.SpaceBetween, verticalAlignment=Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-             Text(java.text.SimpleDateFormat("EEE, dd MMM", java.util.Locale.getDefault()).format(java.util.Date()).uppercase(), style=MaterialTheme.typography.labelMedium, color=androidx.compose.ui.graphics.Color(0xFFBDD8F4))
-             Text("Namaste, ${loggedInUser?.username ?: "there"}", style=MaterialTheme.typography.titleLarge, color=androidx.compose.ui.graphics.Color.White, maxLines=1)
-            }
-            if(lowStock.isNotEmpty()) StatusPill("${lowStock.size} low stock", Brand.WarningBg, Brand.Warning, Modifier.clickable { section="Products" })
+        val todayStart = Calendar.getInstance().apply {
+         set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+        }.timeInMillis
+        val todaySales = allInvoices.filter { it.createdAt >= todayStart }.sumOf { it.totalPaise }
+        val stockUnits = products.sumOf { it.stock }
+        val weekData = (6 downTo 0).map { daysAgo ->
+         val dayStart = Calendar.getInstance().apply {
+          set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+          add(Calendar.DAY_OF_YEAR, -daysAgo)
+         }
+         val startMillis = dayStart.timeInMillis
+         val endMillis = dayStart.apply { add(Calendar.DAY_OF_YEAR, 1) }.timeInMillis
+         val amount = allInvoices.filter { it.createdAt >= startMillis && it.createdAt < endMillis }.sumOf { it.totalPaise }
+         java.text.SimpleDateFormat("dd", java.util.Locale.getDefault()).format(java.util.Date(startMillis)) to amount
+        }
+        val maxWeekSales = (weekData.maxOfOrNull { it.second } ?: 0L).coerceAtLeast(1L)
+        val dashboardBlue = Color(0xFF0866D9)
+        val dashboardNavy = Color(0xFF123A63)
+        val dashboardActions = listOf(
+         Triple("New Bill", Icons.Rounded.Add, "New Bill"),
+         Triple("Add Customer", Icons.Rounded.PersonAdd, "Customers"),
+         Triple("Add Product", Icons.Rounded.Inventory2, "Products"),
+         Triple("View Bills", Icons.Rounded.Receipt, "Bills"),
+         Triple("Reports", Icons.Rounded.BarChart, "Reports"),
+         Triple("Settings", Icons.Rounded.Settings, "Settings")
+        ).filter { canAccess(it.third) }
+
+        Column(verticalArrangement=Arrangement.spacedBy(14.dp), modifier=Modifier.fillMaxWidth()) {
+         Card(
+          modifier=Modifier.fillMaxWidth(),
+          shape=RoundedCornerShape(22.dp),
+          colors=CardDefaults.cardColors(containerColor=Color(0xFFEAF3FF)),
+          border=BorderStroke(1.dp, Color(0xFFD5E6FF))
+         ) {
+          Row(
+           Modifier.fillMaxWidth().padding(horizontal=16.dp, vertical=17.dp),
+           verticalAlignment=Alignment.CenterVertically,
+           horizontalArrangement=Arrangement.spacedBy(12.dp)
+          ) {
+           Surface(shape=RoundedCornerShape(50), color=dashboardBlue, modifier=Modifier.size(48.dp)) {
+            Box(contentAlignment=Alignment.Center) { Icon(Icons.Rounded.Person, contentDescription=null, tint=Color.White, modifier=Modifier.size(27.dp)) }
            }
-           Button(
-            onClick={ section="New Bill" },
-            modifier=Modifier.fillMaxWidth().height(50.dp),
-            shape=androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
-            colors=ButtonDefaults.buttonColors(containerColor=androidx.compose.ui.graphics.Color.White, contentColor=Brand.Navy)
-           ) { Icon(Icons.Rounded.Add, contentDescription=null); Spacer(Modifier.width(8.dp)); Text("Create New Bill", style=MaterialTheme.typography.titleMedium) }
+           Column(Modifier.weight(1f), verticalArrangement=Arrangement.spacedBy(3.dp)) {
+            Text("Welcome, §{loggedInUser?.username ?: "there"}", style=MaterialTheme.typography.titleMedium, color=Color(0xFF101B3D), maxLines=1)
+            Text("Your shop at a glance", style=MaterialTheme.typography.bodyMedium, color=Color(0xFF425777))
+           }
+           Icon(Icons.Rounded.Visibility, contentDescription=null, tint=Color(0xFF123A63), modifier=Modifier.size(34.dp))
           }
          }
-        }
-        Spacer(Modifier.height(12.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.spacedBy(10.dp)) {
-         MiniStat("Total bills", "${allInvoices.size}", Icons.Rounded.Receipt, MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primaryContainer, Modifier.weight(1f), onClick={ section="Bills" })
-         MiniStat("Collected", formatRupees(collected), Icons.Rounded.CheckCircle, Brand.Success, Brand.SuccessBg, Modifier.weight(1f))
-        }
-        Spacer(Modifier.height(10.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.spacedBy(10.dp)) {
-         MiniStat("Outstanding", formatRupees(due), Icons.Rounded.Payments, Brand.Warning, Brand.WarningBg, Modifier.weight(1f), onClick={ section="Payment" })
-         MiniStat("Customers", "${customers.size}", Icons.Rounded.People, MaterialTheme.colorScheme.secondary, MaterialTheme.colorScheme.secondaryContainer, Modifier.weight(1f), onClick={ section="Customers" })
-        }
-        Spacer(Modifier.height(16.dp))
-        Text("Shortcuts", style=MaterialTheme.typography.titleMedium)
-        Spacer(Modifier.height(8.dp))
-        val shortcutTabs = listOf("Bills" to "Bill history", "Customers" to "Customers", "Products" to "Products & stock", "Payment" to "Collect payment", "Prescription" to "Prescriptions", "Reports" to "Reports", "Settings" to "Settings").filter { canAccess(it.first) }
-        Card(Modifier.fillMaxWidth(), shape=androidx.compose.foundation.shape.RoundedCornerShape(18.dp), colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface), border=BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
-         Column {
-          shortcutTabs.forEachIndexed { i, entry ->
-           MenuRow(
-            icon=sectionIcon(entry.first),
-            title=entry.second,
-            onClick={ section=entry.first },
-            badge=when(entry.first) { "Payment" -> if(due>0) formatRupees(due) else null; "Products" -> if(lowStock.isNotEmpty()) "${lowStock.size} low" else null; else -> null }
-           )
-           if(i<shortcutTabs.lastIndex) HorizontalDivider(color=MaterialTheme.colorScheme.outlineVariant, modifier=Modifier.padding(start=50.dp))
-          }
-         }
-        }
-        Spacer(Modifier.height(16.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.SpaceBetween, verticalAlignment=Alignment.CenterVertically) {
-         Text("Recent bills", style=MaterialTheme.typography.titleMedium)
-         TextButton(onClick={ section="Bills" }) { Text("View all") }
-        }
-        if(allInvoices.isEmpty()) EmptyState(Icons.Rounded.Receipt, "No bills yet", "Create your first bill to start tracking sales and payments.")
-        else Card(Modifier.fillMaxWidth(), shape=androidx.compose.foundation.shape.RoundedCornerShape(18.dp), colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface), border=BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
-         Column {
-          allInvoices.take(4).forEachIndexed { i, invoice ->
-           Row(Modifier.fillMaxWidth().clickable { section="Bills" }.padding(horizontal=14.dp, vertical=11.dp), verticalAlignment=Alignment.CenterVertically, horizontalArrangement=Arrangement.spacedBy(12.dp)) {
-            Column(Modifier.weight(1f)) {
-             Text(invoice.customerName, style=MaterialTheme.typography.titleSmall, maxLines=1)
-             Text(invoice.number + "  ·  " + java.text.SimpleDateFormat("dd MMM yyyy", java.util.Locale.getDefault()).format(java.util.Date(invoice.createdAt)), style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSurfaceVariant, maxLines=1)
-            }
-            Column(horizontalAlignment=Alignment.End, verticalArrangement=Arrangement.spacedBy(4.dp)) {
-             Text(formatRupees(invoice.totalPaise), style=MaterialTheme.typography.titleSmall)
-             PaymentBadge(invoice.duePaise, invoice.paidPaise)
+
+         Column(verticalArrangement=Arrangement.spacedBy(10.dp)) {
+          Row(horizontalArrangement=Arrangement.spacedBy(10.dp)) {
+           Card(
+            Modifier.weight(1f).clickable { if(canAccess("Bills")) section="Bills" },
+            shape=RoundedCornerShape(20.dp), colors=CardDefaults.cardColors(containerColor=Color(0xFFEAF5FF)),
+            border=BorderStroke(1.dp, Color(0xFFD5E9FF))
+           ) {
+            Row(Modifier.fillMaxWidth().padding(13.dp), verticalAlignment=Alignment.CenterVertically, horizontalArrangement=Arrangement.spacedBy(10.dp)) {
+             Surface(shape=RoundedCornerShape(50), color=Color(0xFF1685F8), modifier=Modifier.size(48.dp)) {
+              Box(contentAlignment=Alignment.Center) { Icon(Icons.Rounded.ShoppingCart, null, tint=Color.White, modifier=Modifier.size(25.dp)) }
+             }
+             Column(Modifier.weight(1f)) {
+              Text(formatRupees(todaySales), style=MaterialTheme.typography.titleLarge, color=Color(0xFF101B3D), maxLines=1)
+              Text("Today's Sales", style=MaterialTheme.typography.bodySmall, color=Color(0xFF40516D))
+             }
             }
            }
-           if(i<minOf(allInvoices.size,4)-1) HorizontalDivider(color=MaterialTheme.colorScheme.outlineVariant)
+           Card(
+            Modifier.weight(1f).clickable { if(canAccess("Customers")) section="Customers" },
+            shape=RoundedCornerShape(20.dp), colors=CardDefaults.cardColors(containerColor=Color(0xFFF4EEFF)),
+            border=BorderStroke(1.dp, Color(0xFFE6D9FF))
+           ) {
+            Row(Modifier.fillMaxWidth().padding(13.dp), verticalAlignment=Alignment.CenterVertically, horizontalArrangement=Arrangement.spacedBy(10.dp)) {
+             Surface(shape=RoundedCornerShape(50), color=Color(0xFF6635D8), modifier=Modifier.size(48.dp)) {
+              Box(contentAlignment=Alignment.Center) { Icon(Icons.Rounded.People, null, tint=Color.White, modifier=Modifier.size(25.dp)) }
+             }
+             Column(Modifier.weight(1f)) {
+              Text(customers.size.toString(), style=MaterialTheme.typography.titleLarge, color=Color(0xFF101B3D))
+              Text("Customers", style=MaterialTheme.typography.bodySmall, color=Color(0xFF40516D))
+             }
+            }
+           }
+          }
+          Row(horizontalArrangement=Arrangement.spacedBy(10.dp)) {
+           Card(
+            Modifier.weight(1f).clickable { if(canAccess("Products")) section="Products" },
+            shape=RoundedCornerShape(20.dp), colors=CardDefaults.cardColors(containerColor=Color(0xFFECFAF3)),
+            border=BorderStroke(1.dp, Color(0xFFD4F1E2))
+           ) {
+            Row(Modifier.fillMaxWidth().padding(13.dp), verticalAlignment=Alignment.CenterVertically, horizontalArrangement=Arrangement.spacedBy(10.dp)) {
+             Surface(shape=RoundedCornerShape(50), color=Color(0xFF08A95B), modifier=Modifier.size(48.dp)) {
+              Box(contentAlignment=Alignment.Center) { Icon(Icons.Rounded.Inventory2, null, tint=Color.White, modifier=Modifier.size(25.dp)) }
+             }
+             Column(Modifier.weight(1f)) {
+              Text(stockUnits.toString(), style=MaterialTheme.typography.titleLarge, color=Color(0xFF101B3D))
+              Text("Products in Stock", style=MaterialTheme.typography.bodySmall, color=Color(0xFF40516D), maxLines=2)
+             }
+            }
+           }
+           Card(
+            Modifier.weight(1f).clickable { if(canAccess("Products")) section="Products" },
+            shape=RoundedCornerShape(20.dp), colors=CardDefaults.cardColors(containerColor=Color(0xFFFFF4E9)),
+            border=BorderStroke(1.dp, Color(0xFFFFE5CE))
+           ) {
+            Row(Modifier.fillMaxWidth().padding(13.dp), verticalAlignment=Alignment.CenterVertically, horizontalArrangement=Arrangement.spacedBy(10.dp)) {
+             Surface(shape=RoundedCornerShape(50), color=Color(0xFFFF9700), modifier=Modifier.size(48.dp)) {
+              Box(contentAlignment=Alignment.Center) { Icon(Icons.Rounded.Warning, null, tint=Color.White, modifier=Modifier.size(25.dp)) }
+             }
+             Column(Modifier.weight(1f)) {
+              Text(lowStock.size.toString(), style=MaterialTheme.typography.titleLarge, color=Color(0xFF101B3D))
+              Text("Low Stock Items", style=MaterialTheme.typography.bodySmall, color=Color(0xFF40516D), maxLines=2)
+             }
+            }
+           }
           }
          }
+
+         Card(
+          Modifier.fillMaxWidth(), shape=RoundedCornerShape(22.dp),
+          colors=CardDefaults.cardColors(containerColor=Color(0xFFF5F8FF)),
+          border=BorderStroke(1.dp, Color(0xFFE1EAFE))
+         ) {
+          Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement=Arrangement.spacedBy(10.dp)) {
+           Row(Modifier.fillMaxWidth(), verticalAlignment=Alignment.CenterVertically, horizontalArrangement=Arrangement.SpaceBetween) {
+            Row(verticalAlignment=Alignment.CenterVertically, horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+             Icon(Icons.Rounded.Bolt, contentDescription=null, tint=dashboardBlue, modifier=Modifier.size(25.dp))
+             Text("Quick Actions", style=MaterialTheme.typography.titleLarge, color=Color(0xFF101B3D))
+            }
+            Text("Shortcuts", style=MaterialTheme.typography.labelMedium, color=dashboardBlue)
+           }
+           dashboardActions.chunked(3).forEach { actionRow ->
+            Row(horizontalArrangement=Arrangement.spacedBy(9.dp)) {
+             actionRow.forEach { action ->
+              Card(
+               Modifier.weight(1f).height(94.dp).clickable {
+                if(action.third=="Customers") selectedCustomerId=null
+                if(action.third=="Products") selectedProductId=null
+                section=action.third
+               },
+               shape=RoundedCornerShape(17.dp), colors=CardDefaults.cardColors(containerColor=Color.White),
+               border=BorderStroke(1.dp, Color(0xFFDCE8FF))
+              ) {
+               Column(Modifier.fillMaxSize().padding(7.dp), horizontalAlignment=Alignment.CenterHorizontally, verticalArrangement=Arrangement.Center) {
+                Surface(shape=RoundedCornerShape(15.dp), color=when(action.third) {
+                 "New Bill" -> Color(0xFF1677F2); "Customers" -> Color(0xFF0BA85B); "Products" -> Color(0xFF673DE6)
+                 "Bills" -> Color(0xFF08AEB4); "Reports" -> Color(0xFFFF9800); else -> Color(0xFF53627E)
+                }, modifier=Modifier.size(42.dp)) {
+                 Box(contentAlignment=Alignment.Center) { Icon(action.second, contentDescription=null, tint=Color.White, modifier=Modifier.size(23.dp)) }
+                }
+                Spacer(Modifier.height(6.dp))
+                Text(action.first, style=MaterialTheme.typography.labelLarge, color=Color(0xFF101B3D), maxLines=1)
+               }
+              }
+             }
+             repeat(3-actionRow.size) { Spacer(Modifier.weight(1f)) }
+            }
+           }
+          }
+         }
+
+         Card(
+          Modifier.fillMaxWidth(), shape=RoundedCornerShape(22.dp),
+          colors=CardDefaults.cardColors(containerColor=Color.White),
+          border=BorderStroke(1.dp, Color(0xFFE1EAFE))
+         ) {
+          Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement=Arrangement.spacedBy(10.dp)) {
+           Row(Modifier.fillMaxWidth(), verticalAlignment=Alignment.CenterVertically, horizontalArrangement=Arrangement.SpaceBetween) {
+            Row(verticalAlignment=Alignment.CenterVertically, horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+             Icon(Icons.Rounded.TrendingUp, contentDescription=null, tint=dashboardBlue, modifier=Modifier.size(25.dp))
+             Text("Sales Overview", style=MaterialTheme.typography.titleLarge, color=Color(0xFF101B3D))
+            }
+            Surface(shape=RoundedCornerShape(50), color=Color(0xFFF0F5FF), border=BorderStroke(1.dp, Color(0xFFD7E4FF))) {
+             Text("Last 7 Days", modifier=Modifier.padding(horizontal=12.dp, vertical=7.dp), style=MaterialTheme.typography.labelMedium, color=dashboardNavy)
+            }
+           }
+           Canvas(Modifier.fillMaxWidth().height(142.dp)) {
+            val left=8f; val right=size.width-8f; val top=8f; val bottom=size.height-8f
+            for (line in 0..3) {
+             val y=top+(bottom-top)*line/3f
+             drawLine(Color(0xFFE8EEF8), Offset(left,y), Offset(right,y), strokeWidth=1.dp.toPx())
+            }
+            val points=weekData.mapIndexed { index, item ->
+             val x=left+(right-left)*index/6f
+             val y=bottom-((item.second.toFloat()/maxWeekSales.toFloat())*(bottom-top)*0.82f)
+             Offset(x,y)
+            }
+            if(points.isNotEmpty()) {
+             val fillPath=androidx.compose.ui.graphics.Path().apply {
+              moveTo(points.first().x,bottom); points.forEach { lineTo(it.x,it.y) }; lineTo(points.last().x,bottom); close()
+             }
+             drawPath(fillPath, Color(0xFF2C8CF0).copy(alpha=0.13f))
+             for(index in 0 until points.lastIndex) drawLine(dashboardBlue,points[index],points[index+1],strokeWidth=3.dp.toPx())
+             points.forEach { drawCircle(dashboardBlue, radius=4.dp.toPx(), center=it) }
+            }
+           }
+           Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.SpaceBetween) {
+            weekData.forEach { item ->
+             Text(item.first, style=MaterialTheme.typography.labelSmall, color=Color(0xFF53627E))
+            }
+           }
+           Text("Sales from recorded bills", style=MaterialTheme.typography.labelSmall, color=Color(0xFF7A879B))
+          }
+         }
+         Spacer(Modifier.height(8.dp))
         }
-        Spacer(Modifier.height(24.dp))
        }
        "Customers" -> {
         ScreenHeader(if(selectedCustomerId==null) "Customers" else "Edit customer", "Contact details and age for better service")
