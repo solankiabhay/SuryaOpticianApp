@@ -296,13 +296,13 @@ class MainActivity : ComponentActivity() {
     var reportType by remember { mutableStateOf("Collection") }
     var selectedCustomerId by remember { mutableStateOf<Long?>(null) }
     LaunchedEffect(selectedCustomerId) { if (selectedCustomerId != null) mainScroll.animateScrollTo(0) }
-    LaunchedEffect(selectedProductId) { if (selectedProductId != null) mainScroll.animateScrollTo(0) }
     var customerName by remember { mutableStateOf("") }
     var customerPhone by remember { mutableStateOf("") }
     var customerAddress by remember { mutableStateOf("") }
     var customerEmail by remember { mutableStateOf("") }
     var customerAge by remember { mutableStateOf("") }
     var selectedProductId by remember { mutableStateOf<Long?>(null) }
+    LaunchedEffect(selectedProductId) { if (selectedProductId != null) mainScroll.animateScrollTo(0) }
     var productName by remember { mutableStateOf("") }
     var productSku by remember { mutableStateOf("") }
     var productPrice by remember { mutableStateOf("") }
