@@ -296,6 +296,7 @@ class MainActivity : ComponentActivity() {
     var reportType by remember { mutableStateOf("Collection") }
     var selectedCustomerId by remember { mutableStateOf<Long?>(null) }
     LaunchedEffect(selectedCustomerId) { if (selectedCustomerId != null) mainScroll.animateScrollTo(0) }
+    LaunchedEffect(selectedProductId) { if (selectedProductId != null) mainScroll.animateScrollTo(0) }
     var customerName by remember { mutableStateOf("") }
     var customerPhone by remember { mutableStateOf("") }
     var customerAddress by remember { mutableStateOf("") }
@@ -853,7 +854,7 @@ class MainActivity : ComponentActivity() {
            }
           }
           Row(horizontalArrangement=Arrangement.End, modifier=Modifier.fillMaxWidth()) {
-           if(canManageRecords()) TextButton(onClick={ selectedProductId=product.id; productName=product.name; productSku=product.sku; productPrice="%.2f".format(product.pricePaise/100.0); productCost="%.2f".format(product.costPaise/100.0); productCategory=product.category; productStock=product.stock.toString(); productLowStock=product.lowStock.toString(); lifecycleScope.launch { mainScroll.animateScrollTo(0) } }) { Icon(Icons.Rounded.Edit, contentDescription=null, modifier=Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("Edit") }
+           if(canManageRecords()) TextButton(onClick={ selectedProductId=product.id; productName=product.name; productSku=product.sku; productPrice="%.2f".format(product.pricePaise/100.0); productCost="%.2f".format(product.costPaise/100.0); productCategory=product.category; productStock=product.stock.toString(); productLowStock=product.lowStock.toString(); Unit }) { Icon(Icons.Rounded.Edit, contentDescription=null, modifier=Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("Edit") }
            if(canDeleteRecords()) TextButton(onClick={ if(!canDeleteRecords()) denyPermission("delete products") else lifecycleScope.launch {
             if(db.dao().productInvoiceItemCount(product.id)>0) toast("Cannot delete: product appears on invoice history")
             else runCatching { db.dao().deleteProduct(product) }.onSuccess { toast("Product deleted") }.onFailure { toast("Could not delete product") }
