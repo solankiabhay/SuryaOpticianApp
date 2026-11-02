@@ -652,7 +652,7 @@ class MainActivity : ComponentActivity() {
         val dashboardBlue = Color(0xFF0866D9)
         val dashboardNavy = Color(0xFF123A63)
         val dashboardActions = listOf(
-         Triple("New Bill", Icons.Rounded.Add, "New Bill"),
+         Triple("Add New Bill", Icons.Rounded.Add, "New Bill"),
          Triple("Add Customer", Icons.Rounded.PersonAdd, "Customers"),
          Triple("Add Product", Icons.Rounded.Inventory2, "Products"),
          Triple("View Bills", Icons.Rounded.Receipt, "Bills"),
