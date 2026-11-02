@@ -274,6 +274,7 @@ class MainActivity : ComponentActivity() {
     var confirmPin by remember { mutableStateOf("") }
     var section by remember { mutableStateOf("Dashboard") }
     val mainScroll = rememberScrollState()
+     LaunchedEffect(editingStaffUsername) { if (editingStaffUsername != null) mainScroll.animateScrollTo(0) }
     LaunchedEffect(section) { mainScroll.scrollTo(0) }
     var showMoreMenu by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
@@ -302,6 +303,7 @@ class MainActivity : ComponentActivity() {
     var customerEmail by remember { mutableStateOf("") }
     var customerAge by remember { mutableStateOf("") }
     var selectedProductId by remember { mutableStateOf<Long?>(null) }
+    LaunchedEffect(selectedProductId) { if (selectedProductId != null) mainScroll.animateScrollTo(0) }
     var productName by remember { mutableStateOf("") }
     var productSku by remember { mutableStateOf("") }
     var productPrice by remember { mutableStateOf("") }
@@ -987,7 +989,7 @@ class MainActivity : ComponentActivity() {
            }
           }
           Row(horizontalArrangement=Arrangement.End, modifier=Modifier.fillMaxWidth()) {
-           if(canManageRecords()) TextButton(onClick={ selectedProductId=product.id; productName=product.name; productSku=product.sku; productPrice="%.2f".format(product.pricePaise/100.0); productCost="%.2f".format(product.costPaise/100.0); productCategory=product.category; productStock=product.stock.toString(); productLowStock=product.lowStock.toString(); lifecycleScope.launch { mainScroll.animateScrollTo(0) } }) { Icon(Icons.Rounded.Edit, contentDescription=null, modifier=Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("Edit") }
+           if(canManageRecords()) TextButton(onClick={ selectedProductId=product.id; productName=product.name; productSku=product.sku; productPrice="%.2f".format(product.pricePaise/100.0); productCost="%.2f".format(product.costPaise/100.0); productCategory=product.category; productStock=product.stock.toString(); productLowStock=product.lowStock.toString(); productTouched=false }) { Icon(Icons.Rounded.Edit, contentDescription=null, modifier=Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("Edit") }
            if(canDeleteRecords()) TextButton(onClick={ if(!canDeleteRecords()) denyPermission("delete products") else lifecycleScope.launch {
             if(db.dao().productInvoiceItemCount(product.id)>0) toast("Cannot delete: product appears on invoice history")
             else runCatching { db.dao().deleteProduct(product) }.onSuccess { toast("Product deleted") }.onFailure { toast("Could not delete product") }
@@ -1630,7 +1632,7 @@ class MainActivity : ComponentActivity() {
            Column(Modifier.weight(1f)) { Text(user.username, style=MaterialTheme.typography.titleMedium) }
            StatusPill(user.role.uppercase(), MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.primary)
            if(isOwner() && user.role!="Owner" && user.username!=loggedInUser?.username) {
-            IconButton(onClick={ newStaffName=user.username;newStaffRole=user.role;newStaffPassword="";editingStaffUsername=user.username;lifecycleScope.launch { mainScroll.animateScrollTo(0) } }) { Icon(Icons.Rounded.Edit, contentDescription="Edit account", tint=MaterialTheme.colorScheme.primary) }
+            IconButton(onClick={ newStaffName=user.username;newStaffRole=user.role;newStaffPassword="";editingStaffUsername=user.username }) { Icon(Icons.Rounded.Edit, contentDescription="Edit account", tint=MaterialTheme.colorScheme.primary) }
             IconButton(onClick={ if(isOwner()) { accountStore.remove(user.username);accountVersion++;toast("Account removed") } else denyPermission("manage user accounts") }) { Icon(Icons.Rounded.Delete, contentDescription="Remove account", tint=MaterialTheme.colorScheme.error) }
            }
           }
