@@ -783,7 +783,7 @@ class MainActivity : ComponentActivity() {
                  Box(contentAlignment=Alignment.Center) { Icon(action.second, contentDescription=null, tint=Color.White, modifier=Modifier.size(23.dp)) }
                 }
                 Spacer(Modifier.height(6.dp))
-                Text(action.first, style=MaterialTheme.typography.labelLarge, color=Color(0xFF101B3D), maxLines=1)
+                Text(action.first, style=MaterialTheme.typography.labelLarge, color=Color(0xFF101B3D), textAlign=TextAlign.Center, maxLines=2)
                }
               }
              }
