@@ -33,6 +33,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.Alignment
@@ -653,7 +654,7 @@ class MainActivity : ComponentActivity() {
         val dashboardNavy = Color(0xFF123A63)
         val dashboardActions = listOf(
          Triple("Add New Bill", Icons.Rounded.Add, "New Bill"),
-         Triple("Add Customer", Icons.Rounded.PersonAdd, "Customers"),
+         Triple("Customer", Icons.Rounded.PersonAdd, "Customers"),
          Triple("Add Product", Icons.Rounded.Inventory2, "Products"),
          Triple("View Bills", Icons.Rounded.Receipt, "Bills"),
          Triple("Reports", Icons.Rounded.BarChart, "Reports"),
@@ -783,7 +784,7 @@ class MainActivity : ComponentActivity() {
                  Box(contentAlignment=Alignment.Center) { Icon(action.second, contentDescription=null, tint=Color.White, modifier=Modifier.size(23.dp)) }
                 }
                 Spacer(Modifier.height(6.dp))
-                Text(action.first, style=MaterialTheme.typography.labelLarge, color=Color(0xFF101B3D), maxLines=1)
+                Text(action.first, style=MaterialTheme.typography.labelLarge, color=Color(0xFF101B3D), textAlign=TextAlign.Center, maxLines=2)
                }
               }
              }
